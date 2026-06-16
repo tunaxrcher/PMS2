@@ -1,0 +1,1559 @@
+# Serene PMS — Luxury Ambient Glassmorphism Hotel / Resort PMS UI
+
+This file defines the complete visual style for Serene PMS.
+
+Requirement.txt defines what the system must do.
+Style.txt defines how the UI must look, feel, and behave visually.
+
+All developers and AI coding tools must read and follow this file before creating or editing any UI.
+
+---
+
+# 1. Main Visual Target
+
+The UI must look like a premium luxury resort / hotel PMS dashboard with warm ambient glassmorphism.
+
+The visual direction is:
+
+* Luxury Ambient Glassmorphism
+* Warm Cinematic Glass UI
+* Frosted Glass Dashboard
+* Premium Hotel PMS Dashboard
+* Luxury Resort Control Center
+* Operational SaaS Dashboard with premium glass styling
+* Adobe-style app navigation with better PMS usability
+
+The UI should feel:
+
+* Premium
+* Warm
+* Elegant
+* Calm
+* Spacious
+* Professional
+* Modern
+* Resort-like
+* Easy to scan
+* Suitable for daily hotel / resort operations
+
+Final visual target:
+
+```txt
+A usable luxury hotel PMS dashboard with a warm blurred resort background, Adobe-style expanded glass sidebar, glass topbar, and readable frosted-glass panels.
+```
+
+This is a business application, not a decorative landing page.
+Readability and operational usability are more important than visual effects.
+
+---
+
+# 2. What This UI Must Not Look Like
+
+Do not make the UI look like:
+
+* Generic dark admin dashboard
+* Generic light admin dashboard
+* Old Bootstrap admin template
+* Cheap ERP software
+* Plain SaaS template
+* Flat navy dashboard
+* Flat black dashboard
+* Neon cyberpunk interface
+* Gaming RGB interface
+* Overly colorful landing page
+* Decorative concept UI that is hard to use
+* Boring table-only back office system
+* A stack of large pill buttons in the sidebar
+* Icon-only sidebar on desktop by default
+
+Important:
+
+If the result only looks like a normal dark dashboard, it is not good enough.
+
+The goal is not just “dark mode”.
+The goal is:
+
+```txt
+Luxury glass PMS dashboard + strong operational UX
+```
+
+---
+
+# 3. UX Direction
+
+Serene PMS is an operational system used by hotel / resort staff every day.
+
+Therefore:
+
+* Navigation must be easy to understand
+* Desktop menu must show both icons and labels
+* Sidebar must be readable for new staff
+* Dense pages must remain readable
+* Room Grid, Booking, Payments, and Reports need wide usable space
+* Glass effects must not hurt readability
+* Background must support the UI, not dominate it
+
+Preferred UX direction:
+
+```txt
+Adobe-style expanded sidebar usability
++
+Luxury resort glass visual mood
++
+Readable PMS operation layout
+```
+
+Do not use an icon-only sidebar as the default desktop layout.
+
+Icon-only sidebar is allowed only for:
+
+* Collapsed mode
+* Mobile / tablet compact mode
+* Optional user preference
+
+Default desktop sidebar must be expanded with icon + label.
+
+---
+
+# 4. Visual Reference Direction
+
+Use this kind of visual direction:
+
+* Luxury hotel lounge
+* Premium resort lobby
+* Warm interior lighting
+* Soft bokeh
+* Frosted glass panels
+* Expanded glass sidebar
+* Thin bright glass borders
+* Warm amber / orange highlights
+* Dark cinematic background
+* Elegant control center
+* High-end SaaS readability
+* Adobe Creative Cloud-like sidebar structure
+
+Reference keywords:
+
+* Luxury Ambient Glassmorphism
+* Warm Frosted Glass UI
+* Cinematic Glass Dashboard
+* Editorial Glass UI
+* Premium Finance Dashboard style
+* Resort Lounge Glass Dashboard
+* Adobe-style sidebar UX
+* Premium Hotel PMS Control Center
+
+---
+
+# 5. Most Important Glass Rule
+
+Glassmorphism only works if there is something behind the glass.
+
+The app must have:
+
+* A real background image or strong visual background layer
+* Warm ambient glow
+* Depth behind the panels
+* Translucent panels
+* Backdrop blur
+* Thin highlighted borders
+
+Do not use a flat black or flat navy background.
+
+If there is no background scene, the glass effect will not look real.
+
+---
+
+# 6. Background Requirement
+
+The app must use a full-screen luxury background.
+
+Preferred background:
+
+* Luxury resort lounge
+* Hotel lobby
+* Warm interior
+* Spa / villa / lounge mood
+* Night resort ambience
+* Soft lamps
+* Warm bokeh
+* Elegant interior lighting
+
+Recommended file path:
+
+```txt
+/public/images/resort-lounge-bg.jpg
+```
+
+The background must be:
+
+* Full screen
+* Cover
+* Centered
+* Slightly blurred or softened
+* Darkened with overlay
+* Enhanced with warm glow
+* Enhanced with vignette
+
+The background must be visible subtly behind the glass panels.
+
+Do not:
+
+* Use flat black only
+* Use flat navy only
+* Use plain gradient only if an image is available
+* Use sharp busy photo behind text
+* Use a noisy image that hurts readability
+* Let the background overpower the PMS data
+
+Background must support the interface, not compete with it.
+
+---
+
+# 7. App Background Component
+
+Create a reusable component:
+
+```txt
+components/layout/app-background.tsx
+```
+
+The AppBackground component must provide:
+
+* Full-screen luxury image background
+* Dark overlay
+* Warm amber/orange glow
+* Optional subtle cyan/blue secondary glow
+* Vignette
+* Content layer above background
+
+Recommended implementation direction:
+
+```tsx
+export function AppBackground({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="relative min-h-screen overflow-hidden bg-[#120d09] text-stone-100">
+      {/* Luxury background image */}
+      <div
+        className="absolute inset-0 scale-105 bg-cover bg-center opacity-65 blur-[1px]"
+        style={{
+          backgroundImage: "url('/images/resort-lounge-bg.jpg')",
+        }}
+      />
+
+      {/* Dark overlay for readability */}
+      <div className="absolute inset-0 bg-black/60" />
+
+      {/* Warm ambient glow */}
+      <div className="pointer-events-none absolute left-1/2 top-10 h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-amber-300/18 blur-3xl" />
+      <div className="pointer-events-none absolute bottom-10 right-10 h-[360px] w-[360px] rounded-full bg-orange-500/18 blur-3xl" />
+      <div className="pointer-events-none absolute bottom-0 left-10 h-[300px] w-[300px] rounded-full bg-cyan-400/8 blur-3xl" />
+
+      {/* Vignette */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.45)_72%,rgba(0,0,0,0.85)_100%)]" />
+
+      {/* Content */}
+      <div className="relative z-10">{children}</div>
+    </div>
+  )
+}
+```
+
+If the background image does not exist yet, create the component anyway and leave the image path ready.
+
+---
+
+# 8. Overall Layout
+
+The app should feel like a real operational PMS, not a decorative concept mockup.
+
+Default desktop layout:
+
+```txt
+Full-screen luxury background
+  ↓
+Expanded glass sidebar on the left
+  ↓
+Glass topbar on top
+  ↓
+Main content area using full available width
+  ↓
+Glass cards / tables / room grid / forms
+```
+
+The main content should use available width well.
+
+Do not make the dashboard too narrow in the center.
+
+Recommended main content width:
+
+```txt
+max-w-[1440px] or full available width with padding
+```
+
+Main content should have:
+
+```txt
+px-6 or px-8
+py-6
+space-y-6
+```
+
+Avoid:
+
+* Edge-to-edge content with no breathing room
+* Overly narrow floating mockup layout
+* Background image taking more attention than data
+* Icon-only sidebar on desktop
+
+---
+
+# 9. Desktop Sidebar UX
+
+Default desktop sidebar must be expanded and readable.
+
+Sidebar should have:
+
+* Width around 240px to 280px
+* Logo / PMS name
+* Property / resort name
+* Icon + text labels
+* Section labels
+* Clear active state
+* Comfortable vertical spacing
+* User role / admin status at bottom
+* Glass background
+* Good readability
+
+Recommended sidebar width:
+
+```txt
+w-64 or w-[260px]
+```
+
+Sidebar visual style:
+
+```txt
+border-r border-white/10
+bg-black/30
+backdrop-blur-2xl
+shadow-[0_20px_80px_rgba(0,0,0,0.35)]
+```
+
+Alternative softer style:
+
+```txt
+rounded-3xl
+border border-white/15
+bg-black/25
+backdrop-blur-2xl
+shadow-[0_20px_80px_rgba(0,0,0,0.40)]
+```
+
+Sidebar should not be a flat solid black rectangle.
+
+---
+
+# 10. Sidebar Structure
+
+The sidebar should follow Adobe-style navigation structure.
+
+It must look like:
+
+```txt
+Logo / PMS name
+Property name
+
+MAIN
+  ภาพรวม
+  ปฏิทินห้องพัก
+  การจอง
+  ลูกค้า
+
+OPERATIONS
+  แม่บ้าน
+  แจ้งซ่อม
+  บิล & ชำระเงิน
+
+INSIGHTS
+  รายงาน
+  ตั้งค่า
+
+Bottom user area
+```
+
+Use section labels.
+
+Section label style:
+
+```txt
+text-xs uppercase tracking-wide text-stone-500
+px-3
+mt-6
+mb-2
+```
+
+Do not show all menu items as separate bordered pill buttons.
+
+The sidebar is one continuous navigation panel.
+Only the active item should have a visible background.
+
+---
+
+# 11. Sidebar Navigation Items
+
+Main navigation:
+
+```txt
+Dashboard / ภาพรวม
+Room Grid / ปฏิทินห้องพัก
+Bookings / การจอง
+Guests / ลูกค้า
+Housekeeping / แม่บ้าน
+Maintenance / แจ้งซ่อม
+Folios & Payments / บิล & ชำระเงิน
+Reports / รายงาน
+Settings / ตั้งค่า
+```
+
+Each nav item should include:
+
+* Lucide icon
+* Text label
+* Optional badge/count
+* Active state
+* Hover state
+
+Nav item base style:
+
+```txt
+flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition
+```
+
+Inactive nav item:
+
+```txt
+text-stone-400 hover:bg-white/[0.06] hover:text-stone-100
+```
+
+Active nav item:
+
+```txt
+bg-amber-400/15 text-amber-100 border border-amber-300/20 shadow-sm shadow-amber-950/20
+```
+
+Alternative active state with left accent:
+
+```txt
+relative bg-white/[0.08] text-stone-50 before:absolute before:left-0 before:top-2 before:bottom-2 before:w-1 before:rounded-full before:bg-amber-300
+```
+
+Do not:
+
+* Put borders around every nav item
+* Make every menu item look like a button
+* Use large pill buttons for all items
+* Use icon-only sidebar as default desktop layout
+* Make active item too bright
+* Use unclear icons without labels
+* Make menu items cramped
+* Use random active colors
+
+---
+
+# 12. Collapsed Sidebar Mode
+
+Collapsed sidebar is allowed only as an optional mode.
+
+Collapsed sidebar may use:
+
+* Width around 72px to 88px
+* Icons only
+* Tooltip on hover
+* Same active state color
+* Same glass surface
+
+Collapsed mode must not be the default desktop layout.
+
+Use collapsed mode only when:
+
+* User manually collapses sidebar
+* Screen width is limited
+* Tablet layout requires it
+
+---
+
+# 13. Topbar Style
+
+Topbar should be glass and functional.
+
+It should include:
+
+* Current date
+* Property selector or property name
+* Search input
+* Notifications
+* User menu
+
+Topbar visual style:
+
+```txt
+rounded-3xl
+border border-white/10
+bg-black/25
+backdrop-blur-xl
+shadow-[0_16px_60px_rgba(0,0,0,0.30)]
+```
+
+For full-width header inside main layout:
+
+```txt
+border-b border-white/10
+bg-black/20
+backdrop-blur-xl
+```
+
+Topbar should not be a solid black rectangle.
+
+Search input should be prominent but not too bright.
+
+---
+
+# 14. Glassmorphism Rules
+
+All major surfaces should feel like frosted glass.
+
+A proper glass panel must have:
+
+* Transparency
+* Backdrop blur
+* Thin bright border
+* Soft shadow
+* Depth from background
+* Readable text
+
+Main glass panel style:
+
+```txt
+rounded-[28px]
+border border-white/15
+bg-black/30
+backdrop-blur-2xl
+shadow-[0_24px_80px_rgba(0,0,0,0.45)]
+```
+
+Normal glass card style:
+
+```txt
+rounded-2xl
+border border-white/15
+bg-white/[0.08]
+backdrop-blur-xl
+shadow-[0_18px_50px_rgba(0,0,0,0.30)]
+```
+
+Subtle inner panel:
+
+```txt
+rounded-2xl
+border border-white/10
+bg-black/20
+backdrop-blur-xl
+```
+
+For dense operational panels, use slightly more opacity:
+
+```txt
+bg-black/35
+```
+
+Do not:
+
+* Make panels fully opaque
+* Use solid dark cards everywhere
+* Use blur without a background behind it
+* Make text low contrast
+* Overuse blur on every small element
+* Put table text on noisy transparent areas
+
+Important rule:
+
+```txt
+Glass is for major surfaces.
+Dense data must remain readable.
+```
+
+---
+
+# 15. Color System
+
+Use a warm luxury palette.
+
+Base colors:
+
+* Charcoal
+* Espresso
+* Warm black
+* Dark brown
+* Warm gray
+* Amber
+* Orange
+* Gold
+* Cream
+* Off-white
+
+Primary accent:
+
+* Amber / orange / gold
+
+Secondary accent:
+
+* Soft cyan or muted blue only when needed
+
+Text colors:
+
+* Primary: off-white / stone-50
+* Secondary: stone-300 / stone-400
+* Muted: stone-500
+* Accent: amber-300 / orange-300
+
+Suggested Tailwind direction:
+
+```txt
+bg-black/25
+bg-black/30
+bg-black/35
+bg-white/[0.06]
+bg-white/[0.08]
+bg-stone-950/40
+border-white/10
+border-white/15
+border-white/20
+text-stone-50
+text-stone-300
+text-stone-400
+text-amber-300
+bg-amber-400/20
+border-amber-300/30
+```
+
+Avoid:
+
+* Too much blue/cyan
+* Neon colors
+* Random gradients
+* Harsh red/green
+* Flat navy admin theme
+* Very low contrast brown-on-brown text
+
+---
+
+# 16. Status Colors
+
+Status colors should remain operational and readable.
+
+Use soft tinted badges.
+
+Status mapping:
+
+```txt
+Available / Clean       = emerald
+Occupied                = rose
+Confirmed Booking       = sky / blue
+Dirty / Cleaning        = amber
+Out of Order            = stone / gray
+Due Out                 = orange
+Cancelled               = stone or rose
+No Show                 = rose
+Paid                    = emerald
+Pending Payment         = amber
+Refunded                = violet or stone
+Maintenance             = orange
+```
+
+Badge examples:
+
+Clean:
+
+```txt
+bg-emerald-400/15 text-emerald-200 border border-emerald-300/20
+```
+
+Occupied:
+
+```txt
+bg-rose-400/15 text-rose-200 border border-rose-300/20
+```
+
+Confirmed:
+
+```txt
+bg-sky-400/15 text-sky-200 border border-sky-300/20
+```
+
+Dirty:
+
+```txt
+bg-amber-400/15 text-amber-200 border border-amber-300/20
+```
+
+Out of Order:
+
+```txt
+bg-stone-400/15 text-stone-300 border border-stone-300/20
+```
+
+Paid:
+
+```txt
+bg-emerald-400/15 text-emerald-200 border border-emerald-300/20
+```
+
+Pending:
+
+```txt
+bg-amber-400/15 text-amber-200 border border-amber-300/20
+```
+
+Do not define status colors separately in each page.
+
+Create a reusable StatusBadge component.
+
+---
+
+# 17. Typography
+
+Typography should feel elegant and premium while staying readable.
+
+Rules:
+
+* Page title should be clear and elegant
+* KPI values should be large and readable
+* Small text must not be too dim
+* Avoid too many font sizes
+* Avoid bolding everything
+* Use enough contrast on glass
+
+Suggested style:
+
+Page title:
+
+```txt
+text-3xl font-semibold text-stone-50 tracking-tight
+```
+
+Large greeting / hero title:
+
+```txt
+text-4xl font-semibold text-stone-50 tracking-tight
+```
+
+Subtitle:
+
+```txt
+text-sm text-stone-400
+```
+
+Section title:
+
+```txt
+text-lg font-semibold text-stone-100
+```
+
+Card label:
+
+```txt
+text-sm font-medium text-stone-300
+```
+
+Card value:
+
+```txt
+text-3xl font-semibold text-stone-50
+```
+
+Table text:
+
+```txt
+text-sm text-stone-200
+```
+
+Muted text:
+
+```txt
+text-sm text-stone-400
+```
+
+Do not use weak gray text on a dark transparent background.
+
+---
+
+# 18. Spacing and Radius
+
+The UI should feel spacious and premium.
+
+Use:
+
+* p-5 or p-6 for cards
+* p-6 or p-8 for page sections
+* gap-4 or gap-6
+* space-y-6
+* rounded-2xl for cards
+* rounded-3xl for large panels
+* rounded-[28px] or rounded-[32px] for major containers
+* rounded-full for search and small pill controls
+
+Avoid:
+
+* Cramped spacing
+* Tiny buttons
+* Tables touching panel edges
+* Inconsistent border radius
+* Too many nested borders
+
+---
+
+# 19. Dashboard Cards
+
+Dashboard cards should be readable floating glass blocks.
+
+Each card should include:
+
+* Label
+* Main value
+* Supporting text
+* Optional icon
+* Optional trend
+
+Card style:
+
+```txt
+rounded-2xl
+border border-white/15
+bg-white/[0.08]
+p-5
+backdrop-blur-xl
+shadow-[0_18px_50px_rgba(0,0,0,0.30)]
+```
+
+Icon container:
+
+```txt
+rounded-xl
+border border-amber-300/20
+bg-amber-400/15
+text-amber-200
+```
+
+Dashboard grid:
+
+```txt
+grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4
+```
+
+Do not use flat solid cards.
+
+---
+
+# 20. Tables
+
+Tables should sit inside a glass container.
+
+The outer container can be glass, but row readability is important.
+
+Table container style:
+
+```txt
+rounded-3xl
+border border-white/15
+bg-black/30
+backdrop-blur-xl
+shadow-[0_18px_60px_rgba(0,0,0,0.35)]
+overflow-hidden
+```
+
+Table header:
+
+```txt
+bg-white/[0.04]
+text-stone-400
+```
+
+Table rows:
+
+```txt
+border-white/10
+text-stone-200
+hover:bg-white/[0.05]
+```
+
+For dense tables, row background may be slightly stronger:
+
+```txt
+bg-black/15
+```
+
+Do not:
+
+* Make every row too transparent
+* Use low contrast text
+* Place table text over noisy background
+* Use plain default HTML table style
+* Make operational tables decorative at the cost of readability
+
+---
+
+# 21. Forms and Inputs
+
+Forms should be grouped into glass sections.
+
+Form section style:
+
+```txt
+rounded-2xl
+border border-white/15
+bg-black/25
+p-6
+backdrop-blur-xl
+```
+
+Input style:
+
+```txt
+border border-white/15
+bg-black/25
+text-stone-100
+placeholder:text-stone-500
+focus:border-amber-300/40
+focus:ring-2
+focus:ring-amber-400/20
+```
+
+Search input style:
+
+```txt
+rounded-full
+border border-white/15
+bg-black/25
+px-4
+py-2
+text-stone-100
+placeholder:text-stone-500
+backdrop-blur-xl
+```
+
+Do not use plain white inputs in this theme.
+
+---
+
+# 22. Buttons
+
+Use consistent button styles.
+
+Primary button:
+
+```txt
+bg-amber-400
+text-stone-950
+hover:bg-amber-300
+shadow-lg shadow-amber-950/30
+```
+
+Secondary button:
+
+```txt
+border border-white/15
+bg-white/[0.08]
+text-stone-100
+hover:bg-white/[0.12]
+```
+
+Ghost button:
+
+```txt
+text-stone-300
+hover:text-white
+hover:bg-white/[0.08]
+```
+
+Destructive button:
+
+```txt
+bg-rose-500/80
+text-white
+hover:bg-rose-400
+```
+
+Do not create random button colors.
+
+---
+
+# 23. Room Grid Style
+
+Room Grid is the most important operational screen.
+
+It should use glass styling, but readability comes first.
+
+Room Grid should have:
+
+* Wide usable space
+* Glass outer container
+* Sticky room column
+* Sticky date header
+* Clear rows
+* Soft booking blocks
+* Clear status colors
+* Hover detail popover
+* Drag preview
+* Out of Order visual block
+
+Grid container:
+
+```txt
+rounded-[28px]
+border border-white/15
+bg-black/30
+backdrop-blur-xl
+shadow-[0_24px_80px_rgba(0,0,0,0.45)]
+overflow-hidden
+```
+
+Header cells:
+
+```txt
+bg-white/[0.05]
+text-stone-300
+border-white/10
+```
+
+Room column:
+
+```txt
+bg-black/30
+backdrop-blur-xl
+border-white/10
+```
+
+Booking block examples:
+
+Confirmed:
+
+```txt
+bg-sky-400/20 border border-sky-300/30 text-sky-50
+```
+
+Occupied:
+
+```txt
+bg-rose-400/20 border border-rose-300/30 text-rose-50
+```
+
+Cleaning:
+
+```txt
+bg-amber-400/20 border border-amber-300/30 text-amber-50
+```
+
+Out of Order:
+
+```txt
+bg-stone-500/15 border border-stone-300/20 text-stone-300
+```
+
+Do not make every grid cell heavily blurred.
+Use glass for the container and key surfaces.
+
+---
+
+# 24. Housekeeping UI
+
+Housekeeping screens should be mobile/tablet friendly.
+
+Use large glass cards.
+
+Each room card should show:
+
+* Room number
+* Zone
+* Task type
+* Current status
+* Time since checkout
+* Notes
+* Start Cleaning button
+* Mark as Clean button
+* Report Issue button
+
+Housekeeping card style:
+
+```txt
+rounded-2xl
+border border-white/15
+bg-white/[0.08]
+p-5
+backdrop-blur-xl
+```
+
+Touch buttons must be large enough.
+
+---
+
+# 25. Empty States
+
+Every empty page or empty list must have a good empty state.
+
+Empty state should include:
+
+* Lucide icon
+* Short title
+* Short description
+* Optional action button
+
+Empty state style:
+
+```txt
+rounded-3xl
+border border-dashed border-white/15
+bg-white/[0.05]
+p-8
+text-center
+backdrop-blur-xl
+```
+
+Do not leave blank empty spaces.
+
+---
+
+# 26. Loading and Skeleton
+
+Use skeleton loading instead of raw loading text.
+
+Skeleton style:
+
+```txt
+bg-white/10
+rounded-md
+animate-pulse
+```
+
+Use skeleton for:
+
+* Dashboard cards
+* Tables
+* Room Grid
+* Forms
+* Detail pages
+
+---
+
+# 27. Toast and Notifications
+
+Use Sonner or shadcn toast.
+
+Toast style:
+
+```txt
+dark glass
+border-white/15
+readable text
+warm accent
+```
+
+Examples:
+
+* Booking created successfully
+* Check-in completed
+* Payment received
+* Room moved successfully
+* Cannot move booking because room is occupied
+* Permission denied
+* Refund completed
+
+Error messages must be clear.
+
+Bad:
+
+```txt
+Error 500
+```
+
+Good:
+
+```txt
+ไม่สามารถย้าย booking ได้ เพราะห้องนี้มีผู้เข้าพักในช่วงวันที่เลือก
+```
+
+---
+
+# 28. Dialogs and Sheets
+
+Use Dialog for small confirmations.
+
+Use Sheet for create/edit workflows.
+
+Dialog style:
+
+```txt
+rounded-3xl
+border border-white/15
+bg-black/45
+backdrop-blur-2xl
+text-stone-100
+shadow-[0_24px_80px_rgba(0,0,0,0.55)]
+```
+
+Sheet style:
+
+```txt
+border-white/15
+bg-black/50
+backdrop-blur-2xl
+text-stone-100
+```
+
+Use AlertDialog for dangerous actions:
+
+* Cancel Booking
+* Void Payment
+* Refund
+* Mark No Show
+* Delete / deactivate user
+
+---
+
+# 29. Required Reusable Components
+
+Create and reuse these components:
+
+```txt
+components/layout/app-background.tsx
+components/layout/app-shell.tsx
+components/layout/app-sidebar.tsx
+components/layout/app-header.tsx
+components/layout/page-shell.tsx
+
+components/ui/glass-panel.tsx
+components/ui/glass-card.tsx
+components/ui/stat-card.tsx
+components/ui/status-badge.tsx
+components/ui/empty-state.tsx
+components/ui/search-input.tsx
+components/ui/action-menu.tsx
+```
+
+All pages must reuse these components instead of redefining random styles.
+
+---
+
+# 30. AppShell Component
+
+The AppShell should define the default desktop layout.
+
+Default desktop AppShell:
+
+```txt
+AppBackground
+  └── Sidebar width 260px
+  └── Main area
+        └── Header / Topbar
+        └── Page content
+```
+
+Desktop layout should use:
+
+```txt
+grid grid-cols-[260px_1fr]
+```
+
+or equivalent flex layout.
+
+Main area:
+
+```txt
+min-w-0
+px-6
+py-6
+```
+
+Do not make the main dashboard too narrow.
+
+---
+
+# 31. GlassPanel Component
+
+Create a reusable GlassPanel component.
+
+Default style:
+
+```txt
+rounded-2xl
+border border-white/15
+bg-white/[0.08]
+backdrop-blur-xl
+shadow-[0_18px_50px_rgba(0,0,0,0.30)]
+```
+
+Dense panel variant:
+
+```txt
+rounded-2xl
+border border-white/15
+bg-black/30
+backdrop-blur-xl
+shadow-[0_18px_50px_rgba(0,0,0,0.30)]
+```
+
+It should accept:
+
+* children
+* className
+* padding variant if needed
+* density variant if needed
+
+Use GlassPanel for:
+
+* Dashboard sections
+* Tables
+* Forms
+* Detail panels
+* Empty states
+* Reports
+
+---
+
+# 32. StatusBadge Component
+
+Create a reusable StatusBadge component.
+
+Supported statuses:
+
+```txt
+clean
+dirty
+occupied
+confirmed
+checked_in
+checked_out
+cancelled
+no_show
+out_of_order
+paid
+pending
+refunded
+maintenance
+```
+
+Each status must map to consistent soft colors.
+
+Do not define status badge colors separately in each page.
+
+---
+
+# 33. Responsive Design
+
+Desktop first.
+Tablet second.
+Mobile mainly for Housekeeping.
+
+Rules:
+
+* Front Desk screens should work best on desktop/tablet
+* Housekeeping screens should work well on mobile
+* Tables can become cards on small screens
+* Sidebar can collapse on smaller screens
+* Room Grid may require horizontal scroll
+* Glass effects should be reduced on low-performance devices if needed
+
+---
+
+# 34. Performance Rules
+
+Glassmorphism can be expensive.
+
+Performance rules:
+
+* Use backdrop blur on major panels only
+* Do not apply blur to hundreds of table rows
+* Do not apply blur to every Room Grid cell
+* Keep background effects mostly static
+* Avoid excessive animations
+* Use virtualization for large Room Grid and tables
+
+If performance drops:
+
+* Increase panel opacity
+* Reduce blur intensity
+* Reduce number of glow layers
+* Reduce animated effects
+
+---
+
+# 35. Accessibility and Readability
+
+Readability is mandatory.
+
+Rules:
+
+* Text contrast must be high
+* Important numbers must be easy to read
+* Small text must not sit on noisy background
+* Focus states must be visible
+* Buttons must be large enough
+* Status must not rely on color alone
+* Use icons and labels when useful
+* Sidebar desktop menu must show labels by default
+
+Do not sacrifice usability for decoration.
+
+---
+
+# 36. Things to Avoid
+
+Do not:
+
+* Use flat dark background
+* Use flat navy SaaS theme
+* Use generic admin dashboard layout
+* Use icon-only sidebar as default desktop layout
+* Use solid opaque panels everywhere
+* Use neon cyberpunk colors
+* Use low contrast text
+* Use noisy backgrounds behind text
+* Use random gradients on every card
+* Use pill button style for every sidebar menu item
+* Put borders around every inactive sidebar item
+* Use cramped spacing
+* Use inconsistent border radius
+* Use inconsistent button styles
+* Use raw HTML controls if shadcn/ui has a component
+* Ignore loading / empty / error states
+* Change business logic when only UI styling was requested
+* Make the dashboard look like a decorative mockup instead of a usable PMS
+
+---
+
+# 37. AI Coding Instructions
+
+When generating or editing UI:
+
+1. Read Requirement.txt and Style.txt first.
+2. Requirement.txt defines what the system does.
+3. Style.txt defines how the UI must look.
+4. The target is Luxury Ambient Glassmorphism with operational PMS usability.
+5. Use a real or prepared background image layer.
+6. Use expanded desktop sidebar with icon + label by default.
+7. Sidebar must use section labels and should not look like a stack of pill buttons.
+8. Use glass surfaces carefully.
+9. Use warm cinematic lighting.
+10. Use amber / orange / gold accents.
+11. Use high readability.
+12. Use reusable components first.
+13. Prefer shadcn/ui components.
+14. Use Tailwind utility classes consistently.
+15. Do not change business logic unless requested.
+16. If unsure, choose readability and usability over decoration.
+
+---
+
+# 38. Required UI Refactor Instruction
+
+When asked to improve the UI, do not only change colors.
+
+A proper refactor must update:
+
+* AppBackground
+* AppShell
+* Expanded Sidebar
+* Sidebar section groups
+* Sidebar active/inactive states
+* Topbar
+* Main content layout
+* GlassPanel
+* GlassCard
+* StatCard
+* Table container
+* Inputs
+* Buttons
+* StatusBadge
+* EmptyState
+
+If the result still looks like a normal dark admin dashboard, the refactor is incomplete.
+
+If the result has icon-only sidebar on desktop, the refactor is incomplete.
+
+If every sidebar item looks like a bordered pill button, the refactor is incomplete.
+
+---
+
+# 39. Prompt to Use in AI IDE
+
+Use this prompt when asking the AI IDE to refactor the UI:
+
+```txt
+Read Requirement.txt and Style.txt first.
+
+The current UI still feels like a decorative dark dashboard and the left sidebar UX is poor.
+Refactor it into a usable Luxury Ambient Glassmorphism Resort PMS UI.
+
+Do not change business logic.
+Do not change routes.
+Do not change data fetching.
+Only refactor styling, app shell, layout, sidebar UX, and reusable UI components.
+
+Required changes:
+1. Use /public/images/resort-lounge-bg.jpg as the luxury resort background if available.
+2. Add dark overlay, warm amber/orange glow, subtle vignette, and depth.
+3. Use expanded desktop sidebar with icon + text labels by default.
+4. Desktop sidebar must be around 260px wide.
+5. Sidebar must have section groups: Main, Operations, Insights.
+6. Inactive sidebar items must NOT have borders or pill outlines.
+7. Only the active sidebar item should have a visible background.
+8. Active nav item should use warm amber glass highlight.
+9. Add glass topbar with property/date/search/user menu.
+10. Use main content area that uses available width, not a narrow centered mockup.
+11. Convert cards and panels to readable translucent glass.
+12. Keep table and Room Grid readable with stronger inner contrast where needed.
+13. Use warm luxury colors: charcoal, espresso, amber, orange, gold, off-white.
+14. Avoid blue/cyan-heavy generic SaaS styling.
+15. Avoid flat dark admin dashboard look.
+16. Create or update reusable components: AppBackground, AppShell, AppSidebar, AppHeader, GlassPanel, GlassCard, StatCard, StatusBadge, PageShell.
+17. Keep UI production-ready and readable.
+
+The result should feel like a premium luxury resort PMS dashboard:
+usable like an Adobe-style app layout,
+but visually warm, glassy, elegant, and resort-like.
+```
+
+---
+
+# 40. Final Priority
+
+Priority order:
+
+```txt
+1. Operational usability
+2. Readability
+3. Premium luxury mood
+4. Real glass effect
+5. Consistency
+6. Visual effects
+```
+
+If glass effects reduce readability, reduce the effect.
+
+The final UI should feel like:
+
+```txt
+A usable luxury resort PMS dashboard with a warm cinematic background, Adobe-style sidebar navigation, and readable glass panels.
+```
+
+Not:
+
+```txt
+A normal dark admin dashboard.
+```
+
+Not:
+
+```txt
+A decorative glass concept that is hard to use.
+```

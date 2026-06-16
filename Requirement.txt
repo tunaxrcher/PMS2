@@ -1,0 +1,3537 @@
+# Requirement ระบบบริหารจัดการรีสอร์ทและโรงแรม
+
+## Resort / Hotel Property Management System (PMS)
+
+---
+
+# 1. ภาพรวมของระบบ
+
+ระบบนี้เป็น Web Application สำหรับบริหารจัดการธุรกิจที่พัก เช่น รีสอร์ท โรงแรม วิลล่า หรือที่พักขนาดเล็กถึงกลาง โดยเน้นการใช้งานหลักของ Front Desk, Owner/Admin และ Housekeeping
+
+เป้าหมายของระบบคือช่วยให้การทำงานประจำวันของที่พักเป็นระบบมากขึ้น ตั้งแต่การรับจองห้องพัก การจัดการข้อมูลลูกค้า การเช็คอิน เช็คเอาท์ การรับชำระเงิน การออกใบเสร็จ การจัดการสถานะห้อง การส่งงานให้แม่บ้าน การดูรายงาน และการตรวจสอบย้อนหลังผ่าน audit log
+
+ระบบควรออกแบบให้เริ่มต้นใช้งานได้ง่ายในรูปแบบ MVP แต่โครงสร้างต้องรองรับการขยายในอนาคต เช่น รองรับโรงแรมหลายชั้น รีสอร์ทหลายโซน หลายสาขา การเชื่อมต่อ OTA เช่น Agoda / Booking.com การเชื่อมต่อเครื่องอ่านบัตรประชาชน เครื่องเขียนคีย์การ์ด ระบบ POS ระบบบัญชี และการแยกบิลหลายใบในอนาคต
+
+แนวคิดหลักของระบบคือ
+
+```txt
+เริ่มจาก PMS สำหรับรีสอร์ทขนาดเล็กถึงกลาง
+แต่โครงสร้างต้องสามารถขยายเป็น PMS สำหรับโรงแรมหรือหลายสาขาได้
+โดยไม่ต้องรื้อฐานข้อมูลใหม่ทั้งหมด
+```
+
+---
+
+# 2. เป้าหมายของระบบ
+
+## 2.1 เป้าหมายระยะ MVP
+
+ระบบเวอร์ชันแรกต้องสามารถทำงานหลักของธุรกิจที่พักได้ครบถ้วน โดยเน้นงานจริงที่ Front Desk, Admin และ Housekeeping ต้องใช้ทุกวัน
+
+ฟีเจอร์หลักใน MVP ได้แก่
+
+* Login / Logout
+* จัดการผู้ใช้งานตาม role
+* จัดการข้อมูลที่พัก
+* จัดการโซนของที่พัก
+* จัดการประเภทห้องพัก
+* จัดการห้องพักจริง
+* ดูสถานะห้องแบบปฏิทิน Room Grid
+* สร้างการจอง
+* แก้ไขการจอง
+* บันทึกข้อมูลลูกค้า
+* Assign ห้องจริงให้ booking
+* ย้ายห้องให้ลูกค้า
+* Check-in
+* Check-out
+* สร้าง Folio หลัก 1 ใบต่อ booking
+* เพิ่มค่าใช้จ่ายเพิ่มเติม
+* รับชำระเงินหลายช่องทาง
+* บันทึกเงินมัดจำ
+* ออกใบเสร็จเบื้องต้น
+* เปลี่ยนสถานะห้อง
+* สร้างงานทำความสะอาดให้แม่บ้าน
+* แจ้งห้องเสียหรือ Out of Order
+* ดูรายงานพื้นฐาน
+* เก็บ audit log สำหรับรายการสำคัญ
+
+---
+
+## 2.2 เป้าหมายระยะยาว
+
+ระบบต้องสามารถขยายไปสู่โรงแรมหรือหลายสาขาได้ โดยไม่ต้องรื้อโครงสร้างหลักใหม่
+
+สิ่งที่ควรเผื่อไว้ตั้งแต่แรก ได้แก่
+
+* Multi-property / Multi-branch
+* Zone / Building / Floor / Villa Area
+* แยก Room Type ออกจาก Physical Room
+* แยก Inventory ออกจากห้องจริง
+* รองรับ Rate Plan
+* รองรับ Daily Rate
+* รองรับ Package สำหรับรีสอร์ท
+* รองรับ Split Folio
+* รองรับ Channel Manager Integration
+* รองรับ Smart Card Reader
+* รองรับ Keycard Encoder
+* รองรับ POS Integration
+* รองรับ Accounting Integration
+* รองรับ Mobile App หรือ Tablet App ในอนาคต
+* รองรับ WebSocket สำหรับ real-time update
+* รองรับรายงานขั้นสูง เช่น ADR, RevPAR, Forecast
+
+---
+
+# 3. ข้อกำหนดทางเทคนิคและสถาปัตยกรรม
+
+## 3.1 Platform
+
+ระบบเป็น Web Application ใช้งานผ่าน Browser เป็นหลัก
+
+อุปกรณ์ที่ต้องรองรับ
+
+* Desktop สำหรับ Front Desk และ Admin
+* Tablet สำหรับ Front Desk หรือ Manager
+* Mobile / Tablet สำหรับ Housekeeping
+
+ระบบควรออกแบบแบบ Responsive Design โดยใน MVP ให้เน้น Desktop และ Tablet เป็นหลัก เพราะเป็นอุปกรณ์ที่เหมาะกับงาน Front Desk และ Dashboard มากที่สุด
+
+---
+
+## 3.2 API-first Design
+
+ระบบต้องออกแบบ backend เป็น RESTful API เพื่อแยกระบบประมวลผลออกจากส่วนแสดงผล
+
+เหตุผลที่ต้องใช้ API-first
+
+* รองรับการสร้าง Mobile App ในอนาคต
+* รองรับ Tablet App สำหรับแม่บ้าน
+* รองรับการเชื่อมต่อ OTA
+* รองรับการเชื่อมต่อ Smart Card Reader
+* รองรับการเชื่อมต่อ Keycard Encoder
+* รองรับการเชื่อม POS หรือระบบบัญชีภายนอก
+* ทำให้ Frontend และ Backend พัฒนาแยกกันได้
+* ทำให้ระบบสามารถ scale และ maintain ได้ง่ายกว่า
+
+โครงสร้างภาพรวม
+
+```txt
+Frontend Web / Tablet / Mobile
+        ↓
+REST API Backend
+        ↓
+Business Logic Layer
+        ↓
+MySQL 8 Database
+        ↓
+Audit Log / Report / Integration
+```
+
+---
+
+## 3.3 Database
+
+ระบบจะใช้ฐานข้อมูลแบบ Relational Database โดยเลือกใช้ **MySQL 8 + InnoDB** เป็นฐานข้อมูลหลัก
+
+เหตุผลที่ใช้ MySQL 8
+
+* เหมาะกับระบบธุรกิจทั่วไปและระบบหลังบ้าน
+* ทีม dev ส่วนใหญ่คุ้นเคย
+* Hosting และ Cloud Provider รองรับกว้าง
+* ใช้ร่วมกับ Prisma ได้ดี
+* รองรับ transaction
+* รองรับ row-level locking ผ่าน InnoDB
+* รองรับ foreign key
+* รองรับ index
+* รองรับ JSON field
+* เหมาะกับ MVP และสามารถขยายต่อได้
+
+ข้อกำหนดสำคัญ
+
+```txt
+ต้องใช้ MySQL 8.x
+ต้องใช้ Storage Engine เป็น InnoDB เท่านั้น
+ห้ามใช้ MyISAM
+```
+
+เหตุผลที่ PMS ต้องใช้ Relational Database
+
+* ต้องจัดการ transaction ทางการเงิน
+* ต้องป้องกันการจองซ้ำ
+* ต้องมีความสัมพันธ์ของข้อมูลชัดเจน
+* ต้องทำรายงานรายได้
+* ต้องทำรายงาน occupancy
+* ต้องมี audit log
+* ต้องรองรับ constraint
+* ต้องรองรับ locking
+* ต้องรองรับ data integrity
+
+---
+
+## 3.4 Security
+
+ระบบต้องมีมาตรฐานความปลอดภัยเบื้องต้นดังนี้
+
+* Password ต้องเก็บแบบ hashing เท่านั้น
+* ห้ามเก็บ password เป็น plain text
+* ต้องมีระบบ role-based access control
+* ต้องจำกัดสิทธิ์การเข้าถึงตามหน้าที่
+* ข้อมูลสำคัญ เช่น เลขบัตรประชาชนหรือพาสปอร์ต ต้องจำกัดสิทธิ์การมองเห็น
+* ควร mask ข้อมูล sensitive บางส่วน เช่น แสดงเลขบัตรเฉพาะบางหลัก
+* ทุก action สำคัญต้องถูกบันทึกใน audit log
+* Backend ต้องตรวจ permission ทุกครั้ง ไม่พึ่งการซ่อนปุ่มที่ frontend อย่างเดียว
+* ควรมี session expiration หรือ token expiration
+* ควรมีการป้องกันการเข้าถึงข้อมูลข้าม property ในอนาคต
+
+---
+
+## 3.5 Audit Log
+
+ระบบต้องบันทึก action log สำหรับรายการสำคัญทุกครั้ง เพื่อให้สามารถตรวจสอบย้อนหลังได้ว่าใครทำอะไร เมื่อไหร่ และเปลี่ยนข้อมูลอะไรไปบ้าง
+
+ข้อมูลที่ควรเก็บใน audit log
+
+* User ID
+* Property ID
+* Action
+* Entity Type
+* Entity ID
+* Old Value
+* New Value
+* IP Address
+* User Agent
+* Timestamp
+
+รายการที่ควรบันทึก log ได้แก่
+
+* Login
+* Logout
+* สร้างการจอง
+* แก้ไขการจอง
+* ยกเลิกการจอง
+* เปลี่ยนราคา
+* เพิ่มส่วนลด
+* รับชำระเงิน
+* Void payment
+* Refund
+* Check-in
+* Check-out
+* ย้ายห้อง
+* เปลี่ยนสถานะห้อง
+* ตั้งห้องเป็น Out of Order
+* แก้ไขข้อมูลลูกค้า
+* สร้าง user
+* เปลี่ยน role
+* เปลี่ยน permission
+* ลบหรือปิดใช้งาน user
+
+โครงสร้างตารางตัวอย่าง
+
+```txt
+audit_logs
+- id
+- property_id
+- user_id
+- action
+- entity_type
+- entity_id
+- old_value_json
+- new_value_json
+- ip_address
+- user_agent
+- created_at
+```
+
+หมายเหตุสำหรับ MySQL
+
+* `old_value_json` และ `new_value_json` สามารถใช้ data type เป็น `JSON`
+* ถ้าต้อง query audit log บ่อย ควรมี index ที่ `property_id`, `user_id`, `entity_type`, `entity_id`, `created_at`
+
+---
+
+# 4. User Roles และ Permission
+
+## 4.1 Role ระดับ MVP
+
+ใน MVP ระบบจะมีผู้ใช้งานหลัก 3 ระดับ
+
+---
+
+### 1. Admin / Owner
+
+Admin / Owner เป็นผู้ใช้งานที่มีสิทธิ์สูงสุดของระบบ สามารถเข้าถึงทุกเมนูและจัดการข้อมูลหลักทั้งหมดได้
+
+สิทธิ์หลัก
+
+* เข้าถึงได้ทุกระบบ
+* จัดการข้อมูลที่พัก
+* เพิ่ม ลบ แก้ไขห้องพัก
+* เพิ่ม ลบ แก้ไขประเภทห้อง
+* จัดการโซน
+* ตั้งราคา Base Rate
+* จัดการ Rate Plan
+* ดูรายงานรายได้
+* ดูรายงาน occupancy
+* ดูรายงาน booking source
+* ยกเลิกการจอง
+* คืนเงิน
+* Void payment
+* แก้ไขราคาพิเศษ
+* อนุมัติส่วนลด
+* สร้างบัญชีผู้ใช้งาน
+* กำหนดสิทธิ์พนักงาน
+* ดู audit log
+
+---
+
+### 2. Front Desk
+
+Front Desk เป็นผู้ใช้งานหลักของระบบ ใช้สำหรับจัดการงานประจำวัน เช่น การจอง เช็คอิน เช็คเอาท์ และรับชำระเงิน
+
+สิทธิ์หลัก
+
+* ดู Room Grid
+* สร้างการจอง
+* แก้ไขการจอง
+* บันทึกข้อมูลลูกค้า
+* ค้นหาลูกค้าเก่า
+* Assign ห้องพัก
+* ย้ายห้องพักให้ลูกค้า
+* Check-in
+* Check-out
+* รับชำระเงิน
+* บันทึกเงินมัดจำ
+* ออกใบเสร็จ
+* เพิ่มค่าใช้จ่ายใน Folio
+* เปลี่ยนสถานะห้องบางประเภท
+* ตั้งห้องเป็น Out of Order ชั่วคราว
+* แก้ไขข้อมูลลูกค้า
+
+ข้อควรระวัง
+
+* การแก้ราคาไม่ควรเปิดเต็มทั้งหมด
+* การลดราคาควรกำหนด limit
+* การคืนเงินควรให้ Admin ทำเท่านั้น
+* การ Void payment ควรจำกัดสิทธิ์
+* การดูข้อมูล sensitive ของลูกค้าควรจำกัด
+
+---
+
+### 3. Housekeeping
+
+Housekeeping เป็นผู้ใช้งานสำหรับแม่บ้านหรือทีมทำความสะอาด ใช้งานผ่านมือถือหรือแท็บเล็ตเป็นหลัก
+
+สิทธิ์หลัก
+
+* ดูรายการห้องที่ต้องทำความสะอาด
+* ดูโซนของห้อง
+* กดเริ่มทำความสะอาด
+* กดทำความสะอาดเสร็จ
+* เปลี่ยนสถานะห้องจาก Dirty เป็น Clean
+* แจ้งปัญหาห้องเสีย
+* ใส่หมายเหตุเกี่ยวกับห้อง
+
+Housekeeping ไม่ควรเข้าถึง
+
+* ข้อมูลการเงิน
+* ข้อมูลบัตรประชาชนหรือพาสปอร์ตของลูกค้า
+* รายงานรายได้
+* การแก้ไข booking
+* การรับชำระเงิน
+* การคืนเงิน
+* การจัดการ user
+* การตั้งราคา
+
+---
+
+## 4.2 Permission-based Design
+
+ถึงแม้ MVP จะมีเพียง 3 role แต่ backend ควรออกแบบแบบ permission-based ตั้งแต่แรก ไม่ควร hardcode ตาม role อย่างเดียว
+
+ตัวอย่าง permission
+
+```txt
+booking.create
+booking.update
+booking.cancel
+booking.check_in
+booking.check_out
+booking.move_room
+
+guest.create
+guest.update
+guest.view_sensitive
+
+payment.receive
+payment.void
+payment.refund
+
+folio.add_charge
+folio.add_discount
+folio.close
+
+room.update_status
+room.set_out_of_order
+
+housekeeping.view
+housekeeping.update_task
+
+maintenance.create
+maintenance.resolve
+
+report.view
+user.manage
+price.override
+audit_log.view
+```
+
+ข้อดีของ permission-based design
+
+* เพิ่ม role ใหม่ได้ง่าย
+* จำกัดสิทธิ์ละเอียดได้
+* รองรับโรงแรมที่มีหลายแผนกในอนาคต
+* รองรับ owner แบบ read-only
+* รองรับ manager ที่ดูรายงานได้แต่คืนเงินไม่ได้
+* รองรับ accountant ที่ดูการเงินได้แต่แก้ booking ไม่ได้
+
+โครงสร้างที่ควรมี
+
+```txt
+users
+roles
+permissions
+user_roles
+role_permissions
+```
+
+---
+
+# 5. โครงสร้างรองรับรีสอร์ทและโรงแรม
+
+## 5.1 Property Management
+
+ระบบควรมีตาราง Property ตั้งแต่แรก แม้ตอน MVP จะมีที่พักเดียว
+
+เหตุผลที่ต้องมี Property ตั้งแต่แรก
+
+* รองรับหลายรีสอร์ท
+* รองรับหลายโรงแรม
+* รองรับหลายสาขา
+* รองรับ owner ที่ดูหลาย property
+* รองรับ report แยกตาม property
+* ป้องกันการรื้อ database ในอนาคต
+
+โครงสร้างตัวอย่าง
+
+```txt
+properties
+- id
+- name
+- property_type: resort / hotel / villa / hostel
+- address
+- phone
+- email
+- timezone
+- check_in_time
+- check_out_time
+- tax_setting
+- active
+- created_at
+- updated_at
+```
+
+ทุกตารางสำคัญควรผูกกับ `property_id`
+
+เช่น
+
+* rooms
+* room_types
+* zones
+* bookings
+* guests
+* folios
+* payments
+* users
+* reports
+* audit_logs
+
+---
+
+## 5.2 Zone Management
+
+ระบบต้องรองรับพื้นที่หลายรูปแบบ ทั้งรีสอร์ทแนวราบและโรงแรมหลายชั้น
+
+ตัวอย่างโซนของรีสอร์ท
+
+* Beach Zone
+* Pool Villa Zone
+* Garden Zone
+* Riverside Zone
+* Main Building
+* Restaurant Area
+* Spa Area
+
+ตัวอย่างโซนของโรงแรม
+
+* Building A
+* Building B
+* Floor 1
+* Floor 2
+* Wing A
+* Wing B
+* Lobby Zone
+
+ควรออกแบบ zone เป็นโครงสร้างแบบ parent-child เพื่อให้ยืดหยุ่น
+
+```txt
+zones
+- id
+- property_id
+- name
+- zone_type: building / floor / wing / villa_zone / beach_zone / pool_zone
+- parent_zone_id
+- sort_order
+- active
+- created_at
+- updated_at
+```
+
+ตัวอย่างโครงสร้างโรงแรม
+
+```txt
+Main Building
+  └── Floor 1
+      └── Room 101
+      └── Room 102
+  └── Floor 2
+      └── Room 201
+      └── Room 202
+```
+
+ตัวอย่างโครงสร้างรีสอร์ท
+
+```txt
+Beach Zone
+  └── Villa A1
+  └── Villa A2
+
+Garden Zone
+  └── Villa B1
+  └── Villa B2
+```
+
+---
+
+## 5.3 Room Type และ Physical Room
+
+ระบบต้องแยก “ประเภทห้อง” ออกจาก “ห้องจริง”
+
+### Room Type
+
+Room Type คือประเภทของห้องที่ใช้ขายให้ลูกค้า เช่น
+
+* Standard Room
+* Deluxe Room
+* Family Room
+* Pool Villa
+* Beachfront Villa
+* Garden View Villa
+
+โครงสร้างตัวอย่าง
+
+```txt
+room_types
+- id
+- property_id
+- name
+- description
+- base_occupancy
+- max_occupancy
+- base_rate
+- active
+- created_at
+- updated_at
+```
+
+### Physical Room
+
+Physical Room คือห้องจริงที่มีอยู่ในที่พัก เช่น
+
+* 101
+* 102
+* 201
+* Villa A1
+* Villa A2
+
+โครงสร้างตัวอย่าง
+
+```txt
+rooms
+- id
+- property_id
+- room_type_id
+- zone_id
+- room_number
+- room_name
+- floor_no
+- building_name
+- max_occupancy
+- current_status
+- active
+- created_at
+- updated_at
+```
+
+เหตุผลที่ต้องแยก Room Type กับ Physical Room
+
+* ลูกค้ามักจองตามประเภทห้อง ไม่ใช่จองห้องเบอร์ 101 โดยตรง
+* สามารถ assign ห้องจริงภายหลังได้
+* รองรับการย้ายห้องได้ง่าย
+* รองรับ OTA ได้ง่ายกว่า
+* รองรับโรงแรมที่มีห้องประเภทเดียวกันหลายห้อง
+* ลดความเสี่ยงของ overbooking
+* รองรับหลายห้องใน booking เดียวได้ดี
+
+---
+
+# 6. Room Status และ Booking Status
+
+## 6.1 Room Status
+
+Room Status คือสถานะของห้องจริง ไม่ใช่สถานะของ booking
+
+สถานะห้องระดับ MVP
+
+```txt
+Clean
+Dirty
+Occupied
+Out of Order
+```
+
+สถานะที่ควรเผื่อในอนาคต
+
+```txt
+Vacant
+Clean
+Dirty
+Occupied
+Out of Order
+Out of Service
+Cleaning
+Inspected
+Reserved / Assigned
+Due Out
+Stay Over
+```
+
+ความหมายหลัก
+
+```txt
+Clean = ห้องสะอาด พร้อมขายหรือพร้อมให้ลูกค้าเข้าพัก
+Dirty = ห้องต้องทำความสะอาด
+Occupied = มีลูกค้าเข้าพักอยู่
+Out of Order = ห้องเสีย ไม่พร้อมขาย
+Out of Service = ห้องพักไม่เปิดขายชั่วคราว แต่ไม่ใช่ห้องเสีย
+Cleaning = กำลังทำความสะอาด
+Inspected = ทำความสะอาดเสร็จและตรวจแล้ว
+Due Out = ลูกค้าจะ check-out วันนี้
+Stay Over = ลูกค้าพักต่อ
+```
+
+---
+
+## 6.2 Booking Status
+
+Booking Status คือสถานะของการจอง
+
+สถานะ booking ที่ควรมี
+
+```txt
+Pending
+Confirmed
+Checked In
+Checked Out
+Cancelled
+No Show
+```
+
+ตัวอย่างการไหลของ booking
+
+```txt
+Pending → Confirmed → Checked In → Checked Out
+Confirmed → Cancelled
+Confirmed → No Show
+```
+
+เหตุผลที่ต้องแยก Room Status กับ Booking Status
+
+* ห้องอาจ Dirty แต่ booking เป็น Checked Out
+* ห้องอาจ Clean แต่ booking ยัง Confirmed
+* Booking อาจยังไม่ assign ห้องจริง
+* ห้องอาจ Out of Order โดยไม่มี booking
+* Booking อาจถูก cancel แต่ห้องยัง Clean
+* Booking อาจ No Show แต่ inventory ต้องถูกจัดการแยกต่างหาก
+
+---
+
+# 7. Interactive Room Grid
+
+## 7.1 ภาพรวม
+
+Room Grid เป็นหน้าจอหลักของ Front Desk และควรเป็นหน้าที่เปิดค้างไว้ตลอดวัน
+
+รูปแบบการแสดงผล
+
+* แกน X = วันที่
+* แกน Y = ห้องพัก
+* แสดง booking เป็น block ตามช่วงวันที่
+* แสดงสถานะห้องด้วยสี
+* คลิกช่องว่างเพื่อสร้าง booking
+* คลิก booking เพื่อดูรายละเอียด
+* Drag & Drop เพื่อย้ายห้อง
+* Resize booking เพื่อปรับวันเข้าพักหรือวันออก
+* Filter ตาม zone ได้
+* Filter ตาม room type ได้
+* Filter ตาม room status ได้
+
+---
+
+## 7.2 Color-coded Status
+
+ตัวอย่างสีที่ใช้ใน Room Grid
+
+```txt
+เขียว = ว่าง / Clean
+แดง = Occupied
+น้ำเงิน = Confirmed Booking
+เหลือง = Dirty / Cleaning
+เทา = Out of Order
+ส้ม = Due Out
+ม่วง = Reserved / Assigned
+```
+
+สีต้องช่วยให้ Front Desk เข้าใจสถานะห้องได้ทันทีโดยไม่ต้องเปิดรายละเอียดหลายขั้นตอน
+
+---
+
+## 7.3 การ Drag & Drop
+
+ระบบควรรองรับการลาก booking เพื่อย้ายห้อง
+
+เงื่อนไขที่ต้องตรวจสอบ
+
+* ห้องใหม่ต้องว่างในช่วงวันที่นั้น
+* ห้องใหม่ต้องเป็น room type เดียวกัน หรืออนุญาตให้ upgrade/downgrade ได้
+* ห้ามชน booking อื่น
+* ห้ามย้ายไปห้องที่ Out of Order
+* ถ้าเปลี่ยน room type แล้วราคาต่างกัน ต้องมีการยืนยัน
+* ต้องบันทึก audit log ทุกครั้ง
+* ถ้ามีการเปลี่ยนราคา ต้องใส่ remark
+* Backend ต้องเป็นผู้ตรวจสอบ availability สุดท้าย
+
+Flow ที่ถูกต้อง
+
+```txt
+User drags booking
+↓
+Frontend แสดง preview
+↓
+User drops
+↓
+Frontend call API move-room
+↓
+Backend ตรวจสอบ availability ด้วย MySQL transaction
+↓
+Backend update booking
+↓
+Backend create audit log
+↓
+Frontend refresh room-grid
+```
+
+---
+
+# 8. Reservation & Guest Profile
+
+## 8.1 Create Booking
+
+ระบบต้องมีฟอร์มสร้างการจอง
+
+ข้อมูลหลักที่ควรมี
+
+* วันที่เข้าพัก
+* วันที่ออก
+* จำนวนคืน
+* ประเภทห้อง
+* จำนวนห้อง
+* จำนวนผู้ใหญ่
+* จำนวนเด็ก
+* ช่องทางการจอง
+* ราคาห้อง
+* ส่วนลด
+* หมายเหตุ
+* ข้อมูลลูกค้า
+* package detail ถ้ามี
+* deposit ถ้ามี
+* สถานะ booking
+* ผู้สร้าง booking
+
+ระบบต้องตรวจสอบ availability ก่อนสร้าง booking ทุกครั้ง และการสร้าง booking ต้องทำใน MySQL transaction
+
+---
+
+## 8.2 Booking Source
+
+ควรแยก Booking Source เป็นตาราง ไม่ควรเก็บเป็น text อย่างเดียว เพราะต้องใช้ทำรายงานภายหลัง
+
+ตัวอย่าง source
+
+* Walk-in
+* Phone
+* Facebook
+* Line
+* Website
+* Agoda
+* Booking.com
+* Traveloka
+* Corporate
+* Agent
+
+โครงสร้างตัวอย่าง
+
+```txt
+booking_sources
+- id
+- property_id
+- name
+- source_type: direct / ota / agent / corporate
+- active
+- created_at
+- updated_at
+```
+
+---
+
+## 8.3 Guest Profile
+
+ระบบต้องมีฐานข้อมูลลูกค้า เพื่อให้สามารถดึงข้อมูลลูกค้าเก่ามาใช้ในการเข้าพักครั้งถัดไปได้
+
+ข้อมูลลูกค้าที่ควรเก็บ
+
+```txt
+guests
+- id
+- property_id
+- first_name
+- last_name
+- phone
+- email
+- nationality
+- id_type: citizen_id / passport
+- id_number
+- date_of_birth
+- address
+- remark
+- blacklist_flag
+- created_at
+- updated_at
+```
+
+ข้อควรระวัง
+
+* เลขบัตรประชาชนและพาสปอร์ตเป็นข้อมูล sensitive
+* ควรจำกัดสิทธิ์การดู
+* ควรบันทึก log เมื่อมีการแก้ไข
+* ควรแสดงข้อมูลแบบ mask บางส่วนในหน้าทั่วไป
+* เฉพาะ user ที่มี permission เท่านั้นถึงจะดูข้อมูลเต็มได้
+
+---
+
+## 8.4 Booking Room
+
+ควรมีตารางเชื่อม booking กับ room type และ room จริง
+
+โครงสร้างตัวอย่าง
+
+```txt
+booking_rooms
+- id
+- booking_id
+- room_type_id
+- room_id nullable
+- check_in_date
+- check_out_date
+- adults
+- children
+- rate
+- status
+- created_at
+- updated_at
+```
+
+`room_id` ควรเป็น nullable เพราะตอนจองอาจยังไม่กำหนดห้องจริง
+
+ตัวอย่าง
+
+```txt
+ลูกค้าจอง Deluxe Room 2 คืน
+แต่ยังไม่ต้องเลือกทันทีว่าเป็นห้อง 101 หรือ 102
+พนักงานสามารถ assign ห้องจริงตอนใกล้ check-in ได้
+```
+
+---
+
+## 8.5 Pricing Override
+
+ระบบต้องรองรับการแก้ราคาพิเศษ
+
+เงื่อนไข
+
+* Admin สามารถแก้ราคาได้
+* Front Desk อาจแก้ได้เฉพาะใน limit ที่กำหนด
+* ทุกการแก้ราคาต้องใส่ remark
+* ต้องบันทึก old price และ new price
+* ต้องบันทึก user ที่แก้
+* ต้องมี timestamp
+* กรณีส่วนลดเกิน limit ต้องให้ Admin approve
+
+โครงสร้างตัวอย่าง
+
+```txt
+rate_adjustments
+- id
+- booking_id
+- old_price
+- new_price
+- adjustment_type: discount / surcharge / manual_override
+- reason
+- approved_by_user_id
+- created_by
+- created_at
+```
+
+---
+
+# 9. Check-in Flow
+
+## 9.1 ขั้นตอน Check-in
+
+Flow หลัก
+
+```txt
+เลือก booking
+↓
+ตรวจสอบข้อมูลลูกค้า
+↓
+ตรวจสอบสถานะ booking
+↓
+ตรวจสอบสถานะห้อง
+↓
+Assign ห้องจริง ถ้ายังไม่ได้ assign
+↓
+ตรวจสอบว่าห้องเป็น Clean
+↓
+บันทึกข้อมูลผู้เข้าพัก
+↓
+รับเงินมัดจำหรือยอดชำระ
+↓
+เปลี่ยน booking status เป็น Checked In
+↓
+เปลี่ยน room status เป็น Occupied
+↓
+บันทึก audit log
+```
+
+รายการ check-in ต้องทำผ่าน backend action endpoint และควรทำใน transaction เพื่อให้ข้อมูล booking, folio, payment, room status และ audit log สอดคล้องกัน
+
+---
+
+## 9.2 เงื่อนไขที่ต้องรองรับ
+
+ระบบควรรองรับกรณีต่อไปนี้
+
+* ลูกค้า Walk-in
+* ลูกค้ามี booking ล่วงหน้า
+* Booking ยังไม่ได้ assign ห้องจริง
+* ห้องยัง Dirty
+* ลูกค้าขอเปลี่ยนห้อง
+* ลูกค้าจ่ายล่วงหน้าบางส่วน
+* ลูกค้าจ่ายผ่าน OTA แล้ว
+* มีหลายห้องใน booking เดียว
+* มีผู้เข้าพักมากกว่า 1 คน
+* เก็บ deposit แบบเงินสด
+* เก็บ deposit แบบโอน
+* Early check-in
+* ลูกค้าขอ upgrade room
+* ลูกค้าขอ downgrade room
+
+---
+
+# 10. Check-out Flow
+
+## 10.1 ขั้นตอน Check-out
+
+Flow หลัก
+
+```txt
+เลือก booking ที่ Checked In
+↓
+เปิด Folio
+↓
+ระบบสรุปยอดทั้งหมด
+↓
+ตรวจสอบค่าใช้จ่ายเพิ่มเติม
+↓
+หักเงินมัดจำ
+↓
+รับชำระส่วนต่าง หรือคืนเงิน
+↓
+ทำให้ Balance = 0
+↓
+ปิด Folio
+↓
+เปลี่ยน booking status เป็น Checked Out
+↓
+เปลี่ยน room status เป็น Dirty
+↓
+สร้าง Housekeeping Task
+↓
+ออกใบเสร็จ
+↓
+บันทึก audit log
+```
+
+รายการ check-out ควรทำใน transaction เพื่อป้องกันเคสข้อมูลไม่ตรงกัน เช่น folio ปิดแล้วแต่ room status ไม่เปลี่ยน หรือ payment บันทึกแล้วแต่ booking ยังไม่ check-out
+
+---
+
+## 10.2 เงื่อนไขที่ควรรองรับ
+
+ระบบควรรองรับกรณีต่อไปนี้
+
+* Late check-out fee
+* Minibar charge
+* Extra bed
+* Food charge
+* Damage charge
+* Refund deposit
+* Partial payment
+* Payment หลายช่องทางในบิลเดียว
+* Reprint receipt
+* Void payment
+* Refund
+* Check-out หลายห้องใน booking เดียว
+* Check-out ไม่ได้ถ้ายังมี balance ค้าง
+* Check-out แล้วต้องสร้าง housekeeping task อัตโนมัติ
+* Check-out แล้วห้องต้องเปลี่ยนเป็น Dirty
+
+---
+
+# 11. Folio & Billing
+
+## 11.1 แนวคิด Folio
+
+MVP ใช้ Single Master Folio คือ 1 booking มีบิลหลัก 1 ใบ
+
+แต่ควรออกแบบให้รองรับ Split Folio ในอนาคต
+
+ตัวอย่างอนาคต
+
+```txt
+Folio A = บริษัทจ่ายค่าห้อง
+Folio B = ลูกค้าจ่ายค่า minibar เอง
+Folio C = ค่าเสียหาย
+Folio D = ค่าอาหาร
+```
+
+---
+
+## 11.2 โครงสร้าง Folio
+
+โครงสร้างตัวอย่าง
+
+```txt
+folios
+- id
+- booking_id
+- folio_code: A / B / C
+- folio_type: master / guest / company
+- guest_id nullable
+- company_id nullable
+- status: open / closed / voided
+- created_at
+- closed_at
+```
+
+สถานะ Folio
+
+```txt
+Open = ยังเปิดใช้งานอยู่
+Closed = ปิดบิลแล้ว
+Voided = ยกเลิกบิล
+```
+
+---
+
+## 11.3 Folio Items
+
+ใช้เก็บรายการค่าใช้จ่ายในบิล
+
+โครงสร้างตัวอย่าง
+
+```txt
+folio_items
+- id
+- folio_id
+- item_type: room_charge / minibar / food / extra_bed / discount / tax / service_charge / damage
+- description
+- quantity
+- unit_price
+- total_amount
+- service_date
+- created_by
+- created_at
+```
+
+ตัวอย่างรายการ
+
+* Room Charge
+* Minibar
+* Extra Bed
+* Breakfast
+* Food
+* Damage Charge
+* Discount
+* VAT
+* Service Charge
+
+ข้อสำคัญ
+
+ข้อมูลการเงินไม่ควรถูกลบจริง
+ถ้าผิดควรใช้ adjustment, void หรือ refund แทน
+
+---
+
+## 11.4 Payments
+
+ระบบต้องรองรับการรับเงินหลายช่องทางในบิลเดียว
+
+ตัวอย่าง
+
+```txt
+เงินสด 1,000 บาท
+โอนเงิน 2,000 บาท
+บัตรเครดิต 3,000 บาท
+```
+
+โครงสร้างตัวอย่าง
+
+```txt
+payments
+- id
+- folio_id
+- payment_method: cash / transfer / credit_card / ota / other
+- amount
+- paid_at
+- reference_no
+- received_by
+- status: paid / voided / refunded / partial_refunded
+```
+
+---
+
+## 11.5 Refunds
+
+ควรแยก refund ออกจาก payment
+
+โครงสร้างตัวอย่าง
+
+```txt
+refunds
+- id
+- payment_id
+- amount
+- reason
+- refunded_by
+- refunded_at
+```
+
+เหตุผลที่แยก refund
+
+* ดูประวัติการคืนเงินย้อนหลังได้
+* ตรวจสอบยอดรับเงินจริงได้
+* ทำรายงานการเงินได้ถูกต้อง
+* ไม่ต้องแก้ไข payment เดิมโดยตรง
+
+---
+
+# 12. Deposit
+
+ระบบต้องรองรับเงินมัดจำ
+
+ประเภท deposit ที่ควรรองรับ
+
+* มัดจำค่าห้อง
+* มัดจำคีย์การ์ด
+* มัดจำความเสียหาย
+* มัดจำการจองล่วงหน้า
+
+โครงสร้างตัวอย่าง
+
+```txt
+deposits
+- id
+- booking_id
+- folio_id
+- amount
+- deposit_type: booking_deposit / keycard_deposit / damage_deposit
+- payment_method
+- status: held / applied / refunded / forfeited
+- received_by
+- received_at
+```
+
+สถานะ deposit
+
+```txt
+held = ถือเงินมัดจำไว้
+applied = นำไปหักกับยอดชำระ
+refunded = คืนเงินแล้ว
+forfeited = ริบเงินมัดจำ
+```
+
+ตอน check-out ระบบควรสามารถ
+
+* หัก deposit กับยอดค้างชำระ
+* คืน deposit ให้ลูกค้า
+* ริบ deposit กรณีมีค่าเสียหาย
+* บันทึกประวัติทุกครั้ง
+
+---
+
+# 13. Housekeeping
+
+## 13.1 ภาพรวม
+
+Housekeeping ใช้งานผ่านมือถือหรือแท็บเล็ตเป็นหลัก
+
+หน้าจอควรเป็น UI แบบการ์ด อ่านง่าย กดง่าย และไม่ซับซ้อน
+
+ข้อมูลที่แสดง
+
+* เลขห้อง
+* ชื่อห้อง
+* โซน
+* ประเภทงาน
+* สถานะงาน
+* เวลา check-out
+* หมายเหตุ
+* ปุ่มเริ่มทำความสะอาด
+* ปุ่มทำความสะอาดเสร็จ
+* ปุ่มแจ้งปัญหา
+
+---
+
+## 13.2 Housekeeping Task
+
+ควรมีตาราง task แยก ไม่ควรเปลี่ยนแค่ room status อย่างเดียว
+
+โครงสร้างตัวอย่าง
+
+```txt
+housekeeping_tasks
+- id
+- property_id
+- room_id
+- task_type: checkout_cleaning / stayover_cleaning / deep_cleaning
+- status: pending / in_progress / done / cancelled
+- assigned_to
+- started_at
+- completed_at
+- remark
+```
+
+ประเภทงาน
+
+```txt
+checkout_cleaning = ทำความสะอาดหลังลูกค้า check-out
+stayover_cleaning = ทำความสะอาดระหว่างลูกค้าพักต่อ
+deep_cleaning = ทำความสะอาดใหญ่
+```
+
+---
+
+## 13.3 Flow หลัง Check-out
+
+```txt
+Guest Check-out
+↓
+Room Status = Dirty
+↓
+System creates Housekeeping Task
+↓
+Housekeeper sees room in mobile dashboard
+↓
+Housekeeper starts cleaning
+↓
+Status = Cleaning
+↓
+Housekeeper marks completed
+↓
+Room Status = Clean
+↓
+Front Desk sees room ready in real time
+```
+
+---
+
+## 13.4 Real-time Sync
+
+เมื่อแม่บ้านกดทำความสะอาดเสร็จ หน้าจอ Front Desk ควรเปลี่ยนสถานะทันทีหรือเกือบทันที
+
+วิธีทำได้หลายแบบ
+
+```txt
+WebSocket
+Server-Sent Events
+Polling ทุก 5–10 วินาที
+```
+
+สำหรับ MVP สามารถใช้ polling ก่อนได้
+ในอนาคตค่อยใช้ WebSocket เพื่อความลื่น
+
+---
+
+# 14. Maintenance / Out of Order
+
+## 14.1 Out of Order
+
+Front Desk หรือ Admin ต้องสามารถตั้งห้องเป็น Out of Order ได้เมื่อห้องเสียหรือไม่พร้อมขาย
+
+ตัวอย่างเหตุผล
+
+* แอร์เสีย
+* น้ำรั่ว
+* ไฟไม่ติด
+* ทีวีเสีย
+* ประตูเสีย
+* ห้องต้องซ่อมใหญ่
+* ห้องต้องปิดปรับปรุง
+
+เมื่อห้องเป็น Out of Order
+
+* ห้ามนำไปขาย
+* ห้าม assign ให้ booking ใหม่
+* ต้องแสดงใน Room Grid ด้วยสีชัดเจน
+* ต้องมี audit log
+* ควรมีวันเริ่มต้นและวันสิ้นสุด ถ้ารู้ล่วงหน้า
+
+---
+
+## 14.2 Maintenance Ticket
+
+ควรมีระบบแจ้งซ่อมแยกจาก room status
+
+โครงสร้างตัวอย่าง
+
+```txt
+maintenance_tickets
+- id
+- property_id
+- room_id
+- issue_title
+- issue_detail
+- priority: low / medium / high / urgent
+- status: open / in_progress / resolved / cancelled
+- reported_by
+- resolved_by
+- created_at
+- resolved_at
+```
+
+ข้อดี
+
+* รู้ว่าห้องเสียเพราะอะไร
+* รู้ว่าใครเป็นคนแจ้ง
+* รู้ว่าใครเป็นคนแก้
+* ดูประวัติห้องที่มีปัญหาบ่อยได้
+* ป้องกันห้องเสียถูกเปิดขายโดยไม่ตั้งใจ
+* ช่วยให้ทีมช่างหรือผู้ดูแลจัดลำดับความสำคัญได้
+
+---
+
+# 15. Package สำหรับรีสอร์ท
+
+## 15.1 ภาพรวม
+
+รีสอร์ทมักไม่ได้ขายแค่ห้องพัก แต่ขายเป็น package เช่น
+
+* ห้อง + อาหารเช้า
+* ห้อง + ดำน้ำ
+* ห้อง + ATV
+* ห้อง + BBQ
+* ห้อง + เรือ
+* ห้อง + รถรับส่ง
+* ห้อง + Dinner Set
+* ห้อง + Spa
+
+ดังนั้นระบบควรรองรับ package ตั้งแต่แรกในระดับโครงสร้างข้อมูล
+
+---
+
+## 15.2 MVP Package
+
+สำหรับ MVP สามารถเก็บแบบง่ายก่อน
+
+ใน booking อาจมี field
+
+```txt
+package_name
+package_detail_json
+package_note
+```
+
+ตัวอย่าง package detail
+
+```json
+{
+  "breakfast": "2 persons",
+  "activity": "snorkeling trip 2 persons",
+  "transfer": "included"
+}
+```
+
+ข้อดีของวิธีนี้
+
+* ทำง่าย
+* ไม่ซับซ้อนใน MVP
+* เหมาะกับรีสอร์ทที่ขาย package แบบไม่ซับซ้อน
+* ยังสามารถแสดงข้อมูลให้พนักงานเห็นได้ชัดเจน
+
+ข้อเสีย
+
+* ทำรายงานแยก service ได้ยาก
+* นับจำนวน breakfast / activity ได้ยาก
+* คำนวณต้นทุน package ได้ยาก
+
+---
+
+## 15.3 Future Package Structure
+
+ในอนาคตควรแยกเป็นตารางจริง
+
+โครงสร้างตัวอย่าง
+
+```txt
+packages
+- id
+- property_id
+- name
+- description
+- package_type
+- active
+```
+
+```txt
+package_items
+- id
+- package_id
+- service_type: breakfast / tour / transfer / activity / food / spa
+- name
+- quantity
+- included_price
+- cost
+```
+
+```txt
+booking_packages
+- id
+- booking_id
+- package_id
+- package_snapshot_json
+```
+
+เหตุผลที่ต้องใช้ snapshot
+
+ถ้าแพ็กเกจถูกแก้ในอนาคต booking เก่าต้องยังคงข้อมูลเดิม ณ วันที่ขาย
+
+ตัวอย่าง
+
+```txt
+ปี 2026 Package A = ห้อง + ดำน้ำ 2 คน ราคา 3,500
+ปี 2027 Package A ถูกแก้เป็น ห้อง + ดำน้ำ 2 คน + BBQ ราคา 4,500
+
+Booking เก่าปี 2026 ต้องยังแสดงข้อมูลเดิม ไม่เปลี่ยนตาม package ใหม่
+```
+
+---
+
+# 16. Rate Plan และ Daily Rate
+
+## 16.1 เหตุผลที่ต้องมี Rate Plan
+
+โรงแรมและรีสอร์ทมักมีราคาหลายแบบ เช่น
+
+* ราคาปกติ
+* ราคาวันหยุด
+* ราคา High Season
+* ราคา Low Season
+* ราคาไม่รวมอาหารเช้า
+* ราคารวมอาหารเช้า
+* ราคา Non-refundable
+* ราคา Corporate
+* ราคา OTA
+* ราคา Walk-in
+* ราคา Promotion
+
+ดังนั้นไม่ควรเก็บแค่ base rate ใน room type อย่างเดียว
+
+---
+
+## 16.2 Rate Plan Structure
+
+โครงสร้างตัวอย่าง
+
+```txt
+rate_plans
+- id
+- property_id
+- room_type_id
+- name
+- base_price
+- meal_plan: none / breakfast / half_board / full_board
+- cancellation_policy
+- active
+- created_at
+- updated_at
+```
+
+ตัวอย่าง Rate Plan
+
+```txt
+BAR - Best Available Rate
+Breakfast Included
+Non-refundable
+Corporate Rate
+OTA Rate
+Walk-in Rate
+Weekend Rate
+High Season Rate
+```
+
+---
+
+## 16.3 Daily Rates
+
+Daily Rate ใช้กำหนดราคาตามวัน
+
+โครงสร้างตัวอย่าง
+
+```txt
+daily_rates
+- id
+- property_id
+- room_type_id
+- rate_plan_id
+- date
+- price
+- min_stay
+- stop_sell
+```
+
+ตัวอย่างราคา
+
+```txt
+Deluxe Room
+2026-12-30 = 2,500 บาท
+2026-12-31 = 4,500 บาท
+2027-01-01 = 4,000 บาท
+```
+
+ข้อดีของ Daily Rate
+
+* ตั้งราคาตามวันหยุดได้
+* ตั้งราคาช่วงเทศกาลได้
+* ตั้ง minimum stay ได้
+* ปิดขายบางวันได้
+* รองรับ OTA ได้ง่ายขึ้นในอนาคต
+
+---
+
+# 17. Inventory และการป้องกัน Overbooking
+
+## 17.1 Inventory Concept
+
+ระบบควรแยก Inventory ออกจาก Physical Room
+
+Physical Room คือห้องจริง เช่น
+
+```txt
+101
+102
+Villa A1
+Villa A2
+```
+
+Inventory คือจำนวนห้องว่างที่ขายได้ต่อวันต่อประเภทห้อง
+
+ตัวอย่าง
+
+```txt
+Deluxe Room
+2026-06-10 เหลือ 5 ห้อง
+2026-06-11 เหลือ 3 ห้อง
+2026-06-12 เหลือ 0 ห้อง
+```
+
+การแยก inventory สำคัญมากถ้าจะเชื่อม OTA ในอนาคต เพราะ OTA มักขายตาม room type และจำนวนห้องว่างต่อวัน ไม่ได้ขายตามห้องจริงรายห้อง
+
+---
+
+## 17.2 Inventory Structure
+
+โครงสร้างตัวอย่าง
+
+```txt
+inventory
+- id
+- property_id
+- room_type_id
+- date
+- total_rooms
+- blocked_rooms
+- booked_rooms
+- available_rooms
+```
+
+ใน MVP อาจยังไม่ต้องมีตาราง inventory จริงก็ได้
+สามารถคำนวณจาก rooms + bookings ก่อน
+
+แต่ถ้าจะรองรับ OTA และป้องกัน overbooking ให้แข็งแรง ควรมี inventory table ตั้งแต่แรกหรือเตรียม service layer ให้พร้อมแยก inventory ในอนาคต
+
+---
+
+## 17.3 Overbooking Protection ด้วย MySQL
+
+การป้องกัน overbooking ต้องทำที่ backend และ database ไม่ใช่ frontend อย่างเดียว
+
+ใน MySQL ต้องใช้
+
+```txt
+MySQL 8
+InnoDB
+Transaction
+Row-level Lock
+SELECT ... FOR UPDATE
+Unique / Foreign Key Constraint
+```
+
+ตัวอย่าง flow ตอน create booking
+
+```txt
+BEGIN TRANSACTION
+1. Lock inventory rows ของ room_type และ date range ที่เกี่ยวข้อง
+2. Check available_rooms
+3. ถ้าห้องว่างพอ ให้ create booking
+4. Create booking_rooms
+5. Create folio
+6. Update inventory
+7. Create audit log
+8. COMMIT
+```
+
+ถ้ามีพนักงาน 2 คนจองพร้อมกัน ระบบต้องรับประกันว่าไม่มีการขายเกินจำนวนห้องที่มี
+
+ตัวอย่างแนวคิด SQL locking
+
+```sql
+SELECT *
+FROM inventory
+WHERE property_id = ?
+AND room_type_id = ?
+AND date BETWEEN ? AND ?
+FOR UPDATE;
+```
+
+หลังจาก lock แล้วจึงตรวจสอบ `available_rooms`
+
+ถ้าห้องว่างไม่พอ ต้อง `ROLLBACK`
+
+```txt
+ถ้า available_rooms < จำนวนห้องที่ต้องการ
+→ ROLLBACK
+→ แจ้ง user ว่าห้องไม่พอ
+```
+
+ข้อสำคัญ
+
+* ห้ามเช็กห้องว่างเฉพาะที่ frontend
+* ห้าม create booking โดยไม่ lock inventory
+* ห้าม update inventory นอก transaction
+* ต้องใช้ InnoDB เท่านั้น
+* ควรมี index ที่ `property_id`, `room_type_id`, `date`
+
+---
+
+# 18. Cancellation และ No-show
+
+## 18.1 Cancellation
+
+ระบบต้องรองรับการยกเลิก booking
+
+ข้อมูลที่ควรเก็บ
+
+```txt
+booking_cancellations
+- id
+- booking_id
+- reason
+- cancelled_by
+- cancelled_at
+- refund_amount
+- cancellation_fee
+```
+
+เมื่อยกเลิก booking ต้อง
+
+* เปลี่ยน booking status เป็น Cancelled
+* คืน inventory ผ่าน transaction
+* บันทึก refund ถ้ามี
+* บันทึก cancellation fee ถ้ามี
+* บันทึก audit log
+* ป้องกันการลบ booking จริงออกจากระบบ
+
+การ cancel booking ที่มีผลกับ inventory ต้องทำใน transaction เช่นเดียวกับการ create booking
+
+---
+
+## 18.2 No-show
+
+No-show คือ booking ที่ลูกค้าไม่มาเข้าพักตามวันที่กำหนด
+
+ระบบควรรองรับสถานะ
+
+```txt
+booking status = No Show
+```
+
+ข้อมูลที่ควรเก็บ
+
+```txt
+no_show_marked_by
+no_show_marked_at
+no_show_fee
+remark
+```
+
+การจัดการ No-show อาจมีหลายแบบ เช่น
+
+* คิดค่าปรับ
+* ไม่คืน deposit
+* คืน inventory สำหรับคืนถัดไป
+* ปิด booking โดยไม่มี check-in
+
+---
+
+# 19. Tax และ Service Charge
+
+ระบบควรเผื่อการคำนวณภาษีและ service charge ตั้งแต่แรก
+
+โครงสร้างตัวอย่าง
+
+```txt
+tax_settings
+- property_id
+- vat_rate
+- service_charge_rate
+- price_include_tax: true / false
+- active
+```
+
+ตัวอย่างการตั้งค่า
+
+```txt
+ราคาห้องรวม VAT แล้ว
+ราคาห้องยังไม่รวม VAT
+มี Service Charge 10%
+ไม่มี Service Charge
+```
+
+ข้อมูลนี้มีผลกับ
+
+* ใบเสร็จ
+* รายงานรายได้
+* ภาษี
+* การแสดงราคาหน้า booking
+* การเชื่อมระบบบัญชีในอนาคต
+* การแยกรายได้สุทธิและภาษี
+
+---
+
+# 20. Reports
+
+## 20.1 รายงาน MVP
+
+ระบบควรมีรายงานพื้นฐานดังนี้
+
+---
+
+### รายงานรายได้รายวัน
+
+ข้อมูลที่ควรแสดง
+
+* รายได้ค่าห้อง
+* รายได้ค่าใช้จ่ายเพิ่มเติม
+* เงินสด
+* โอนเงิน
+* บัตรเครดิต
+* OTA
+* Refund
+* ยอดสุทธิ
+* ยอด gross
+* ยอด discount
+* ยอด tax ถ้ามี
+
+---
+
+### รายงาน Occupancy
+
+ข้อมูลที่ควรแสดง
+
+* จำนวนห้องทั้งหมด
+* จำนวนห้องที่ถูกจอง
+* จำนวนห้องว่าง
+* จำนวนห้อง Out of Order
+* Occupancy %
+* ADR ในอนาคต
+* RevPAR ในอนาคต
+
+---
+
+### รายงาน Booking Source
+
+ข้อมูลที่ควรแสดง
+
+* Walk-in กี่ booking
+* Facebook กี่ booking
+* Line กี่ booking
+* Agoda กี่ booking
+* Booking.com กี่ booking
+* รายได้แต่ละช่องทาง
+* อัตราการเข้าพักจากแต่ละช่องทาง
+
+---
+
+### รายงาน Housekeeping
+
+ข้อมูลที่ควรแสดง
+
+* ห้องที่รอทำความสะอาด
+* ห้องที่กำลังทำความสะอาด
+* ห้องที่ทำเสร็จแล้ว
+* เวลาที่ใช้ทำแต่ละห้อง
+* งานค้าง
+* งานตามแม่บ้านแต่ละคน
+
+---
+
+## 20.2 หมายเหตุสำหรับ MySQL Reports
+
+สำหรับรายงานที่ query หนัก ควรออกแบบ index ให้ดี เช่น
+
+* `bookings.property_id`
+* `bookings.status`
+* `bookings.check_in_date`
+* `bookings.check_out_date`
+* `payments.paid_at`
+* `payments.payment_method`
+* `folio_items.service_date`
+* `audit_logs.created_at`
+
+ถ้ารายงานเริ่มหนักในอนาคต สามารถทำ
+
+* summary table
+* daily revenue snapshot
+* scheduled job สรุปยอดรายวัน
+* read replica ในอนาคต
+
+---
+
+# 21. Hardware API Ready
+
+แม้ MVP ยังไม่ต้องเชื่อม hardware จริง แต่ควรเตรียม endpoint หรือ service layer ไว้
+
+## 21.1 Smart Card Reader
+
+ใช้สำหรับอ่านข้อมูลจากบัตรประชาชนหรือพาสปอร์ต
+
+แนวคิด endpoint
+
+```txt
+POST /hardware/smart-card/read
+```
+
+ระบบควรนำข้อมูลที่อ่านได้มาเติมใน guest profile
+
+ข้อมูลที่อาจได้จาก smart card
+
+* ชื่อ
+* นามสกุล
+* เลขบัตร
+* วันเกิด
+* ที่อยู่
+* รูปภาพ ถ้ารองรับ
+
+ข้อควรระวัง
+
+* ข้อมูลบัตรประชาชนเป็นข้อมูล sensitive
+* ต้องจำกัดสิทธิ์
+* ต้องมี audit log
+* ต้องมีการจัดเก็บอย่างปลอดภัย
+
+---
+
+## 21.2 Keycard Encoder
+
+ใช้สำหรับเขียนคีย์การ์ดตอน check-in
+
+แนวคิด endpoint
+
+```txt
+POST /hardware/keycard/encode
+```
+
+ข้อมูลที่ต้องใช้
+
+* room_id
+* check_in_date
+* check_out_date
+* guest_name
+* card_no
+
+Flow โดยรวม
+
+```txt
+Check-in confirmed
+↓
+System calls keycard encoder
+↓
+Keycard created
+↓
+System records card number
+↓
+Guest receives keycard
+```
+
+---
+
+# 22. Channel Manager Integration
+
+ระบบควรเตรียมโครงสร้างให้พร้อมสำหรับ OTA ในอนาคต
+
+## 22.1 OTA ที่อาจเชื่อมต่อ
+
+* Agoda
+* Booking.com
+* Expedia
+* Traveloka
+* Airbnb
+* Website Booking Engine
+* Channel Manager ตัวกลาง
+
+---
+
+## 22.2 หลักการออกแบบ
+
+ควรแยกข้อมูลหลักเหล่านี้ออกจากกัน
+
+* Physical Rooms
+* Room Types
+* Inventory
+* Rate Plans
+* Bookings
+* OTA Mapping
+
+ตัวอย่างตาราง
+
+```txt
+ota_channels
+- id
+- name
+- active
+```
+
+```txt
+ota_room_type_mappings
+- id
+- property_id
+- channel_id
+- internal_room_type_id
+- external_room_type_id
+```
+
+```txt
+ota_bookings
+- id
+- booking_id
+- channel_id
+- external_booking_id
+- raw_payload_json
+```
+
+หมายเหตุสำหรับ MySQL
+
+* `raw_payload_json` ใช้ data type เป็น `JSON`
+* ควรเก็บ payload ดิบไว้เพื่อ debug กรณี OTA ส่งข้อมูลผิดหรือมี dispute
+* ควรมี unique constraint ที่ `channel_id + external_booking_id`
+
+---
+
+## 22.3 Webhook Ready
+
+ควรเตรียม endpoint สำหรับรับ booking จาก OTA
+
+```txt
+POST /webhooks/ota/bookings
+POST /webhooks/ota/cancellations
+POST /webhooks/ota/modifications
+```
+
+ใน MVP ยังไม่ต้อง implement จริง แต่ควรวาง architecture ให้รองรับ
+
+เมื่อ OTA ส่ง booking เข้ามา ระบบควรทำงานดังนี้
+
+```txt
+Receive OTA webhook
+↓
+Validate payload
+↓
+Map external room type to internal room type
+↓
+Check availability with MySQL transaction
+↓
+Create booking
+↓
+Create folio
+↓
+Update inventory
+↓
+Save raw payload
+↓
+Return response
+```
+
+---
+
+# 23. API Endpoint หลัก
+
+## 23.1 Authentication
+
+```txt
+POST /auth/login
+POST /auth/logout
+GET /auth/me
+```
+
+---
+
+## 23.2 Properties
+
+```txt
+GET /properties
+POST /properties
+GET /properties/{id}
+PATCH /properties/{id}
+```
+
+---
+
+## 23.3 Rooms
+
+```txt
+GET /rooms
+POST /rooms
+GET /rooms/{id}
+PATCH /rooms/{id}
+PATCH /rooms/{id}/status
+```
+
+---
+
+## 23.4 Room Grid
+
+```txt
+GET /rooms/grid?from=2026-06-01&to=2026-06-30
+```
+
+---
+
+## 23.5 Bookings
+
+```txt
+POST /bookings
+GET /bookings
+GET /bookings/{id}
+PATCH /bookings/{id}
+POST /bookings/{id}/cancel
+POST /bookings/{id}/check-in
+POST /bookings/{id}/check-out
+POST /bookings/{id}/assign-room
+POST /bookings/{id}/move-room
+```
+
+ควรใช้ action endpoint สำหรับ workflow สำคัญ ไม่ควรแก้ status ตรง ๆ
+
+ตัวอย่างที่ควรใช้
+
+```txt
+POST /bookings/{id}/check-in
+```
+
+ไม่ควรใช้
+
+```txt
+PATCH /bookings/{id}
+status = checked_in
+```
+
+เพราะ check-in มี business logic หลายอย่าง เช่น เช็กห้อง รับเงิน เปลี่ยนสถานะห้อง สร้าง log และตรวจ permission
+
+---
+
+## 23.6 Guests
+
+```txt
+GET /guests?search=
+POST /guests
+GET /guests/{id}
+PATCH /guests/{id}
+```
+
+---
+
+## 23.7 Folios
+
+```txt
+GET /folios/{id}
+POST /folios/{id}/charges
+POST /folios/{id}/discounts
+POST /folios/{id}/payments
+POST /folios/{id}/close
+```
+
+---
+
+## 23.8 Payments
+
+```txt
+POST /payments/{id}/void
+POST /payments/{id}/refund
+```
+
+---
+
+## 23.9 Housekeeping
+
+```txt
+GET /housekeeping/tasks
+PATCH /housekeeping/tasks/{id}
+POST /housekeeping/tasks/{id}/start
+POST /housekeeping/tasks/{id}/complete
+```
+
+---
+
+## 23.10 Reports
+
+```txt
+GET /reports/daily-revenue
+GET /reports/occupancy
+GET /reports/booking-sources
+GET /reports/housekeeping
+```
+
+---
+
+# 24. Core Database Tables
+
+ตารางหลักที่ควรมี
+
+```txt
+properties
+
+users
+roles
+permissions
+user_roles
+role_permissions
+
+zones
+room_types
+rooms
+room_status_logs
+
+guests
+bookings
+booking_rooms
+booking_sources
+booking_status_logs
+
+folios
+folio_items
+payments
+refunds
+deposits
+
+housekeeping_tasks
+maintenance_tickets
+
+rate_plans
+daily_rates
+inventory
+
+packages
+package_items
+booking_packages
+
+ota_channels
+ota_room_type_mappings
+ota_bookings
+
+audit_logs
+```
+
+กลุ่มตารางตามหน้าที่
+
+```txt
+Property & Structure:
+properties, zones, room_types, rooms
+
+User & Permission:
+users, roles, permissions, user_roles, role_permissions
+
+Booking:
+bookings, booking_rooms, booking_sources, booking_status_logs
+
+Guest:
+guests
+
+Billing:
+folios, folio_items, payments, refunds, deposits
+
+Operation:
+housekeeping_tasks, maintenance_tickets, room_status_logs
+
+Pricing:
+rate_plans, daily_rates
+
+Inventory:
+inventory
+
+Package:
+packages, package_items, booking_packages
+
+OTA:
+ota_channels, ota_room_type_mappings, ota_bookings
+
+Security:
+audit_logs
+```
+
+---
+
+## 24.1 MySQL Database Design Notes
+
+การออกแบบตารางใน MySQL ควรยึดหลักดังนี้
+
+```txt
+Storage Engine = InnoDB
+Character Set = utf8mb4
+Collation = utf8mb4_unicode_ci หรือ utf8mb4_0900_ai_ci
+Primary Key = BIGINT หรือ UUID ตามแนวทางทีม
+Foreign Key = ควรใช้กับ relation สำคัญ
+Index = ต้องออกแบบตาม query จริง
+JSON = ใช้กับ snapshot, payload, audit log
+```
+
+ตารางที่ควรมี index สำคัญ
+
+```txt
+bookings:
+- property_id
+- status
+- check_in_date
+- check_out_date
+- booking_source_id
+
+booking_rooms:
+- booking_id
+- room_type_id
+- room_id
+- check_in_date
+- check_out_date
+
+inventory:
+- property_id
+- room_type_id
+- date
+
+payments:
+- folio_id
+- payment_method
+- paid_at
+- status
+
+audit_logs:
+- property_id
+- user_id
+- entity_type
+- entity_id
+- created_at
+```
+
+Unique constraint ที่ควรพิจารณา
+
+```txt
+inventory:
+unique(property_id, room_type_id, date)
+
+rooms:
+unique(property_id, room_number)
+
+ota_bookings:
+unique(channel_id, external_booking_id)
+```
+
+---
+
+# 25. MVP Scope
+
+## 25.1 สิ่งที่ควรทำใน MVP
+
+MVP ควรมีฟีเจอร์ดังนี้
+
+1. Login / Logout
+2. User Role: Admin, Front Desk, Housekeeping
+3. Property พื้นฐาน
+4. Zone
+5. Room Type
+6. Room
+7. Room Grid Timeline
+8. Create Booking
+9. Edit Booking
+10. Guest Profile
+11. Assign Room
+12. Move Room
+13. Check-in
+14. Check-out
+15. Folio หลัก 1 ใบต่อ booking
+16. Add Charge
+17. Payment หลายช่องทาง
+18. Deposit
+19. Receipt เบื้องต้น
+20. Housekeeping Dashboard
+21. Housekeeping Task
+22. Out of Order
+23. Maintenance Ticket เบื้องต้น
+24. Audit Log
+25. Daily Revenue Report
+26. Occupancy Report
+27. Booking Source Report
+28. MySQL transaction สำหรับ create booking / check-in / check-out / payment / refund
+29. Row locking สำหรับ inventory เพื่อป้องกัน overbooking
+
+---
+
+## 25.2 สิ่งที่ยังไม่จำเป็นต้องทำใน MVP
+
+สิ่งเหล่านี้ควรวางโครงสร้างไว้ แต่ยังไม่ต้องพัฒนาเต็มในเฟสแรก
+
+* Channel Manager จริง
+* Smart Card Reader จริง
+* Keycard Encoder จริง
+* Split Folio เต็มรูปแบบ
+* Dynamic Pricing
+* POS ร้านอาหาร
+* Accounting Integration
+* Mobile App แบบ Native
+* Multi-property UI เต็มรูปแบบ
+* Advanced Revenue Management
+* Loyalty Program
+* Corporate Account
+* Housekeeping Assignment ขั้นสูง
+* WebSocket เต็มรูปแบบ
+* BI Dashboard ขั้นสูง
+* Read Replica
+* Data Warehouse
+
+---
+
+# 26. Tech Stack Recommendation
+
+## 26.1 Backend
+
+แนะนำให้ใช้
+
+```txt
+NestJS + Prisma + MySQL 8
+```
+
+เหตุผล
+
+* โครงสร้างชัดเจน
+* เหมาะกับ API-first
+* เหมาะกับระบบใหญ่
+* ใช้ TypeScript
+* ขยายต่อได้ดี
+* แยก module ตาม domain ได้ดี
+* เหมาะกับระบบ PMS ที่มี business logic เยอะ
+* ใช้ร่วมกับ MySQL ได้ดีผ่าน Prisma
+
+---
+
+## 26.2 Database
+
+ระบบจะใช้
+
+```txt
+MySQL 8 + InnoDB
+```
+
+เหตุผล
+
+* ทีม dev หาได้ง่าย
+* Hosting รองรับกว้าง
+* ใช้กับ Prisma ได้ดี
+* รองรับ transaction
+* รองรับ row-level locking
+* รองรับ foreign key
+* รองรับ index
+* รองรับ JSON
+* เหมาะกับ MVP และ production ได้
+
+ข้อกำหนดสำคัญ
+
+```txt
+ต้องใช้ MySQL 8.x
+ต้องใช้ InnoDB
+ต้องออกแบบ index ให้ดี
+ต้องใช้ transaction ใน workflow สำคัญ
+ต้องใช้ SELECT ... FOR UPDATE ในจุดป้องกัน overbooking
+```
+
+---
+
+## 26.3 Frontend
+
+แนะนำให้ใช้
+
+```txt
+Next.js
+React
+TypeScript
+Tailwind CSS
+```
+
+เหตุผล
+
+* ทำ web app ได้เร็ว
+* ทำ responsive ได้ดี
+* เหมาะกับ dashboard
+* รองรับ component-based UI
+* ต่อ API ง่าย
+* ขยายไปเป็นระบบขนาดใหญ่ได้
+* เหมาะกับทีมที่ใช้ JavaScript / TypeScript
+
+---
+
+## 26.4 Real-time
+
+ตัวเลือก
+
+```txt
+Polling สำหรับ MVP
+WebSocket สำหรับ Phase 2
+```
+
+MVP ใช้ polling ทุก 5–10 วินาทีก็เพียงพอสำหรับ Room Grid และ Housekeeping
+
+Phase 2 ค่อยเพิ่ม WebSocket เพื่อให้ real-time มากขึ้น เช่น
+
+* แม่บ้านกดห้องสะอาดแล้ว Front Desk เห็นทันที
+* มีการย้ายห้องจาก Front Desk อีกเครื่อง
+* มี booking ใหม่เข้ามาจาก OTA
+* ห้องถูกตั้งเป็น Out of Order
+
+---
+
+# 27. Workflow สำคัญของระบบ
+
+## 27.1 Booking Workflow
+
+```txt
+Create Booking
+↓
+Select Guest
+↓
+Select Room Type
+↓
+Check Availability
+↓
+Lock Inventory Rows ด้วย MySQL SELECT ... FOR UPDATE
+↓
+Create Booking
+↓
+Create Booking Rooms
+↓
+Create Master Folio
+↓
+Update Inventory
+↓
+Record Deposit ถ้ามี
+↓
+Booking Status = Confirmed
+↓
+Audit Log
+↓
+Commit Transaction
+```
+
+---
+
+## 27.2 Check-in Workflow
+
+```txt
+Open Booking
+↓
+Validate Guest Info
+↓
+Assign Room
+↓
+Check Room Status = Clean
+↓
+Collect Deposit / Payment
+↓
+Booking Status = Checked In
+↓
+Room Status = Occupied
+↓
+Audit Log
+↓
+Commit Transaction
+```
+
+---
+
+## 27.3 Check-out Workflow
+
+```txt
+Open Booking
+↓
+Open Folio
+↓
+Add Final Charges
+↓
+Apply Deposit
+↓
+Collect Remaining Balance / Refund
+↓
+Balance = 0
+↓
+Close Folio
+↓
+Booking Status = Checked Out
+↓
+Room Status = Dirty
+↓
+Create Housekeeping Task
+↓
+Issue Receipt
+↓
+Audit Log
+↓
+Commit Transaction
+```
+
+---
+
+## 27.4 Housekeeping Workflow
+
+```txt
+Room Checked Out
+↓
+Room Status = Dirty
+↓
+Housekeeping Task Created
+↓
+Housekeeper Starts Task
+↓
+Room Status = Cleaning
+↓
+Housekeeper Completes Task
+↓
+Room Status = Clean
+↓
+Front Desk Can Sell Room Again
+```
+
+---
+
+# 28. หลักการออกแบบสำคัญ
+
+## 28.1 ห้ามผูก Booking กับห้องจริงเร็วเกินไป
+
+Booking ควรจองตาม room type ก่อน แล้วค่อย assign ห้องจริงภายหลัง
+
+เหตุผล
+
+* โรงแรมขายตามประเภทห้อง
+* ย้ายห้องง่าย
+* รองรับ OTA ง่าย
+* ลดปัญหา overbooking
+* รองรับหลายห้องใน booking เดียว
+* รองรับการ upgrade/downgrade ห้องได้
+
+---
+
+## 28.2 ห้ามป้องกัน Overbooking แค่ที่ Frontend
+
+ต้องป้องกันที่ backend และ database เท่านั้น
+
+Frontend เช็กได้เพื่อ UX ที่ดี
+แต่ backend ต้องเป็นตัวตัดสินสุดท้าย
+
+สำหรับ MySQL ต้องใช้
+
+```txt
+Transaction
+SELECT ... FOR UPDATE
+Inventory row locking
+Commit / Rollback ที่ชัดเจน
+```
+
+---
+
+## 28.3 ทุกการเงินต้องมี Log และห้ามลบจริง
+
+ข้อมูลการเงินไม่ควรถูกลบออกจากระบบ
+
+ถ้าผิดควรใช้
+
+* Void
+* Refund
+* Adjustment
+
+ไม่ควร delete payment หรือ delete folio item แบบถาวร
+
+---
+
+## 28.4 ทุกการแก้ราคาต้องมีเหตุผล
+
+Pricing Override ต้องมี
+
+* Old price
+* New price
+* Reason
+* User ID
+* Timestamp
+* Approval ถ้าจำเป็น
+
+---
+
+## 28.5 Package ควรเก็บ Snapshot
+
+ถ้า booking ใช้ package ใด ต้องเก็บ snapshot ของ package ณ วันที่จอง เพื่อป้องกันข้อมูล booking เก่าเปลี่ยนตาม package ใหม่
+
+ใน MySQL สามารถเก็บ snapshot ด้วย data type `JSON`
+
+---
+
+## 28.6 MySQL Transaction ต้องใช้กับ Workflow สำคัญ
+
+Workflow ที่ควรใช้ transaction ทุกครั้ง
+
+* Create Booking
+* Cancel Booking
+* Move Room
+* Assign Room
+* Check-in
+* Check-out
+* Receive Payment
+* Void Payment
+* Refund
+* Apply Deposit
+* Update Inventory
+
+---
+
+# 29. สรุปความสำคัญของระบบ
+
+ระบบนี้ควรวางเป็น PMS ที่เริ่มจากรีสอร์ทได้ แต่ไม่ปิดทางไปโรงแรม
+
+โครงสร้างที่สำคัญที่สุดที่ต้องมีตั้งแต่แรกคือ
+
+1. `properties` เพื่อรองรับหลายที่พัก
+2. `zones` เพื่อรองรับพื้นที่หลายแบบ
+3. `room_types` แยกจาก `rooms`
+4. `booking_rooms` เพื่อรองรับการจองหลายห้องและ assign ห้องภายหลัง
+5. `folios` และ `folio_items` เพื่อรองรับ billing ที่ขยายได้
+6. `payments` และ `refunds` เพื่อเก็บประวัติการเงินครบถ้วน
+7. `deposits` เพื่อจัดการเงินมัดจำ
+8. `housekeeping_tasks` เพื่อจัดการงานแม่บ้านจริง
+9. `maintenance_tickets` เพื่อจัดการห้องเสีย
+10. `inventory` เพื่อรองรับ OTA และป้องกัน overbooking
+11. `rate_plans` และ `daily_rates` เพื่อรองรับราคาตามวัน
+12. `packages` และ `booking_packages` เพื่อรองรับแพ็กเกจรีสอร์ท
+13. `audit_logs` เพื่อความปลอดภัยและตรวจสอบย้อนหลัง
+14. `MySQL transactions` เพื่อให้ workflow สำคัญปลอดภัย
+15. `SELECT ... FOR UPDATE` เพื่อ lock inventory และป้องกัน overbooking
+
+---
+
+# 31. Recommended Technology Stack & Libraries
+
+## 31.1 Frontend Framework
+
+ระบบจะใช้ **Next.js + TypeScript** เป็น Frontend Framework หลัก
+
+เหตุผลที่เลือกใช้ Next.js
+
+* รองรับ React ecosystem ได้ดี
+* เหมาะกับ Web Application และ Dashboard
+* รองรับ App Router
+* รองรับการแยก Server Component และ Client Component
+* รองรับ routing, layout, loading state และ error boundary ในตัว
+* เหมาะกับการต่อ REST API
+* รองรับการขยายไปสู่ระบบขนาดใหญ่ในอนาคต
+* เหมาะกับการทำหน้า Front Desk, Admin Dashboard และ Report
+
+แนวทางการใช้งาน
+
+```txt
+Next.js ใช้สำหรับ Frontend เท่านั้น
+Backend API หลักจะแยกเป็น NestJS
+Frontend จะเรียก API ผ่าน REST API
+```
+
+โครงสร้างนี้เหมาะกับระบบ PMS เพราะต้องการ API-first design และอาจมี Mobile App, Tablet App หรือ External Integration ในอนาคต
+
+---
+
+## 31.2 Styling
+
+ระบบจะใช้ **Tailwind CSS** เป็น Styling Framework หลัก
+
+เหตุผลที่เลือกใช้ Tailwind CSS
+
+* เหมาะกับการทำ Dashboard และ Admin Panel
+* ทำ Responsive Design ได้ง่าย
+* Custom Design ได้สูง
+* ไม่บังคับหน้าตาเหมือน Bootstrap หรือ Material UI
+* เหมาะกับการทำ UI เฉพาะทาง เช่น Room Grid, Folio, Housekeeping Card
+* ทำงานร่วมกับ shadcn/ui ได้ดี
+* ทำ dark mode ในอนาคตได้ง่าย
+* ทำ layout สำหรับ desktop/tablet/mobile ได้ดี
+
+---
+
+## 31.3 UI Component Library
+
+ระบบจะใช้ **shadcn/ui + Radix UI** เป็น UI Component หลัก
+
+เหตุผลที่เลือกใช้ shadcn/ui
+
+* เป็น component ที่ออกแบบมาสวยและใช้งานจริงได้เร็ว
+* Copy component มาอยู่ใน project ได้ ทำให้แก้ไขและ custom ได้เต็มที่
+* ทำงานร่วมกับ Tailwind CSS ได้ดี
+* เหมาะกับ dashboard, form, modal, dropdown, table action, alert dialog
+* ไม่ล็อกกับ component framework หนัก ๆ
+* คุม design system เองได้
+
+เหตุผลที่ใช้ Radix UI
+
+* เป็น low-level UI primitive
+* เหมาะกับ accessibility
+* ใช้ทำ dialog, popover, dropdown, select, tabs ได้ดี
+* ไม่บังคับ design
+* ใช้ร่วมกับ Tailwind ได้ดี
+
+Component ที่ควรใช้ในระบบ
+
+* Button
+* Input
+* Select
+* Dialog
+* Alert Dialog
+* Dropdown Menu
+* Tabs
+* Tooltip
+* Popover
+* Badge
+* Card
+* Sheet
+* Calendar
+* Data Table
+* Toast / Sonner
+* Command Search
+
+---
+
+## 31.4 Form Management
+
+ระบบจะใช้ **React Hook Form + Zod**
+
+เหมาะกับฟอร์มของระบบ PMS เช่น
+
+* Create Booking
+* Edit Booking
+* Guest Profile
+* Check-in Form
+* Check-out Form
+* Add Charge
+* Payment Form
+* Refund Form
+* Room Form
+* Room Type Form
+* Rate Plan Form
+* Package Form
+* Maintenance Form
+
+เหตุผลที่เลือก React Hook Form
+
+* Performance ดี
+* เหมาะกับฟอร์มใหญ่
+* ลด re-render
+* ใช้งานร่วมกับ controlled / uncontrolled input ได้ดี
+* ทำงานร่วมกับ shadcn/ui ได้ดี
+* เหมาะกับฟอร์มที่มีหลาย field และหลาย step
+
+เหตุผลที่เลือก Zod
+
+* ใช้ validate schema ได้ชัดเจน
+* เหมาะกับ TypeScript
+* ทำให้ form validation ชัดเจนและ maintain ง่าย
+* สามารถแชร์ schema หรือ type ร่วมกับ backend ได้บางส่วน
+* ลดความผิดพลาดของข้อมูลก่อนส่งเข้า API
+
+ตัวอย่างการใช้งาน
+
+```txt
+React Hook Form = จัดการ form state
+Zod = ตรวจสอบข้อมูล เช่น วันที่, เบอร์โทร, จำนวนเงิน, required field
+```
+
+---
+
+## 31.5 API State Management
+
+ระบบจะใช้ **TanStack Query** สำหรับจัดการข้อมูลที่มาจาก API
+
+ข้อมูลที่เหมาะกับ TanStack Query
+
+* รายการห้อง
+* Room Grid
+* Booking List
+* Booking Detail
+* Guest Profile
+* Folio
+* Payment Log
+* Housekeeping Tasks
+* Maintenance Tickets
+* Reports
+* Rate Plans
+* Daily Rates
+* Packages
+
+เหตุผลที่เลือก TanStack Query
+
+* จัดการ server state ได้ดี
+* มี caching
+* มี refetch
+* มี mutation
+* มี query invalidation
+* เหมาะกับระบบที่ต้องเรียก API บ่อย
+* ลดการเขียน loading/error state ซ้ำ ๆ
+* เหมาะกับ Front Desk screen ที่ต้อง refresh ข้อมูลบ่อย
+
+แนวทางใช้งาน
+
+```txt
+GET data = useQuery
+POST/PATCH/DELETE = useMutation
+หลัง mutation สำเร็จให้ invalidate query ที่เกี่ยวข้อง
+```
+
+ตัวอย่าง
+
+```txt
+เมื่อ check-out สำเร็จ
+→ invalidate room-grid
+→ invalidate housekeeping-tasks
+→ invalidate booking-detail
+→ invalidate folio
+```
+
+---
+
+## 31.6 Local UI State Management
+
+ระบบจะใช้ **Zustand** สำหรับ state ฝั่ง UI ที่ไม่ใช่ข้อมูลหลักจาก server
+
+เหมาะกับ state เช่น
+
+* Sidebar open/close
+* Selected room
+* Selected booking
+* Current date range ใน Room Grid
+* Filter state
+* Temporary UI state
+* Modal state
+* Dragging state บางส่วน
+* Current selected property ในอนาคต
+* UI preference บางอย่าง
+
+ไม่ควรใช้ Zustand เก็บข้อมูลหลัก เช่น bookings, payments, rooms เพราะข้อมูลเหล่านั้นควรอยู่ใน TanStack Query
+
+หลักการแบ่ง state
+
+```txt
+TanStack Query = Server State
+Zustand = UI State
+React Hook Form = Form State
+Zod = Validation Schema
+```
+
+---
+
+## 31.7 Room Grid / Timeline
+
+ระบบจะทำ **Custom Room Grid** โดยใช้ library หลักดังนี้
+
+```txt
+TanStack Virtual
+dnd kit
+date-fns
+Tailwind CSS
+```
+
+เหตุผลที่ทำ Custom Room Grid
+
+Room Grid เป็นหัวใจของระบบ PMS และมี business rule เฉพาะเยอะ เช่น
+
+* แกน X เป็นวันที่
+* แกน Y เป็นห้อง
+* แสดง booking เป็น block
+* drag booking เพื่อย้ายห้อง
+* resize booking เพื่อเปลี่ยนวัน
+* สีตาม booking status และ room status
+* คลิกช่องว่างเพื่อสร้าง booking
+* ตรวจสอบ overbooking ก่อนย้าย
+* แสดง dirty / clean / occupied / out of order
+* ต้องรองรับห้องจำนวนมาก
+* ต้องรองรับโรงแรมและรีสอร์ทหลายโซน
+* ต้องรองรับ room type
+* ต้องรองรับ booking หลายห้อง
+* ต้องรองรับ maintenance block
+
+จึงควรทำ custom เพื่อควบคุม behavior ได้เต็มที่
+
+---
+
+## 31.8 Virtualization
+
+ระบบจะใช้ **TanStack Virtual** เพื่อเพิ่ม performance ของหน้าที่มีข้อมูลเยอะ
+
+เหมาะกับ
+
+* Room Grid ที่มีห้องจำนวนมาก
+* Booking List
+* Guest List
+* Payment Log
+* Audit Log
+* Report Table
+* Maintenance List
+* Housekeeping Task List
+
+เหตุผล
+
+* ไม่ render DOM ทั้งหมดพร้อมกัน
+* render เฉพาะ row/column ที่อยู่ในหน้าจอ
+* ทำให้ระบบลื่นขึ้นเมื่อมีข้อมูลเยอะ
+* เหมาะกับ grid ที่มีหลายห้องและหลายวัน
+* ช่วยลดปัญหาหน่วงใน Front Desk screen
+
+---
+
+## 31.9 Drag & Drop
+
+ระบบจะใช้ **dnd kit** สำหรับ drag & drop
+
+ใช้กับ
+
+* Drag booking ไปห้องอื่น
+* Drag booking ไปวันที่อื่น
+* Reorder บางรายการ
+* Move task
+* Custom interaction ใน Room Grid
+
+เหตุผล
+
+* เหมาะกับ React
+* ยืดหยุ่นสูง
+* Custom behavior ได้ดี
+* รองรับ accessibility
+* เหมาะกับระบบที่ drag/drop ไม่ใช่แค่ reorder list ธรรมดา
+
+ข้อควรระวัง
+
+การ drag booking ใน Room Grid ห้าม update database ทันทีโดยไม่ตรวจสอบ backend
+
+Flow ที่ถูกต้องควรเป็น
+
+```txt
+User drags booking
+↓
+Frontend แสดง preview
+↓
+User drops
+↓
+Frontend call API move-room
+↓
+Backend ตรวจสอบ availability ด้วย MySQL transaction
+↓
+Backend update booking
+↓
+Backend create audit log
+↓
+Frontend refresh room-grid
+```
+
+---
+
+## 31.10 Date Utility
+
+ระบบจะใช้ **date-fns** สำหรับจัดการวันที่
+
+ใช้กับ
+
+* คำนวณจำนวนคืน
+* แสดงวันที่
+* แปลง format วันที่
+* คำนวณ date range
+* สร้าง calendar columns
+* คำนวณราคาแต่ละคืน
+* เช็ก check-in / check-out
+* Filter report ตามวันที่
+* คำนวณ daily rate
+* คำนวณ stay period
+
+เหตุผล
+
+* ใช้ง่าย
+* เหมาะกับ JavaScript / TypeScript
+* ไม่หนักเกินไป
+* ใช้เฉพาะ function ที่ต้องการได้
+* เหมาะกับ frontend และ backend
+* อ่านง่ายกว่าเขียน date logic เอง
+
+---
+
+## 31.11 Table / Data Grid
+
+ระบบจะใช้ **TanStack Table** สำหรับตารางข้อมูล
+
+ใช้กับ
+
+* Booking List
+* Guest List
+* Payment Log
+* Folio Items
+* Audit Log
+* Daily Revenue Report
+* Occupancy Report
+* Booking Source Report
+* Maintenance List
+* Housekeeping Task List
+* Rate Plan List
+* Room List
+* User List
+
+เหตุผล
+
+* เป็น headless table
+* คุม UI เองได้เต็มที่
+* ใช้ร่วมกับ Tailwind และ shadcn/ui ได้ดี
+* รองรับ sorting
+* รองรับ filtering
+* รองรับ pagination
+* รองรับ selection
+* เหมาะกับ dashboard และ back-office system
+
+---
+
+## 31.12 Chart / Report Visualization
+
+ระบบจะใช้ **Recharts** สำหรับกราฟรายงานพื้นฐาน
+
+ใช้กับ
+
+* รายได้รายวัน
+* Occupancy %
+* Booking Source
+* Payment Method
+* Monthly Revenue
+* ADR ในอนาคต
+* RevPAR ในอนาคต
+* Housekeeping performance
+* Maintenance issue summary
+
+เหตุผล
+
+* ใช้ง่ายกับ React
+* เพียงพอสำหรับ dashboard report
+* ทำ line chart, bar chart, pie chart ได้
+* Custom หน้าตาให้เข้ากับ Tailwind ได้ง่าย
+* เหมาะกับ MVP และ dashboard ระดับทั่วไป
+
+---
+
+## 31.13 Authentication
+
+ระบบสามารถเลือกได้ 2 แนวทาง
+
+### แนวทางที่แนะนำสำหรับ MVP
+
+ใช้ **Custom JWT Authentication**
+
+เหมาะกับระบบที่มี user ภายใน เช่น
+
+* Admin
+* Front Desk
+* Housekeeping
+* Manager
+
+เหตุผล
+
+* ควบคุมง่าย
+* ไม่ซับซ้อน
+* เหมาะกับระบบปิดขององค์กร
+* ทำ RBAC เองได้ชัดเจน
+* ไม่จำเป็นต้องใช้ social login
+* เหมาะกับ backend NestJS
+
+### แนวทางในอนาคต
+
+ใช้ **Auth.js** หากต้องการ
+
+* OAuth
+* Google Login
+* Multi-provider login
+* Enterprise login
+* Session management ที่ซับซ้อนขึ้น
+
+---
+
+## 31.14 Permission / RBAC
+
+ระบบต้องทำ Permission-based Access Control
+
+ไม่ควร hardcode แค่ role
+
+โครงสร้างควรเป็น
+
+```txt
+users
+roles
+permissions
+user_roles
+role_permissions
+```
+
+ตัวอย่าง permission
+
+```txt
+booking.create
+booking.update
+booking.cancel
+booking.check_in
+booking.check_out
+
+payment.receive
+payment.void
+payment.refund
+
+room.update_status
+room.set_out_of_order
+
+report.view
+user.manage
+price.override
+```
+
+Frontend ใช้ permission เพื่อซ่อนหรือแสดงปุ่ม
+Backend ต้องตรวจ permission จริงอีกครั้งก่อนทำ action
+
+หลักการสำคัญ
+
+```txt
+Frontend permission = เพื่อ UX
+Backend permission = เพื่อ Security
+```
+
+---
+
+## 31.15 Backend Framework
+
+ระบบจะใช้ **NestJS + TypeScript** เป็น Backend Framework หลัก
+
+เหตุผลที่เลือก NestJS
+
+* เหมาะกับ API-first architecture
+* โครงสร้างชัดเจน
+* แยก module ได้ดี
+* เหมาะกับระบบธุรกิจขนาดกลางถึงใหญ่
+* ใช้ TypeScript
+* รองรับ validation, guard, interceptor, middleware
+* เหมาะกับ REST API
+* ขยายไป WebSocket หรือ Queue ได้ในอนาคต
+* เหมาะกับระบบที่มี business logic เยอะ เช่น PMS
+
+ตัวอย่าง module
+
+```txt
+AuthModule
+UserModule
+PropertyModule
+RoomModule
+BookingModule
+GuestModule
+FolioModule
+PaymentModule
+HousekeepingModule
+MaintenanceModule
+ReportModule
+AuditLogModule
+RatePlanModule
+InventoryModule
+PackageModule
+```
+
+---
+
+## 31.16 ORM
+
+ระบบจะใช้ **Prisma ORM**
+
+เหตุผลที่เลือก Prisma
+
+* Type-safe
+* ใช้งานกับ TypeScript ดี
+* ทำงานกับ MySQL ได้ดี
+* ทำ migration ได้
+* Query อ่านง่าย
+* เหมาะกับทีมที่ต้องการความเร็วในการพัฒนา
+* ลด error จากการเขียน SQL ตรง ๆ
+* เหมาะกับ CRUD และ business module ทั่วไป
+
+ข้อควรระวัง
+
+สำหรับ query ซับซ้อนมาก ๆ เช่น report, availability calculation หรือ inventory locking อาจต้องใช้ raw SQL บางส่วน
+
+แนวทางที่แนะนำ
+
+```txt
+CRUD ทั่วไป = Prisma
+Transaction สำคัญ = Prisma transaction
+Inventory Locking = Prisma transaction + raw SQL SELECT ... FOR UPDATE ถ้าจำเป็น
+Report หนัก ๆ = raw SQL / summary table ในอนาคต
+```
+
+---
+
+## 31.17 Database
+
+ระบบจะใช้ **MySQL 8 + InnoDB**
+
+เหตุผล
+
+* เหมาะกับ production system
+* ทีม dev คุ้นเคย
+* Hosting รองรับง่าย
+* รองรับ transaction
+* รองรับ row-level locking
+* รองรับ foreign key
+* รองรับ index
+* รองรับ JSON
+* ใช้กับ Prisma ได้ดี
+* เพียงพอสำหรับ PMS MVP และขยายต่อได้
+
+ระบบ PMS ต้องพึ่งพา transaction อย่างมาก โดยเฉพาะ
+
+* Create Booking
+* Check-in
+* Check-out
+* Payment
+* Refund
+* Move Room
+* Cancel Booking
+* Inventory Update
+
+ข้อกำหนดสำคัญ
+
+```txt
+MySQL Version = 8.x
+Storage Engine = InnoDB
+Character Set = utf8mb4
+ต้องมี index สำหรับ query สำคัญ
+ต้องใช้ transaction ใน workflow สำคัญ
+ต้องใช้ row lock เพื่อป้องกัน overbooking
+```
+
+---
+
+## 31.18 Real-time Strategy
+
+### MVP
+
+ใช้ polling ก่อน
+
+ตัวอย่าง
+
+```txt
+Room Grid refetch ทุก 10 วินาที
+Housekeeping Tasks refetch ทุก 5–10 วินาที
+Booking Detail refetch หลัง mutation
+```
+
+เหตุผล
+
+* ทำง่าย
+* debug ง่าย
+* เพียงพอสำหรับ MVP
+* ลดความซับซ้อนของระบบ
+* ไม่ต้องจัดการ connection state ตั้งแต่แรก
+
+### Phase 2
+
+ใช้ WebSocket
+
+เหมาะกับ
+
+* Room status real-time
+* Housekeeping update
+* Booking moved
+* Payment updated
+* Maintenance alert
+* Front Desk หลายเครื่องเปิดพร้อมกัน
+* OTA booking เข้าใหม่
+
+---
+
+## 31.19 Notification / Toast
+
+ระบบจะใช้ **Sonner หรือ shadcn/ui Toast**
+
+ใช้แสดงข้อความ เช่น
+
+* Booking created
+* Check-in success
+* Payment received
+* Room moved
+* Cannot move booking because room is occupied
+* Check-out completed
+* Housekeeping task completed
+* Permission denied
+* Payment voided
+* Refund completed
+* Room set to Out of Order
+
+ข้อความควรชัดเจนและบอกสาเหตุเมื่อทำรายการไม่สำเร็จ
+
+ตัวอย่าง
+
+```txt
+ไม่สามารถย้าย booking ได้ เพราะห้องนี้มีผู้เข้าพักในช่วงวันที่เลือก
+```
+
+---
+
+## 31.20 Icon
+
+ระบบจะใช้ **Lucide React**
+
+เหตุผล
+
+* icon สวย
+* ใช้กับ shadcn/ui ได้ดี
+* น้ำหนักเบา
+* มี icon สำหรับ dashboard, calendar, user, room, payment, report
+* style เรียบและเหมาะกับระบบหลังบ้าน
+
+ใช้กับ
+
+* Sidebar menu
+* Action button
+* Room status
+* Payment method
+* Report card
+* Housekeeping card
+* Maintenance ticket
+
+---
+
+## 31.21 Package Manager
+
+ระบบจะใช้ **pnpm**
+
+เหตุผล
+
+* เร็ว
+* ประหยัดพื้นที่
+* เหมาะกับ monorepo
+* ใช้กับ workspace ได้ดี
+* เหมาะกับ project ที่แยก apps และ packages
+* จัดการ dependency ได้เป็นระบบ
+
+---
+
+## 31.22 Monorepo Structure
+
+แนะนำให้จัด project แบบ monorepo
+
+โครงสร้างตัวอย่าง
+
+```txt
+apps/
+  web/        = Next.js Frontend
+  api/        = NestJS Backend
+
+packages/
+  shared/     = shared types, constants, zod schema บางส่วน
+  ui/         = shared UI components ถ้าจำเป็น
+```
+
+ตัวอย่างจริง
+
+```txt
+resort-pms/
+  apps/
+    web/
+    api/
+  packages/
+    shared/
+  package.json
+  pnpm-workspace.yaml
+```
+
+เหตุผล
+
+* แยก frontend/backend ชัดเจน
+* แชร์ type ได้
+* เหมาะกับ API-first
+* ขยายง่าย
+* เหมาะกับทีม dev หลายคน
+* จัดการ dependency เป็นระบบ
+* เตรียมพร้อมสำหรับ shared module ในอนาคต
+
+---
+
+## 31.23 Validation Strategy
+
+ระบบควร validate 2 ชั้น
+
+### Frontend Validation
+
+ใช้ React Hook Form + Zod
+
+ตรวจสอบเพื่อ UX เช่น
+
+* required field
+* date format
+* phone format
+* amount ต้องมากกว่า 0
+* check-out date ต้องมากกว่า check-in date
+* จำนวนผู้เข้าพักต้องไม่เกิน max occupancy
+* payment amount ต้องไม่ติดลบ
+
+### Backend Validation
+
+ใช้ DTO validation ใน NestJS
+
+ตรวจสอบจริงก่อนบันทึก เช่น
+
+* permission
+* room availability
+* booking status
+* folio balance
+* payment amount
+* role access
+* overbooking
+* duplicate booking
+* room status
+* refund amount
+* cancellation rule
+
+หลักการสำคัญ
+
+```txt
+Frontend validation = ช่วยให้ใช้งานง่าย
+Backend validation = เป็นตัวตัดสินสุดท้าย
+```
+
+---
+
+## 31.24 Recommended Final Stack
+
+สรุป stack ที่เลือกใช้ในระบบ
+
+```txt
+Frontend:
+- Next.js
+- TypeScript
+- Tailwind CSS
+- shadcn/ui
+- Radix UI
+- Lucide React
+
+Frontend State:
+- TanStack Query
+- Zustand
+- React Hook Form
+- Zod
+
+Room Grid:
+- Custom Room Grid
+- TanStack Virtual
+- dnd kit
+- date-fns
+
+Table & Reports:
+- TanStack Table
+- Recharts
+
+Backend:
+- NestJS
+- TypeScript
+- Prisma ORM
+- MySQL 8 + InnoDB
+
+Auth:
+- Custom JWT
+- RBAC Permission
+
+Realtime:
+- Polling for MVP
+- WebSocket for Phase 2
+
+Tooling:
+- pnpm
+- ESLint
+- Prettier
+- Docker
+```
+
+ชุดนี้เหมาะกับ requirement ของระบบ เพราะไม่เบาเกินไปจนตัน และไม่หนักเกินไปจน MVP ทำไม่จบ
+
+---

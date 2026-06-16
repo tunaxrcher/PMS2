@@ -1,0 +1,7 @@
+- Do not put business logic in React components
+- Use TanStack Query for API state
+- Use Zustand only for UI state
+- Use React Hook Form + Zod for forms
+- Use shared types from packages/shared
+- Do not hardcode role logic in frontend only
+- Always call backend for permission-sensitive actions
