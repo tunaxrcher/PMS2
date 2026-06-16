@@ -53,6 +53,7 @@ export function CreateBookingDialog({ open, onClose, onSuccess, prefillDate, pre
   const [showPackage, setShowPackage] = useState(false)
   const [stepErrors, setStepErrors] = useState<Record<string, string>>({})
   const [selectedRoomId, setSelectedRoomId] = useState<string | undefined>(prefillRoomId)
+  const [isPending, setIsPending] = useState(false)
   const [form, setForm] = useState({
     ...defaultForm,
     roomTypeId: prefillRoomTypeId || '',
@@ -145,7 +146,7 @@ export function CreateBookingDialog({ open, onClose, onSuccess, prefillDate, pre
 
   const resetAll = () => {
     setStep(1); setGuestSearch(''); setSelectedGuest(null); setNewGuestMode(false)
-    setShowPackage(false); setStepErrors({}); setSelectedRoomId(prefillRoomId)
+    setShowPackage(false); setStepErrors({}); setSelectedRoomId(prefillRoomId); setIsPending(false)
     setForm({
       ...defaultForm,
       roomTypeId: prefillRoomTypeId || '',
@@ -196,6 +197,7 @@ export function CreateBookingDialog({ open, onClose, onSuccess, prefillDate, pre
       packageNote: form.packageNote || undefined,
       depositAmount: form.depositAmount || undefined,
       depositMethod: form.depositMethod,
+      status: isPending ? 'pending' : 'confirmed',
     })
   }
 
@@ -577,6 +579,29 @@ export function CreateBookingDialog({ open, onClose, onSuccess, prefillDate, pre
               </div>
             )}
 
+            {/* Tentative booking toggle */}
+            <button
+              type="button"
+              onClick={() => setIsPending(!isPending)}
+              className={cn(
+                'flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-sm text-left transition-all',
+                isPending
+                  ? 'border-amber-300/30 bg-amber-400/[0.07] text-amber-200'
+                  : 'border-white/10 bg-white/[0.03] text-stone-500 hover:border-white/20 hover:text-stone-400'
+              )}
+            >
+              <div className={cn('flex h-5 w-5 flex-shrink-0 items-center justify-center rounded border-2 transition-colors',
+                isPending ? 'border-amber-400 bg-amber-400' : 'border-stone-600 bg-transparent')}>
+                {isPending && <span className="text-[11px] font-bold text-stone-900">✓</span>}
+              </div>
+              <div>
+                <div className="font-medium">จองชั่วคราว (รอยืนยัน)</div>
+                <div className="text-xs text-stone-600 mt-0.5">
+                  ลูกค้ายังไม่ได้ยืนยัน — ต้องกด "ยืนยันการจอง" หรือรับมัดจำก่อน Check-in ได้
+                </div>
+              </div>
+            </button>
+
             {/* Action buttons */}
             <div className="flex gap-3">
               <Button variant="secondary" onClick={() => setStep(1)} className="flex-1 h-11">
@@ -584,7 +609,7 @@ export function CreateBookingDialog({ open, onClose, onSuccess, prefillDate, pre
               </Button>
               <Button onClick={handleSubmit} loading={createMutation.isPending} className="flex-2 flex-[2] h-11"
                 disabled={!form.roomTypeId || form.rate <= 0 || createMutation.isPending}>
-                สร้างการจอง
+                {isPending ? 'สร้างจองชั่วคราว' : 'สร้างการจอง'}
               </Button>
             </div>
           </motion.div>

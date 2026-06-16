@@ -45,6 +45,7 @@ export const bookingsApi = {
   create: (data: Record<string, unknown>) => api.post('/bookings', data),
   update: (id: string, data: Record<string, unknown>) => api.patch(`/bookings/${id}`, data),
   cancel: (id: string, data: Record<string, unknown>) => api.post(`/bookings/${id}/cancel`, data),
+  confirm: (id: string) => api.post(`/bookings/${id}/confirm`),
   noShow: (id: string, data: Record<string, unknown>) => api.post(`/bookings/${id}/no-show`, data),
   adjustRate: (id: string, data: Record<string, unknown>) => api.post(`/bookings/${id}/adjust-rate`, data),
   checkIn: (id: string) => api.post(`/bookings/${id}/check-in`),

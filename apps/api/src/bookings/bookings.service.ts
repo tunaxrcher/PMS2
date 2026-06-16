@@ -106,6 +106,7 @@ export class BookingsService {
     packageNote?: string
     depositAmount?: number
     depositMethod?: string
+    status?: string
     createdBy: string
   }) {
     const checkIn = new Date(data.checkInDate)
@@ -158,7 +159,7 @@ export class BookingsService {
           bookingNumber,
           guestId,
           bookingSourceId: data.bookingSourceId,
-          status: 'confirmed',
+          status: data.status === 'pending' ? 'pending' : 'confirmed',
           checkInDate: checkIn,
           checkOutDate: checkOut,
           adults: data.adults,
@@ -426,7 +427,10 @@ export class BookingsService {
         include: { bookingRooms: { include: { room: true } }, guest: { select: { blacklistFlag: true } } },
       })
       if (!booking) throw new NotFoundException('ไม่พบการจอง')
-      if (booking.status !== 'confirmed' && booking.status !== 'pending') {
+      if (booking.status === 'pending') {
+        throw new BadRequestException('การจองนี้ยังรอการยืนยัน กรุณายืนยันการจองก่อน Check-in')
+      }
+      if (booking.status !== 'confirmed') {
         throw new BadRequestException('สถานะการจองไม่ถูกต้องสำหรับการ Check-in')
       }
 
@@ -674,6 +678,21 @@ export class BookingsService {
 
       return { success: true, oldPrice, newPrice: data.newRate }
     })
+  }
+
+  async confirmBooking(bookingId: string, confirmedBy: string) {
+    const booking = await this.prisma.booking.findUnique({ where: { id: bookingId } })
+    if (!booking) throw new NotFoundException('ไม่พบการจอง')
+    if (booking.status !== 'pending') throw new BadRequestException('การจองนี้ไม่อยู่ในสถานะรอยืนยัน')
+
+    await this.prisma.booking.update({ where: { id: bookingId }, data: { status: 'confirmed' } })
+    await this.prisma.bookingStatusLog.create({
+      data: { bookingId, oldStatus: 'pending', newStatus: 'confirmed', changedBy: confirmedBy, remark: 'ยืนยันการจองด้วยตนเอง' },
+    })
+    await this.prisma.auditLog.create({
+      data: { propertyId: booking.propertyId, userId: confirmedBy, action: 'BOOKING_CONFIRM', entityType: 'booking', entityId: bookingId },
+    })
+    return { success: true }
   }
 
   async markNoShow(bookingId: string, data: { noShowFee?: number; remark?: string }, markedBy: string) {

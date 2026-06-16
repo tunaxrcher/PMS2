@@ -181,15 +181,15 @@ export class FoliosService {
     referenceNo?: string
     remark?: string
   }, receivedBy: string) {
-    const booking = await this.prisma.booking.findUnique({
+    const bookingWithFolio = await this.prisma.booking.findUnique({
       where: { id: bookingId },
       include: { folios: true },
     })
-    if (!booking) throw new NotFoundException('ไม่พบการจอง')
+    if (!bookingWithFolio) throw new NotFoundException('ไม่พบการจอง')
 
-    const folioId = booking.folios[0]?.id
+    const folioId = bookingWithFolio.folios[0]?.id
 
-    return this.prisma.deposit.create({
+    const deposit = await this.prisma.deposit.create({
       data: {
         bookingId,
         folioId,
@@ -202,6 +202,17 @@ export class FoliosService {
         remark: data.remark,
       },
     })
+
+    // Auto-confirm Pending booking when deposit is received
+    const pendingCheck = await this.prisma.booking.findUnique({ where: { id: bookingId }, select: { status: true, propertyId: true } })
+    if (pendingCheck?.status === 'pending') {
+      await this.prisma.booking.update({ where: { id: bookingId }, data: { status: 'confirmed' } })
+      await this.prisma.auditLog.create({
+        data: { propertyId: pendingCheck.propertyId, userId: receivedBy, action: 'BOOKING_AUTO_CONFIRM', entityType: 'booking', entityId: bookingId, newValueJson: { reason: 'รับมัดจำ auto-confirm' } },
+      })
+    }
+
+    return deposit
   }
 
   async applyDeposit(depositId: string, appliedBy: string) {

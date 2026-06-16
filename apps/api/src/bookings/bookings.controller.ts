@@ -86,6 +86,13 @@ export class BookingsController {
     return this.service.checkOut(id, user.sub)
   }
 
+  @Post(':id/confirm')
+  @HttpCode(200)
+  @RequirePermissions(PERMISSIONS.BOOKING_UPDATE)
+  confirm(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    return this.service.confirmBooking(id, user.sub)
+  }
+
   @Post(':id/cancel')
   @HttpCode(200)
   @RequirePermissions(PERMISSIONS.BOOKING_CANCEL)

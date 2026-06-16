@@ -61,6 +61,12 @@ export default function BookingDetailPage() {
     onError: (e: { response?: { data?: { message?: string } } }) => toast.error(e?.response?.data?.message || 'เกิดข้อผิดพลาด'),
   })
 
+  const confirmBookingMutation = useMutation({
+    mutationFn: () => bookingsApi.confirm(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['booking', id] }); toast.success('ยืนยันการจองสำเร็จ') },
+    onError: (e: { response?: { data?: { message?: string } } }) => toast.error(e?.response?.data?.message || 'เกิดข้อผิดพลาด'),
+  })
+
   const cancelMutation = useMutation({
     mutationFn: () => bookingsApi.cancel(id, { reason: cancelReason }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['booking', id] }); setCancelDialog(false); toast.success('ยกเลิกการจองสำเร็จ') },
@@ -140,7 +146,8 @@ export default function BookingDetailPage() {
   }
 
   const folio = booking.folios?.[0]
-  const canCheckIn = ['confirmed', 'pending'].includes(booking.status)
+  const canConfirm = booking.status === 'pending'
+  const canCheckIn = booking.status === 'confirmed'
   const canCheckOut = booking.status === 'checked_in'
   const canCancel = ['confirmed', 'pending'].includes(booking.status)
   const canNoShow = booking.status === 'confirmed'
@@ -158,6 +165,17 @@ export default function BookingDetailPage() {
       }
     >
       <div className="space-y-5">
+        {/* Pending warning banner */}
+        {booking.status === 'pending' && (
+          <div className="flex items-center gap-3 rounded-2xl border border-amber-300/30 bg-amber-400/10 px-4 py-3 text-sm">
+            <span className="text-amber-400 text-lg">⏳</span>
+            <div>
+              <div className="font-semibold text-amber-200">การจองนี้รอการยืนยัน</div>
+              <div className="text-xs text-amber-400/70 mt-0.5">กด "ยืนยันการจอง" หรือ "รับมัดจำ" เพื่อยืนยันอัตโนมัติ — ยังไม่สามารถ Check-in ได้จนกว่าจะยืนยัน</div>
+            </div>
+          </div>
+        )}
+
         {/* Status bar */}
         <GlassPanel padding="sm" className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -165,6 +183,12 @@ export default function BookingDetailPage() {
             <span className="text-sm text-stone-400">สร้างเมื่อ {formatDateTime(booking.createdAt)}</span>
           </div>
           <div className="flex flex-wrap gap-2">
+            {canConfirm && (
+              <Button size="sm" className="bg-emerald-500 hover:bg-emerald-400 shadow-emerald-950/30"
+                onClick={() => confirmBookingMutation.mutate()} loading={confirmBookingMutation.isPending}>
+                <CheckCircle2 className="h-4 w-4" /> ยืนยันการจอง
+              </Button>
+            )}
             {['confirmed', 'pending'].includes(booking.status) && (
               <Button variant="outline" size="sm" onClick={() => { setEditForm({ checkInDate: booking.checkInDate.split('T')[0], checkOutDate: booking.checkOutDate.split('T')[0], adults: booking.adults, children: booking.children, notes: booking.notes || '' }); setEditDialog(true) }}>
                 <Receipt className="h-4 w-4" /> แก้ไข
