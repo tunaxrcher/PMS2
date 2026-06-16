@@ -32,7 +32,7 @@ export default function ZonesPage() {
   const qc = useQueryClient()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
-  const [form, setForm] = useState<ZoneForm>({ name: '', zoneType: 'other', parentZoneId: '', sortOrder: '0' })
+  const [form, setForm] = useState<ZoneForm>({ name: '', zoneType: 'other', parentZoneId: '', sortOrder: '0', imageUrl: '' })
 
   const { data: zones, isLoading } = useQuery({ queryKey: ['zones-flat'], queryFn: () => zonesApi.flat().then(r => r.data) })
 

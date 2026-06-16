@@ -12,12 +12,11 @@ const SelectValue = SelectPrimitive.Value
 const SelectTrigger = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Trigger>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger> & { error?: string; label?: string }
->(({ className, children, error, label, id, required, ...props }, ref) => (
+>(({ className, children, error, label, id, ...props }, ref) => (
   <div className="w-full">
     {label && (
       <label htmlFor={id} className="mb-1.5 flex items-center gap-1 text-sm font-medium text-stone-300">
         {label}
-        {required && <span className="text-rose-400 text-xs leading-none">*</span>}
       </label>
     )}
     <SelectPrimitive.Trigger

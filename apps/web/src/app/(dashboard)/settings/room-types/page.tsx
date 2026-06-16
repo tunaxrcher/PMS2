@@ -74,7 +74,7 @@ export default function RoomTypesPage() {
                   <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-stone-500">จัดการ</th>
                 </tr></thead>
                 <tbody>
-                  {(roomTypes as Array<{ id: string; name: string; description?: string | null; baseOccupancy: number; maxOccupancy: number; baseRate: number | string }>).map(rt => (
+                  {(roomTypes as Array<{ id: string; name: string; description?: string | null; imageUrl?: string | null; baseOccupancy: number; maxOccupancy: number; baseRate: number | string }>).map(rt => (
                     <tr key={rt.id} className="border-b border-white/5 hover:bg-white/[0.03]">
                       <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
