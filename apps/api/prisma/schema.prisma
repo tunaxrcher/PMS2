@@ -52,6 +52,7 @@ model Zone {
   propertyId    String    @map("property_id")
   name          String    @db.VarChar(200)
   zoneType      String    @default("other") @map("zone_type") @db.VarChar(50)
+  imageUrl      String?   @map("image_url") @db.VarChar(500)
   parentZoneId  String?   @map("parent_zone_id")
   sortOrder     Int       @default(0) @map("sort_order")
   active        Boolean   @default(true)
@@ -72,6 +73,7 @@ model RoomType {
   propertyId      String    @map("property_id")
   name            String    @db.VarChar(200)
   description     String?   @db.Text
+  imageUrl        String?   @map("image_url") @db.VarChar(500)
   baseOccupancy   Int       @default(2) @map("base_occupancy")
   maxOccupancy    Int       @default(4) @map("max_occupancy")
   baseRate        Decimal   @default(0.00) @map("base_rate") @db.Decimal(12, 2)
@@ -112,6 +114,7 @@ model Room {
   housekeepingTasks HousekeepingTask[]
   maintenanceTickets MaintenanceTicket[]
   roomStatusLogs    RoomStatusLog[]
+  images            RoomImage[]
 
   @@unique([propertyId, roomNumber])
   @@index([propertyId])
@@ -132,6 +135,21 @@ model RoomStatusLog {
 
   @@index([roomId])
   @@map("room_status_logs")
+}
+
+model RoomImage {
+  id          String    @id @default(uuid())
+  roomId      String    @map("room_id")
+  url         String    @db.VarChar(500)
+  caption     String?   @db.VarChar(200)
+  sortOrder   Int       @default(0) @map("sort_order")
+  isPrimary   Boolean   @default(false) @map("is_primary")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  room  Room  @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([roomId])
+  @@map("room_images")
 }
 
 // ============================================================

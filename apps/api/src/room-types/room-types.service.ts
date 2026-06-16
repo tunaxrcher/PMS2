@@ -32,6 +32,7 @@ export class RoomTypesService {
   async update(id: string, data: Partial<{
     name: string
     description: string
+    imageUrl: string
     baseOccupancy: number
     maxOccupancy: number
     baseRate: number

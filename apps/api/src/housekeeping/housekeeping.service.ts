@@ -13,7 +13,7 @@ export class HousekeepingService {
         ...(filters?.roomId && { roomId: filters.roomId }),
       },
       include: {
-        room: { include: { roomType: true, zone: true } },
+        room: { include: { roomType: { select: { id: true, name: true, imageUrl: true } }, zone: { select: { id: true, name: true, imageUrl: true } } } },
       },
       orderBy: { createdAt: 'desc' },
     })

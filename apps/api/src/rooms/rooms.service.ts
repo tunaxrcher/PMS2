@@ -93,6 +93,21 @@ export class RoomsService {
     })
   }
 
+  async addRoomImage(roomId: string, data: { url: string; caption?: string; isPrimary?: boolean; sortOrder?: number }) {
+    if (data.isPrimary) {
+      await this.prisma.roomImage.updateMany({ where: { roomId }, data: { isPrimary: false } })
+    }
+    return this.prisma.roomImage.create({ data: { roomId, ...data } })
+  }
+
+  async deleteRoomImage(imageId: string) {
+    return this.prisma.roomImage.delete({ where: { id: imageId } })
+  }
+
+  async getRoomImages(roomId: string) {
+    return this.prisma.roomImage.findMany({ where: { roomId }, orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }] })
+  }
+
   // Get rooms for Grid: all rooms with their current booking in date range
   async getGrid(propertyId: string, from: string, to: string) {
     const rooms = await this.prisma.room.findMany({

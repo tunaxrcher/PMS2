@@ -15,6 +15,7 @@ import { MaintenanceModule } from './maintenance/maintenance.module'
 import { ReportsModule } from './reports/reports.module'
 import { AuditLogsModule } from './audit-logs/audit-logs.module'
 import { RatePlansModule } from './rate-plans/rate-plans.module'
+import { UploadModule } from './upload/upload.module'
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { RatePlansModule } from './rate-plans/rate-plans.module'
     ReportsModule,
     AuditLogsModule,
     RatePlansModule,
+    UploadModule,
   ],
 })
 export class AppModule {}

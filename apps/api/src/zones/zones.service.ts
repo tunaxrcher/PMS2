@@ -24,7 +24,7 @@ export class ZonesService {
     return this.prisma.zone.create({ data })
   }
 
-  async update(id: string, data: Partial<{ name: string; zoneType: string; parentZoneId: string; sortOrder: number; active: boolean }>) {
+  async update(id: string, data: Partial<{ name: string; zoneType: string; parentZoneId: string; sortOrder: number; active: boolean; imageUrl: string }>) {
     const zone = await this.prisma.zone.findUnique({ where: { id } })
     if (!zone) throw new NotFoundException('ไม่พบโซน')
     return this.prisma.zone.update({ where: { id }, data })
