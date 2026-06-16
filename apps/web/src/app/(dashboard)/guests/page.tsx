@@ -98,7 +98,7 @@ export default function GuestsPage() {
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <span className="font-medium text-stone-200">{g.firstName} {g.lastName}</span>
-                          {g.blacklistFlag && <AlertTriangle className="h-3.5 w-3.5 text-rose-400" title="Blacklist" />}
+                          {g.blacklistFlag && <span title="Blacklist"><AlertTriangle className="h-3.5 w-3.5 text-rose-400" /></span>}
                         </div>
                       </td>
                       <td className="px-4 py-3">
