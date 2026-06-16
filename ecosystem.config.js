@@ -19,8 +19,8 @@ module.exports = {
     },
     {
       name: 'serene-web',
-      script: 'node',
-      args: 'node_modules/.bin/next start -p 6000',
+      script: 'node_modules/next/dist/bin/next',
+      args: 'start -p 6000',
       cwd: './apps/web',
       instances: 1,
       autorestart: true,
