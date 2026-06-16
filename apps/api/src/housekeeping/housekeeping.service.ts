@@ -75,7 +75,13 @@ export class HousekeepingService {
   async cancelTask(taskId: string) {
     const task = await this.prisma.housekeepingTask.findUnique({ where: { id: taskId } })
     if (!task) throw new NotFoundException('ไม่พบงาน')
-    return this.prisma.housekeepingTask.update({ where: { id: taskId }, data: { status: 'cancelled' } })
+    return this.prisma.$transaction([
+      this.prisma.housekeepingTask.update({ where: { id: taskId }, data: { status: 'cancelled' } }),
+      // If in progress, reset room back to dirty so another task can be assigned
+      ...(task.status === 'in_progress' ? [
+        this.prisma.room.update({ where: { id: task.roomId }, data: { currentStatus: 'dirty' } })
+      ] : []),
+    ])
   }
 
   async createTask(data: { propertyId: string; roomId: string; taskType: string; assignedTo?: string; remark?: string }) {

@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  ForbiddenException,
 } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
 import { v4 as uuidv4 } from 'uuid'
@@ -266,6 +267,28 @@ export class BookingsService {
     const newCheckOut = data.checkOutDate ? new Date(data.checkOutDate) : booking.checkOutDate
 
     return this.prisma.$transaction(async (tx) => {
+      // Re-check availability if dates changed
+      if (data.checkInDate || data.checkOutDate) {
+        for (const br of booking.bookingRooms) {
+          const overlapping = await tx.bookingRoom.count({
+            where: {
+              roomTypeId: br.roomTypeId,
+              id: { not: br.id },
+              status: { notIn: ['cancelled'] },
+              checkInDate: { lt: newCheckOut },
+              checkOutDate: { gt: newCheckIn },
+              booking: { propertyId: booking.propertyId, status: { notIn: ['cancelled', 'no_show', 'checked_out'] } },
+            },
+          })
+          const totalRooms = await tx.room.count({
+            where: { propertyId: booking.propertyId, roomTypeId: br.roomTypeId, active: true },
+          })
+          if (overlapping >= totalRooms) {
+            throw new ConflictException('ห้องประเภทนี้เต็มในช่วงวันที่ใหม่ ไม่สามารถเปลี่ยนวันได้')
+          }
+        }
+      }
+
       const updated = await tx.booking.update({
         where: { id },
         data: {
@@ -331,7 +354,10 @@ export class BookingsService {
 
     const room = await this.prisma.room.findUnique({ where: { id: roomId } })
     if (!room) throw new NotFoundException('ไม่พบห้อง')
+    if (room.propertyId !== br.booking.propertyId) throw new ForbiddenException('ห้องไม่ได้อยู่ใน property เดียวกัน')
+    if (room.roomTypeId !== br.roomTypeId) throw new BadRequestException('ประเภทห้องไม่ตรงกับการจอง')
     if (room.currentStatus === 'out_of_order') throw new BadRequestException('ห้องนี้อยู่ระหว่างซ่อม')
+    if (['dirty', 'cleaning'].includes(room.currentStatus)) throw new BadRequestException(`ห้องนี้สถานะ ${room.currentStatus} ยังไม่พร้อม`)
 
     // Check room not double-booked
     const conflict = await this.prisma.bookingRoom.findFirst({
@@ -359,6 +385,8 @@ export class BookingsService {
 
       const room = await tx.room.findUnique({ where: { id: newRoomId } })
       if (!room) throw new NotFoundException('ไม่พบห้อง')
+      if (room.propertyId !== br.booking.propertyId) throw new ForbiddenException('ห้องไม่ได้อยู่ใน property เดียวกัน')
+      if (room.roomTypeId !== br.roomTypeId) throw new BadRequestException('ประเภทห้องไม่ตรงกับการจอง')
       if (room.currentStatus === 'out_of_order') throw new BadRequestException('ห้องนี้อยู่ระหว่างซ่อม')
 
       const conflict = await tx.bookingRoom.findFirst({

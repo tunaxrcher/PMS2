@@ -5,8 +5,8 @@ import { useParams } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft, User, CalendarRange, BedDouble, Receipt, Printer,
-  CheckCircle2, XCircle, DoorOpen, DoorClosed, LogOut,
-  CreditCard, Banknote, ArrowRightLeft, AlertTriangle, Move, Ban
+  CheckCircle2, XCircle, DoorOpen, DoorClosed,
+  CreditCard, Banknote, ArrowRightLeft, AlertTriangle, Ban, Coins
 } from 'lucide-react'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { toast } from 'sonner'
@@ -19,7 +19,7 @@ import { PmsDialog } from '@/components/ui/pms-dialog'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
-import { bookingsApi, foliosApi, roomsApi, depositsApi } from '@/lib/api'
+import { bookingsApi, foliosApi, roomsApi, depositsApi, api } from '@/lib/api'
 import { formatDate, formatDateTime, formatCurrency, calcNights } from '@/lib/utils'
 import { FolioPanel } from '@/components/bookings/folio-panel'
 
@@ -37,6 +37,8 @@ export default function BookingDetailPage() {
   const [editForm, setEditForm] = useState({ checkInDate: '', checkOutDate: '', adults: 2, children: 0, notes: '' })
   const [rateDialog, setRateDialog] = useState<{ bookingRoomId: string; currentRate: number } | null>(null)
   const [rateForm, setRateForm] = useState({ newRate: '', reason: '', adjustmentType: 'manual_override' })
+  const [depositDialog, setDepositDialog] = useState(false)
+  const [depositForm, setDepositForm] = useState({ amount: '', depositType: 'booking_deposit', paymentMethod: 'cash' })
   const [assignRoomDialog, setAssignRoomDialog] = useState(false)
   const [assignRoomId, setAssignRoomId] = useState('')
   const [assignBookingRoomId, setAssignBookingRoomId] = useState('')
@@ -62,6 +64,16 @@ export default function BookingDetailPage() {
   const cancelMutation = useMutation({
     mutationFn: () => bookingsApi.cancel(id, { reason: cancelReason }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['booking', id] }); setCancelDialog(false); toast.success('ยกเลิกการจองสำเร็จ') },
+    onError: (e: { response?: { data?: { message?: string } } }) => toast.error(e?.response?.data?.message || 'เกิดข้อผิดพลาด'),
+  })
+
+  const addDepositMutation = useMutation({
+    mutationFn: () => depositsApi.add(id, {
+      amount: Number(depositForm.amount),
+      depositType: depositForm.depositType,
+      paymentMethod: depositForm.paymentMethod,
+    }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['booking', id] }); setDepositDialog(false); setDepositForm({ amount: '', depositType: 'booking_deposit', paymentMethod: 'cash' }); toast.success('รับมัดจำสำเร็จ') },
     onError: (e: { response?: { data?: { message?: string } } }) => toast.error(e?.response?.data?.message || 'เกิดข้อผิดพลาด'),
   })
 
@@ -171,6 +183,11 @@ export default function BookingDetailPage() {
             {canCheckOut && (
               <Button size="sm" onClick={() => setCheckOutConfirm(true)} loading={checkOutMutation.isPending}>
                 <DoorClosed className="h-4 w-4" /> Check-out
+              </Button>
+            )}
+            {['confirmed', 'pending', 'checked_in'].includes(booking.status) && (
+              <Button variant="secondary" size="sm" onClick={() => setDepositDialog(true)}>
+                <Coins className="h-4 w-4" /> รับมัดจำ
               </Button>
             )}
             {canNoShow && (
@@ -291,6 +308,32 @@ export default function BookingDetailPage() {
         </div>
       </PmsDialog>
 
+      {/* Deposit Dialog */}
+      <PmsDialog open={depositDialog} onClose={() => setDepositDialog(false)} title="รับเงินมัดจำ" description="บันทึกการรับเงินมัดจำจากลูกค้า" size="sm">
+        <div className="space-y-4">
+          <Input label="จำนวนมัดจำ (฿) *" type="number" value={depositForm.amount} onChange={e => setDepositForm(p => ({...p, amount: e.target.value}))} min="1" placeholder="0" />
+          <Select value={depositForm.depositType} onValueChange={v => setDepositForm(p => ({...p, depositType: v}))}>
+            <SelectTrigger label="ประเภทมัดจำ"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="booking_deposit">มัดจำการจอง</SelectItem>
+              <SelectItem value="keycard_deposit">มัดจำคีย์การ์ด</SelectItem>
+              <SelectItem value="damage_deposit">มัดจำความเสียหาย</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={depositForm.paymentMethod} onValueChange={v => setDepositForm(p => ({...p, paymentMethod: v}))}>
+            <SelectTrigger label="วิธีชำระ"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="cash">เงินสด</SelectItem>
+              <SelectItem value="transfer">โอนเงิน</SelectItem>
+              <SelectItem value="credit_card">บัตรเครดิต</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button onClick={() => addDepositMutation.mutate()} loading={addDepositMutation.isPending} className="w-full" disabled={!depositForm.amount || Number(depositForm.amount) <= 0}>
+            <Coins className="h-4 w-4" /> รับมัดจำ
+          </Button>
+        </div>
+      </PmsDialog>
+
       {/* Check-in Confirm */}
       <ConfirmDialog
         open={checkInConfirm}
@@ -377,8 +420,8 @@ export default function BookingDetailPage() {
             <SelectTrigger label="เลือกห้อง"><SelectValue placeholder="เลือกห้องพัก" /></SelectTrigger>
             <SelectContent>
               {(availableRooms as Array<{ id: string; roomNumber: string; roomName?: string | null; currentStatus: string; zone?: { name: string } | null }> || [])
-                .filter(r => !['out_of_order', 'occupied'].includes(r.currentStatus))
-                .map(r => <SelectItem key={r.id} value={r.id}>{r.roomNumber} {r.roomName ? `(${r.roomName})` : ''} {r.zone?.name ? `— ${r.zone.name}` : ''} [{r.currentStatus}]</SelectItem>)}
+                .filter(r => !['out_of_order', 'occupied', 'dirty', 'cleaning'].includes(r.currentStatus))
+                .map(r => <SelectItem key={r.id} value={r.id}>{r.roomNumber} {r.roomName ? `(${r.roomName})` : ''} {r.zone?.name ? `— ${r.zone.name}` : ''}</SelectItem>)}
             </SelectContent>
           </Select>
           <Button onClick={() => assignRoomMutation.mutate()} loading={assignRoomMutation.isPending} className="w-full" disabled={!assignRoomId}>

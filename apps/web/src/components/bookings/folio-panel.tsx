@@ -185,7 +185,11 @@ export function FolioPanel({ folioId, bookingStatus }: { folioId: string; bookin
                 <span className={`font-medium ${p.status === 'voided' ? 'line-through text-stone-600' : 'text-emerald-300'}`}>{formatCurrency(Number(p.amount))}</span>
                 {(p.status === 'paid' || p.status === 'partial_refunded') && isOpen && (
                   <>
-                    <button onClick={() => { setRefundPaymentId(p.id); setRefundAmount(String(p.amount)); setRefundReason('') }}
+                    <button onClick={() => {
+                      const refunded = (p as { refunds?: Array<{ amount: number | string }> }).refunds?.reduce((s, r) => s + Number(r.amount), 0) || 0
+                      const remaining = Number(p.amount) - refunded
+                      setRefundPaymentId(p.id); setRefundAmount(String(remaining.toFixed(2))); setRefundReason('')
+                    }}
                       className="text-xs text-violet-400 hover:text-violet-300 border border-violet-400/30 rounded-lg px-2 py-0.5 hover:bg-violet-400/10 transition-colors">
                       คืนเงิน
                     </button>

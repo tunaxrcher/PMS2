@@ -4,15 +4,18 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express'
 import { memoryStorage } from 'multer'
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
+import { PermissionsGuard } from '../auth/guards/permissions.guard'
+import { RequirePermissions } from '../auth/decorators/require-permissions.decorator'
 import { UploadService } from './upload.service'
-import { CurrentUser, JwtPayload } from '../auth/decorators/current-user.decorator'
+import { PERMISSIONS } from '../common/permissions'
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('upload')
 export class UploadController {
   constructor(private uploadService: UploadService) {}
 
   @Post('image')
+  @RequirePermissions(PERMISSIONS.ROOM_MANAGE)
   @UseInterceptors(
     FileInterceptor('file', {
       storage: memoryStorage(),
@@ -26,6 +29,7 @@ export class UploadController {
   }
 
   @Post('room-image')
+  @RequirePermissions(PERMISSIONS.ROOM_MANAGE)
   @UseInterceptors(
     FileInterceptor('file', {
       storage: memoryStorage(),
