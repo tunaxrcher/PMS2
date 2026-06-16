@@ -42,4 +42,12 @@ export class RoomTypesService {
     if (!rt) throw new NotFoundException('ไม่พบประเภทห้อง')
     return this.prisma.roomType.update({ where: { id }, data })
   }
+
+  async remove(id: string) {
+    const rooms = await this.prisma.room.count({ where: { roomTypeId: id } })
+    if (rooms > 0) {
+      return this.prisma.roomType.update({ where: { id }, data: { active: false } })
+    }
+    return this.prisma.roomType.delete({ where: { id } })
+  }
 }

@@ -93,6 +93,18 @@ export class RoomsService {
     })
   }
 
+  async removeRoom(id: string) {
+    const room = await this.prisma.room.findUnique({ where: { id } })
+    if (!room) throw new NotFoundException('ไม่พบห้อง')
+    const hasBookings = await this.prisma.bookingRoom.count({
+      where: { roomId: id, booking: { status: { in: ['confirmed', 'checked_in'] } } },
+    })
+    if (hasBookings > 0) {
+      return this.prisma.room.update({ where: { id }, data: { active: false } })
+    }
+    return this.prisma.room.update({ where: { id }, data: { active: false } })
+  }
+
   async addRoomImage(roomId: string, data: { url: string; caption?: string; isPrimary?: boolean; sortOrder?: number }) {
     if (data.isPrimary) {
       await this.prisma.roomImage.updateMany({ where: { roomId }, data: { isPrimary: false } })

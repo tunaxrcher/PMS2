@@ -14,11 +14,14 @@ export class UploadService {
     const key = config.get<string>('DO_SPACES_KEY') || ''
     const secret = config.get<string>('DO_SPACES_SECRET') || ''
     this.bucket = config.get<string>('DO_SPACES_BUCKET') || 'pms.unityx'
-    this.cdnUrl = config.get<string>('DO_SPACES_CDN_URL') || `https://${this.bucket}.sgp1.digitaloceanspaces.com`
+    const region = config.get<string>('DO_SPACES_REGION') || 'sgp1'
+    // CDN URL format: https://bucket.region.cdn.digitaloceanspaces.com
+    this.cdnUrl = config.get<string>('DO_SPACES_CDN_URL')
+      || `https://${this.bucket}.${region}.cdn.digitaloceanspaces.com`
 
     this.s3 = new S3Client({
       endpoint,
-      region: config.get<string>('DO_SPACES_REGION') || 'sgp1',
+      region,
       credentials: { accessKeyId: key, secretAccessKey: secret },
       forcePathStyle: false,
     })

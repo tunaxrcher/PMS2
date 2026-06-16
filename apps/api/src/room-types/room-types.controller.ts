@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common'
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common'
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
 import { PermissionsGuard } from '../auth/guards/permissions.guard'
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator'
@@ -30,4 +30,9 @@ export class RoomTypesController {
   update(@Param('id') id: string, @Body() body: Record<string, unknown>) {
     return this.service.update(id, body as Parameters<RoomTypesService['update']>[1])
   }
+
+  @Delete(':id')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.ROOM_MANAGE)
+  remove(@Param('id') id: string) { return this.service.remove(id) }
 }

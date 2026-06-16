@@ -50,6 +50,11 @@ export class RoomsController {
     return this.service.update(id, body as Parameters<RoomsService['update']>[1])
   }
 
+  @Delete(':id')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.ROOM_MANAGE)
+  removeRoom(@Param('id') id: string) { return this.service.removeRoom(id) }
+
   @Get(':id/images')
   getRoomImages(@Param('id') id: string) { return this.service.getRoomImages(id) }
 
