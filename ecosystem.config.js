@@ -20,7 +20,7 @@ module.exports = {
     {
       name: 'serene-web',
       script: 'node_modules/next/dist/bin/next',
-      args: 'start -p 6000',
+      args: 'start -p 6100',
       cwd: './apps/web',
       instances: 1,
       autorestart: true,
@@ -28,7 +28,7 @@ module.exports = {
       max_memory_restart: '512M',
       env: {
         NODE_ENV: 'production',
-        PORT: 6000,
+        PORT: 6100,
       },
       error_file: './logs/web-error.log',
       out_file: './logs/web-out.log',
