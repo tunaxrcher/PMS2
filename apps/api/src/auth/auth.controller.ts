@@ -46,7 +46,7 @@ export class AuthController {
   @Post('change-pin')
   @HttpCode(200)
   async changePin(@CurrentUser() user: JwtPayload, @Body() dto: ChangePinDto) {
-    return this.authService.changePin(user.sub, dto.currentPin, dto.newPin)
+    return this.authService.changePin(user.sub, dto.currentPin, dto.newPin, dto.confirmPin)
   }
 
   @UseGuards(JwtAuthGuard)

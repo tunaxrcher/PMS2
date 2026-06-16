@@ -35,8 +35,10 @@ export class GuestsService {
     return { guests: guests.map((g) => this.maskSensitive(g)), total, page, limit }
   }
 
-  async findOne(id: string, viewSensitive = false) {
-    const guest = await this.prisma.guest.findUnique({ where: { id } })
+  async findOne(id: string, viewSensitive = false, propertyId?: string) {
+    const guest = propertyId
+      ? await this.prisma.guest.findFirst({ where: { id, propertyId } })
+      : await this.prisma.guest.findUnique({ where: { id } })
     if (!guest) throw new NotFoundException('ไม่พบข้อมูลลูกค้า')
     return viewSensitive ? guest : this.maskSensitive(guest)
   }

@@ -134,10 +134,15 @@ export class FoliosService {
   }
 
   async refundPayment(paymentId: string, data: { amount: number; reason: string }, refundedBy: string) {
-    const payment = await this.prisma.payment.findUnique({ where: { id: paymentId } })
+    const payment = await this.prisma.payment.findUnique({ where: { id: paymentId }, include: { refunds: true } })
     if (!payment) throw new NotFoundException('ไม่พบรายการชำระเงิน')
-    if (payment.status !== 'paid') throw new BadRequestException('ไม่สามารถคืนเงินรายการนี้ได้')
-    if (data.amount > Number(payment.amount)) throw new BadRequestException('จำนวนเงินคืนมากกว่ายอดที่รับ')
+    if (!['paid', 'partial_refunded'].includes(payment.status)) throw new BadRequestException('ไม่สามารถคืนเงินรายการนี้ได้')
+
+    // Check cumulative refunds don't exceed payment amount
+    const totalRefunded = payment.refunds.reduce((sum, r) => sum + Number(r.amount), 0)
+    if (totalRefunded + data.amount > Number(payment.amount)) {
+      throw new BadRequestException(`คืนเงินได้อีกสูงสุด ฿${(Number(payment.amount) - totalRefunded).toFixed(2)}`)
+    }
 
     return this.prisma.$transaction(async (tx) => {
       const refund = await tx.refund.create({
@@ -218,21 +223,34 @@ export class FoliosService {
       where: { id: folioId },
       include: {
         items: { where: { isVoided: false } },
-        payments: { where: { status: 'paid' } },
-        deposits: { where: { status: 'applied' } },
+        payments: { include: { refunds: true } },
+        deposits: true,
       },
     })
     if (!folio) throw new NotFoundException('ไม่พบ Folio')
     if (folio.status !== 'open') throw new BadRequestException('Folio ถูกปิดแล้ว')
 
     const totalCharges = folio.items.reduce((sum, i) => sum + Number(i.totalAmount), 0)
-    const totalPayments = folio.payments.reduce((sum, p) => sum + Number(p.amount), 0)
-    const totalDeposits = folio.deposits.reduce((sum, d) => sum + Number(d.amount), 0)
+    const totalPayments = folio.payments
+      .filter(p => p.status === 'paid' || p.status === 'partial_refunded')
+      .reduce((sum, p) => {
+        const refunded = p.refunds.reduce((rs, r) => rs + Number(r.amount), 0)
+        return sum + Number(p.amount) - refunded
+      }, 0)
+    const totalDeposits = folio.deposits
+      .filter(d => d.status === 'applied' || d.status === 'held')
+      .reduce((sum, d) => sum + Number(d.amount), 0)
     const balance = totalCharges - totalPayments - totalDeposits
 
     if (balance > 0.01) {
       throw new BadRequestException(`ยังมียอดค้างชำระ ฿${balance.toFixed(2)} ไม่สามารถปิด Folio ได้`)
     }
+
+    // Auto-apply held deposits on close (consistent with checkout)
+    await this.prisma.deposit.updateMany({
+      where: { folioId, status: 'held' },
+      data: { status: 'applied' },
+    })
 
     await this.prisma.auditLog.create({
       data: { userId: closedBy, action: 'FOLIO_CLOSE', entityType: 'folio', entityId: folioId },
@@ -249,17 +267,42 @@ export class FoliosService {
       where: { id: folioId },
       include: {
         items: { where: { isVoided: false } },
-        payments: { where: { status: 'paid' } },
-        deposits: { where: { status: 'applied' } },
+        payments: { include: { refunds: true } },
+        deposits: true,
+        booking: { select: { id: true } },
       },
     })
     if (!folio) throw new NotFoundException('ไม่พบ Folio')
 
     const totalCharges = folio.items.reduce((sum, i) => sum + Number(i.totalAmount), 0)
-    const totalPayments = folio.payments.reduce((sum, p) => sum + Number(p.amount), 0)
-    const totalDepositsApplied = folio.deposits.reduce((sum, d) => sum + Number(d.amount), 0)
+
+    // Net payments = paid - refunded amounts
+    const totalPayments = folio.payments
+      .filter(p => p.status === 'paid' || p.status === 'partial_refunded')
+      .reduce((sum, p) => {
+        const paid = Number(p.amount)
+        const refunded = p.refunds.reduce((rs, r) => rs + Number(r.amount), 0)
+        return sum + (paid - refunded)
+      }, 0)
+
+    // Deposits: applied + held (both reduce balance — held is pre-committed)
+    const totalDepositsApplied = folio.deposits
+      .filter(d => d.status === 'applied')
+      .reduce((sum, d) => sum + Number(d.amount), 0)
+
+    const totalDepositsHeld = folio.deposits
+      .filter(d => d.status === 'held')
+      .reduce((sum, d) => sum + Number(d.amount), 0)
+
     const balance = totalCharges - totalPayments - totalDepositsApplied
 
-    return { totalCharges, totalPayments, totalDepositsApplied, balance }
+    return {
+      totalCharges,
+      totalPayments,
+      totalDepositsApplied,
+      totalDepositsHeld,
+      balance,
+      balanceAfterHeld: Math.max(0, balance - totalDepositsHeld),
+    }
   }
 }

@@ -3,11 +3,17 @@ import {
   UnauthorizedException,
   BadRequestException,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
 import { ConfigService } from '@nestjs/config'
 import * as bcrypt from 'bcrypt'
 import { PrismaService } from '../prisma/prisma.service'
+
+// In-memory PIN attempt tracker (replace with Redis in production)
+const pinAttempts = new Map<string, { count: number; lockedUntil?: Date }>()
+const MAX_ATTEMPTS = 5
+const LOCKOUT_MINUTES = 5
 
 @Injectable()
 export class AuthService {
@@ -43,6 +49,14 @@ export class AuthService {
       mustChangePinOnLogin: boolean
     }
   }> {
+    // Check server-side lockout
+    const attemptKey = `pin:${phone}`
+    const attempt = pinAttempts.get(attemptKey)
+    if (attempt?.lockedUntil && attempt.lockedUntil > new Date()) {
+      const minutes = Math.ceil((attempt.lockedUntil.getTime() - Date.now()) / 60000)
+      throw new ForbiddenException(`บัญชีถูกล็อคชั่วคราว กรุณารอ ${minutes} นาที`)
+    }
+
     const user = await this.prisma.user.findUnique({
       where: { phone },
       include: {
@@ -66,8 +80,22 @@ export class AuthService {
 
     const pinValid = await bcrypt.compare(pin, user.pinHash)
     if (!pinValid) {
-      throw new UnauthorizedException('เบอร์โทรหรือ PIN ไม่ถูกต้อง')
+      // Track failed attempts
+      const curr = pinAttempts.get(attemptKey) || { count: 0 }
+      curr.count += 1
+      pinAttempts.set(attemptKey, curr)
+      if (curr.count >= MAX_ATTEMPTS) {
+        curr.lockedUntil = new Date(Date.now() + LOCKOUT_MINUTES * 60 * 1000)
+        curr.count = 0
+        pinAttempts.set(attemptKey, curr)
+        throw new ForbiddenException(`ใส่ PIN ผิด ${MAX_ATTEMPTS} ครั้ง บัญชีถูกล็อค ${LOCKOUT_MINUTES} นาที`)
+      }
+      const remaining = MAX_ATTEMPTS - curr.count
+      throw new UnauthorizedException(`PIN ไม่ถูกต้อง — เหลืออีก ${remaining} ครั้ง`)
     }
+
+    // Clear attempts on success
+    pinAttempts.delete(attemptKey)
 
     const roles = user.userRoles.map((ur) => ur.role.name)
     const permissions = [
@@ -126,8 +154,12 @@ export class AuthService {
   async changePin(
     userId: string,
     currentPin: string,
-    newPin: string
+    newPin: string,
+    confirmPin?: string
   ): Promise<{ success: boolean }> {
+    if (confirmPin && newPin !== confirmPin) {
+      throw new BadRequestException('PIN ใหม่และยืนยัน PIN ไม่ตรงกัน')
+    }
     const user = await this.prisma.user.findUnique({ where: { id: userId } })
     if (!user) throw new NotFoundException('ไม่พบผู้ใช้งาน')
 

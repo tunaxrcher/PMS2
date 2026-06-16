@@ -11,10 +11,14 @@ import { JwtStrategy } from './strategies/jwt.strategy'
     PassportModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('JWT_SECRET') || 'fallback-secret',
-        signOptions: { expiresIn: config.get('JWT_EXPIRES_IN') || '8h' },
-      }),
+      useFactory: (config: ConfigService) => {
+        const secret = config.get<string>('JWT_SECRET')
+        if (!secret) throw new Error('JWT_SECRET is required')
+        return {
+          secret,
+          signOptions: { expiresIn: config.get('JWT_EXPIRES_IN') || '8h' },
+        }
+      },
     }),
   ],
   controllers: [AuthController],

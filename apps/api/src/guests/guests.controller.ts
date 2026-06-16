@@ -32,8 +32,8 @@ export class GuestsController {
   @Get(':id')
   @UseGuards(PermissionsGuard)
   @RequirePermissions(PERMISSIONS.GUEST_VIEW)
-  findOne(@Param('id') id: string, @Query('sensitive') sensitive?: string) {
-    return this.service.findOne(id, sensitive === 'true')
+  findOne(@Param('id') id: string, @Query('sensitive') sensitive?: string, @CurrentUser() user?: JwtPayload) {
+    return this.service.findOne(id, sensitive === 'true', user?.propertyId || undefined)
   }
 
   @Get(':id/bookings')

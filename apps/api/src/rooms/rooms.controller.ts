@@ -21,6 +21,15 @@ export class RoomsController {
     return this.service.findAll(user.propertyId!, { zoneId, roomTypeId, status })
   }
 
+  @Get('availability')
+  getAvailability(
+    @CurrentUser() user: JwtPayload,
+    @Query('from') from: string,
+    @Query('to') to: string,
+  ) {
+    return this.service.getAvailability(user.propertyId!, from, to)
+  }
+
   @Get('grid')
   getGrid(
     @CurrentUser() user: JwtPayload,

@@ -63,9 +63,9 @@ export class BookingsService {
     return { bookings, total, page, limit }
   }
 
-  async findOne(id: string) {
-    const booking = await this.prisma.booking.findUnique({
-      where: { id },
+  async findOne(id: string, propertyId?: string) {
+    const booking = await this.prisma.booking.findFirst({
+      where: { id, ...(propertyId && { propertyId }) },
       include: {
         guest: true,
         bookingSource: true,
@@ -250,33 +250,76 @@ export class BookingsService {
     packageName: string
     packageNote: string
   }>, updatedBy: string) {
-    const booking = await this.prisma.booking.findUnique({ where: { id } })
+    const booking = await this.prisma.booking.findUnique({
+      where: { id },
+      include: {
+        bookingRooms: true,
+        folios: { include: { items: { where: { isVoided: false, itemType: 'room_charge' } } } },
+      },
+    })
     if (!booking) throw new NotFoundException('ไม่พบการจอง')
     if (['checked_out', 'cancelled'].includes(booking.status)) {
       throw new BadRequestException('ไม่สามารถแก้ไขการจองที่สิ้นสุดแล้ว')
     }
 
-    const updated = await this.prisma.booking.update({
-      where: { id },
-      data: {
-        ...data,
-        checkInDate: data.checkInDate ? new Date(data.checkInDate) : undefined,
-        checkOutDate: data.checkOutDate ? new Date(data.checkOutDate) : undefined,
-      },
-      include: { guest: true, bookingRooms: { include: { roomType: true, room: true } } },
-    })
+    const newCheckIn = data.checkInDate ? new Date(data.checkInDate) : booking.checkInDate
+    const newCheckOut = data.checkOutDate ? new Date(data.checkOutDate) : booking.checkOutDate
 
-    await this.prisma.auditLog.create({
-      data: {
-        propertyId: booking.propertyId,
-        userId: updatedBy,
-        action: 'BOOKING_UPDATE',
-        entityType: 'booking',
-        entityId: id,
-      },
-    })
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.booking.update({
+        where: { id },
+        data: {
+          ...data,
+          checkInDate: newCheckIn,
+          checkOutDate: newCheckOut,
+        },
+        include: { guest: true, bookingRooms: { include: { roomType: true, room: true } } },
+      })
 
-    return updated
+      // Sync bookingRooms dates
+      if (data.checkInDate || data.checkOutDate || data.adults || data.children) {
+        for (const br of booking.bookingRooms) {
+          await tx.bookingRoom.update({
+            where: { id: br.id },
+            data: {
+              checkInDate: newCheckIn,
+              checkOutDate: newCheckOut,
+              adults: data.adults ?? br.adults,
+              children: data.children ?? br.children,
+            },
+          })
+        }
+      }
+
+      // Sync folio room_charge if dates changed
+      if ((data.checkInDate || data.checkOutDate) && booking.folios[0]) {
+        const nights = Math.ceil((newCheckOut.getTime() - newCheckIn.getTime()) / (1000 * 60 * 60 * 24))
+        const roomChargeItem = booking.folios[0].items[0]
+        if (roomChargeItem) {
+          await tx.folioItem.update({
+            where: { id: roomChargeItem.id },
+            data: {
+              quantity: nights,
+              totalAmount: Number(roomChargeItem.unitPrice) * nights,
+            },
+          })
+        }
+      }
+
+      await tx.auditLog.create({
+        data: {
+          propertyId: booking.propertyId,
+          userId: updatedBy,
+          action: 'BOOKING_UPDATE',
+          entityType: 'booking',
+          entityId: id,
+          oldValueJson: { checkInDate: booking.checkInDate, checkOutDate: booking.checkOutDate },
+          newValueJson: { checkInDate: newCheckIn, checkOutDate: newCheckOut },
+        },
+      })
+
+      return updated
+    })
   }
 
   async assignRoom(bookingRoomId: string, roomId: string, assignedBy: string) {
@@ -352,18 +395,24 @@ export class BookingsService {
     return this.prisma.$transaction(async (tx) => {
       const booking = await tx.booking.findUnique({
         where: { id: bookingId },
-        include: { bookingRooms: { include: { room: true } } },
+        include: { bookingRooms: { include: { room: true } }, guest: { select: { blacklistFlag: true } } },
       })
       if (!booking) throw new NotFoundException('ไม่พบการจอง')
       if (booking.status !== 'confirmed' && booking.status !== 'pending') {
         throw new BadRequestException('สถานะการจองไม่ถูกต้องสำหรับการ Check-in')
       }
 
-      // Validate all rooms are assigned and clean
+      // Check guest blacklist
+      if (booking.guest?.blacklistFlag) {
+        throw new BadRequestException('ลูกค้าอยู่ใน Blacklist ไม่สามารถเช็คอินได้')
+      }
+
+      // Validate all rooms are assigned and ready
       for (const br of booking.bookingRooms) {
         if (!br.roomId || !br.room) throw new BadRequestException(`กรุณา Assign ห้องก่อน Check-in`)
-        if (br.room.currentStatus === 'out_of_order') {
-          throw new BadRequestException(`ห้อง ${br.room.roomNumber} ไม่พร้อมใช้งาน`)
+        const blockedStatuses = ['out_of_order', 'out_of_service', 'dirty', 'cleaning']
+        if (blockedStatuses.includes(br.room.currentStatus)) {
+          throw new BadRequestException(`ห้อง ${br.room.roomNumber} ยังไม่พร้อม (${br.room.currentStatus}) กรุณารอหรือเปลี่ยนห้อง`)
         }
       }
 
@@ -408,7 +457,7 @@ export class BookingsService {
         where: { id: bookingId },
         include: {
           bookingRooms: { include: { room: true } },
-          folios: { include: { items: { where: { isVoided: false } }, payments: true, deposits: true } },
+          folios: { include: { items: { where: { isVoided: false } }, payments: { include: { refunds: true } }, deposits: true } },
         },
       })
       if (!booking) throw new NotFoundException('ไม่พบการจอง')
@@ -416,12 +465,29 @@ export class BookingsService {
         throw new BadRequestException('สถานะการจองต้องเป็น Checked In ก่อน Check-out')
       }
 
-      // Check balance
+      // Check balance — include held deposits and net refunds
       const folio = booking.folios[0]
       if (folio) {
         const totalCharges = folio.items.reduce((sum, i) => sum + Number(i.totalAmount), 0)
-        const totalPayments = folio.payments.filter(p => p.status === 'paid').reduce((sum, p) => sum + Number(p.amount), 0)
-        const totalDeposits = folio.deposits.filter(d => d.status === 'applied').reduce((sum, d) => sum + Number(d.amount), 0)
+
+        // Net payments (minus refunds)
+        const totalPayments = folio.payments
+          .filter(p => p.status === 'paid' || p.status === 'partial_refunded')
+          .reduce((sum, p) => {
+            const refunded = p.refunds?.reduce((rs: number, r: { amount: unknown }) => rs + Number(r.amount), 0) || 0
+            return sum + Number(p.amount) - refunded
+          }, 0)
+
+        // Deposits: applied + held both count toward payment
+        const totalDeposits = folio.deposits
+          .filter(d => d.status === 'applied' || d.status === 'held')
+          .reduce((sum, d) => sum + Number(d.amount), 0)
+
+        // Auto-apply held deposits at checkout
+        for (const deposit of folio.deposits.filter(d => d.status === 'held')) {
+          await tx.deposit.update({ where: { id: deposit.id }, data: { status: 'applied' } })
+        }
+
         const balance = totalCharges - totalPayments - totalDeposits
         if (balance > 0.01) {
           throw new BadRequestException(`ยังมียอดค้างชำระ ฿${balance.toFixed(2)} กรุณาชำระก่อน Check-out`)
@@ -484,6 +550,22 @@ export class BookingsService {
 
       await tx.booking.update({ where: { id: bookingId }, data: { status: 'cancelled' } })
       await tx.bookingRoom.updateMany({ where: { bookingId }, data: { status: 'cancelled' } })
+
+      // Handle folio: void room charges, keep the folio open for any refund processing
+      const folio = await tx.folio.findFirst({ where: { bookingId, status: 'open' } })
+      if (folio) {
+        // Void all room charges on cancellation
+        await tx.folioItem.updateMany({
+          where: { folioId: folio.id, itemType: 'room_charge', isVoided: false },
+          data: { isVoided: true },
+        })
+        // Revert held deposits to refunded status
+        await tx.deposit.updateMany({
+          where: { bookingId, status: 'held' },
+          data: { status: 'refunded' },
+        })
+      }
+
       await tx.bookingCancellation.create({
         data: {
           bookingId,
@@ -549,9 +631,10 @@ export class BookingsService {
         }
       }
 
+      const parentBooking = await tx.booking.findUnique({ where: { id: bookingId }, select: { propertyId: true } })
       await tx.auditLog.create({
         data: {
-          propertyId: bookingRoom.id,
+          propertyId: parentBooking?.propertyId,
           userId: adjustedBy,
           action: 'PRICE_OVERRIDE',
           entityType: 'booking_room',
@@ -566,21 +649,44 @@ export class BookingsService {
   }
 
   async markNoShow(bookingId: string, data: { noShowFee?: number; remark?: string }, markedBy: string) {
-    const booking = await this.prisma.booking.findUnique({ where: { id: bookingId } })
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: { bookingRooms: true, folios: { include: { items: true } } },
+    })
     if (!booking) throw new NotFoundException('ไม่พบการจอง')
     if (booking.status !== 'confirmed') throw new BadRequestException('สถานะต้องเป็น Confirmed')
 
-    await this.prisma.booking.update({
-      where: { id: bookingId },
-      data: {
-        status: 'no_show',
-        noShowMarkedBy: markedBy,
-        noShowMarkedAt: new Date(),
-        noShowFee: data.noShowFee,
-      },
-    })
+    return this.prisma.$transaction(async (tx) => {
+      await tx.booking.update({
+        where: { id: bookingId },
+        data: { status: 'no_show', noShowMarkedBy: markedBy, noShowMarkedAt: new Date(), noShowFee: data.noShowFee },
+      })
 
-    return { success: true }
+      // Cancel booking rooms
+      await tx.bookingRoom.updateMany({ where: { bookingId }, data: { status: 'cancelled' } })
+
+      // Post no-show fee to folio if exists
+      if (data.noShowFee && data.noShowFee > 0 && booking.folios[0]) {
+        await tx.folioItem.create({
+          data: {
+            folioId: booking.folios[0].id,
+            itemType: 'other',
+            description: 'ค่าปรับ No Show',
+            quantity: 1,
+            unitPrice: data.noShowFee,
+            totalAmount: data.noShowFee,
+            serviceDate: new Date(),
+            createdBy: markedBy,
+          },
+        })
+      }
+
+      await tx.auditLog.create({
+        data: { propertyId: booking.propertyId, userId: markedBy, action: 'BOOKING_NO_SHOW', entityType: 'booking', entityId: bookingId },
+      })
+
+      return { success: true }
+    })
   }
 
   async getBookingSources(propertyId: string) {

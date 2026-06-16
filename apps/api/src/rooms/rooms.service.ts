@@ -120,28 +120,85 @@ export class RoomsService {
     return this.prisma.roomImage.findMany({ where: { roomId }, orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }] })
   }
 
+  // Get room type availability for date range
+  async getAvailability(propertyId: string, from: string, to: string) {
+    const checkIn = new Date(from)
+    const checkOut = new Date(to)
+
+    const roomTypes = await this.prisma.roomType.findMany({
+      where: { propertyId, active: true },
+      orderBy: { name: 'asc' },
+    })
+
+    const result = await Promise.all(roomTypes.map(async (rt) => {
+      const total = await this.prisma.room.count({ where: { propertyId, roomTypeId: rt.id, active: true } })
+
+      const booked = await this.prisma.bookingRoom.count({
+        where: {
+          roomTypeId: rt.id,
+          status: { notIn: ['cancelled'] },
+          checkInDate: { lt: checkOut },
+          checkOutDate: { gt: checkIn },
+          booking: { propertyId, status: { notIn: ['cancelled', 'no_show', 'checked_out'] } },
+        },
+      })
+
+      return {
+        roomTypeId: rt.id,
+        roomTypeName: rt.name,
+        description: rt.description,
+        imageUrl: rt.imageUrl,
+        baseRate: rt.baseRate,
+        maxOccupancy: rt.maxOccupancy,
+        total,
+        booked,
+        available: Math.max(0, total - booked),
+      }
+    }))
+
+    return result
+  }
+
   // Get rooms for Grid: all rooms with their current booking in date range
   async getGrid(propertyId: string, from: string, to: string) {
-    const rooms = await this.prisma.room.findMany({
-      where: { propertyId, active: true },
-      include: {
-        roomType: true,
-        zone: true,
-        bookingRooms: {
-          where: {
-            checkInDate: { lte: new Date(to) },
-            checkOutDate: { gte: new Date(from) },
-            status: { notIn: ['cancelled'] },
-          },
-          include: {
-            booking: {
-              include: { guest: { select: { id: true, firstName: true, lastName: true } } },
+    const [rooms, unassignedBookings] = await Promise.all([
+      this.prisma.room.findMany({
+        where: { propertyId, active: true },
+        include: {
+          roomType: { select: { id: true, name: true, imageUrl: true } },
+          zone: true,
+          bookingRooms: {
+            where: {
+              checkInDate: { lte: new Date(to) },
+              checkOutDate: { gte: new Date(from) },
+              status: { notIn: ['cancelled'] },
+            },
+            include: {
+              booking: {
+                include: { guest: { select: { id: true, firstName: true, lastName: true } } },
+              },
             },
           },
         },
-      },
-      orderBy: [{ zone: { sortOrder: 'asc' } }, { roomNumber: 'asc' }],
-    })
-    return rooms
+        orderBy: [{ zone: { sortOrder: 'asc' } }, { roomNumber: 'asc' }],
+      }),
+      // Unassigned bookings (no specific room yet)
+      this.prisma.bookingRoom.findMany({
+        where: {
+          roomId: null,
+          checkInDate: { lte: new Date(to) },
+          checkOutDate: { gte: new Date(from) },
+          status: { notIn: ['cancelled'] },
+          booking: { propertyId, status: { notIn: ['cancelled', 'no_show', 'checked_out'] } },
+        },
+        include: {
+          roomType: { select: { id: true, name: true } },
+          booking: {
+            include: { guest: { select: { id: true, firstName: true, lastName: true } } },
+          },
+        },
+      }),
+    ])
+    return { rooms, unassignedBookings }
   }
 }

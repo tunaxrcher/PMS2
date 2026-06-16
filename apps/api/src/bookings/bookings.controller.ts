@@ -44,7 +44,7 @@ export class BookingsController {
 
   @Get(':id')
   @RequirePermissions(PERMISSIONS.BOOKING_VIEW)
-  findOne(@Param('id') id: string) { return this.service.findOne(id) }
+  findOne(@Param('id') id: string, @CurrentUser() user: JwtPayload) { return this.service.findOne(id, user.propertyId || undefined) }
 
   @Post()
   @RequirePermissions(PERMISSIONS.BOOKING_CREATE)
