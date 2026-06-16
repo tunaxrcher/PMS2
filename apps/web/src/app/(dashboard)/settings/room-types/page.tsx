@@ -21,7 +21,7 @@ export default function RoomTypesPage() {
   const qc = useQueryClient()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
-  const [form, setForm] = useState<RoomTypeForm>({ name: '', description: '', baseOccupancy: '2', maxOccupancy: '4', baseRate: '0' })
+  const [form, setForm] = useState<RoomTypeForm>({ name: '', description: '', imageUrl: '', baseOccupancy: '2', maxOccupancy: '4', baseRate: '0' })
 
   const { data: roomTypes, isLoading } = useQuery({ queryKey: ['room-types'], queryFn: () => roomTypesApi.list().then(r => r.data) })
 
