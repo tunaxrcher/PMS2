@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { Phone, ArrowRight, AlertTriangle, Shield } from 'lucide-react'
+import { Phone, ArrowRight, AlertTriangle, Shield, Crown, ConciergeBell, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import { authApi } from '@/lib/api'
@@ -197,35 +197,30 @@ export default function LoginPage() {
               <p className="mt-1 text-sm text-stone-500">กรุณากรอกเบอร์โทรศัพท์ของคุณ</p>
             </motion.div>
 
-            {/* Card */}
-            <motion.div
-              className="rounded-3xl border border-white/15 bg-black/35 p-6 backdrop-blur-2xl shadow-[0_24px_80px_rgba(0,0,0,0.55)]"
-              initial={{ opacity: 0, y: 30, scale: 0.97 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ duration: 0.5, delay: 0.25 }}
-            >
-              <form onSubmit={handlePhoneSubmit} className="space-y-5">
+          {/* Card */}
+          <motion.div
+            className="rounded-3xl border border-white/15 bg-black/35 p-6 backdrop-blur-2xl shadow-[0_24px_80px_rgba(0,0,0,0.55)]"
+            initial={{ opacity: 0, y: 30, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.5, delay: 0.25 }}
+          >
+            <form onSubmit={handlePhoneSubmit} className="space-y-5">
                 <div>
                   <label className="mb-2 block text-sm font-medium text-stone-300">เบอร์โทรศัพท์</label>
                   <div className="relative">
                     <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2">
                       <Phone className="h-4 w-4 text-stone-500" />
                     </div>
-                    <input
-                      type="tel"
-                      inputMode="numeric"
-                      value={phone}
-                      onChange={handlePhoneChange}
-                      placeholder="0XXXXXXXXX"
-                      maxLength={10}
-                      required
-                      className="h-11 w-full rounded-xl border border-white/15 bg-black/25 pl-10 pr-4 text-stone-100 placeholder:text-stone-600 focus:border-amber-300/40 focus:outline-none focus:ring-2 focus:ring-amber-400/20 backdrop-blur-sm transition-colors tracking-widest text-base"
-                    />
-                    {phone.length > 0 && (
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-stone-600">
-                        {phone.length}/10
-                      </span>
-                    )}
+                  <input
+                    type="tel"
+                    inputMode="numeric"
+                    value={phone}
+                    onChange={handlePhoneChange}
+                    placeholder="0XXXXXXXXX"
+                    maxLength={10}
+                    required
+                    className="h-11 w-full rounded-xl border border-white/15 bg-black/25 pl-10 pr-4 text-stone-100 placeholder:text-stone-600 focus:border-amber-300/40 focus:outline-none focus:ring-2 focus:ring-amber-400/20 backdrop-blur-sm transition-colors tracking-widest text-base"
+                  />
                   </div>
                 </div>
 
@@ -237,10 +232,42 @@ export default function LoginPage() {
               </form>
             </motion.div>
 
-            <motion.p className="mt-4 text-center text-xs text-stone-600"
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }}>
-              Serene PMS v1.0 — Property Management System
-            </motion.p>
+          {/* Quick role select */}
+          <motion.div
+            className="mt-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4, delay: 0.5 }}
+          >
+            <p className="mb-2 text-center text-[10px] text-stone-700">For Development</p>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { role: 'Admin', phone: '0800000001', icon: Crown, color: 'hover:border-amber-300/30 hover:bg-amber-400/8 hover:text-amber-400' },
+                { role: 'Front Desk', phone: '0800000002', icon: ConciergeBell, color: 'hover:border-sky-300/30 hover:bg-sky-400/8 hover:text-sky-400' },
+                { role: 'Housekeeping', phone: '0800000003', icon: Sparkles, color: 'hover:border-emerald-300/30 hover:bg-emerald-400/8 hover:text-emerald-400' },
+              ].map(({ role, phone: rolePhone, icon: Icon, color }) => (
+                <motion.button
+                  key={role}
+                  type="button"
+                  onClick={() => setPhone(rolePhone)}
+                  whileTap={{ scale: 0.96 }}
+                  className={`flex flex-col items-center gap-1 rounded-2xl border py-2.5 px-2 transition-all duration-150 group ${color} ${
+                    phone === rolePhone
+                      ? 'border-amber-300/35 bg-amber-400/[0.08] text-amber-300'
+                      : 'border-white/[0.07] bg-white/[0.03] text-stone-700'
+                  }`}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  <span className="text-[10px] font-medium leading-none">{role}</span>
+                </motion.button>
+              ))}
+            </div>
+          </motion.div>
+
+          <motion.p className="mt-3 text-center text-[10px] text-stone-700"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }}>
+            Serene PMS v1.0 — Property Management System
+          </motion.p>
           </motion.div>
         </div>
 
@@ -299,6 +326,7 @@ export default function LoginPage() {
                 />
               ))}
             </div>
+            <p className="text-sm text-stone-300">PIN: 000000 เพื่อทดสอบ</p>
 
             {/* Error message + attempt warning */}
             <AnimatePresence mode="wait">

@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, BookOpen, Search, Filter, CalendarRange, User } from 'lucide-react'
+import { BookOpen, Search, User } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/app-shell'
 import { GlassPanel } from '@/components/ui/glass-panel'
@@ -14,7 +14,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { bookingsApi, guestsApi, roomTypesApi } from '@/lib/api'
 import { formatDate, formatCurrency, calcNights } from '@/lib/utils'
-import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { CreateBookingDialog } from '@/components/bookings/create-booking-dialog'
 
 const STATUS_OPTIONS = [
@@ -28,6 +28,7 @@ const STATUS_OPTIONS = [
 
 export default function BookingsPage() {
   const qc = useQueryClient()
+  const router = useRouter()
   const [statusFilter, setStatusFilter] = useState('')
   const [guestSearch, setGuestSearch] = useState('')
   const [page, setPage] = useState(1)
@@ -44,11 +45,7 @@ export default function BookingsPage() {
   })
 
   return (
-    <AppShell
-      title="การจอง"
-      subtitle="จัดการการจองห้องพัก"
-      headerActions={<Button onClick={() => setCreateDialogOpen(true)}><Plus className="h-4 w-4" /> สร้างการจอง</Button>}
-    >
+    <AppShell title="การจอง" subtitle="จัดการการจองห้องพัก">
       <div className="space-y-5">
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-3">
@@ -71,7 +68,7 @@ export default function BookingsPage() {
           {isLoading ? (
             <div className="p-5 space-y-3">{[...Array(8)].map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
           ) : !data?.bookings?.length ? (
-            <EmptyState icon={BookOpen} title="ไม่พบการจอง" description={guestSearch ? `ไม่พบการจองของ "${guestSearch}"` : 'ยังไม่มีการจองในระบบ'} action={<Button onClick={() => setCreateDialogOpen(true)}><Plus className="h-4 w-4" /> สร้างการจอง</Button>} className="m-4" />
+            <EmptyState icon={BookOpen} title="ไม่พบการจอง" description={guestSearch ? `ไม่พบการจองของ "${guestSearch}"` : 'ยังไม่มีการจองในระบบ'} className="m-4" />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -83,7 +80,6 @@ export default function BookingsPage() {
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-stone-500">Check-out</th>
                   <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-stone-500">คืน</th>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-stone-500">สถานะ</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-stone-500">จัดการ</th>
                 </tr></thead>
                 <tbody>
                   {(data.bookings as Array<{
@@ -93,8 +89,12 @@ export default function BookingsPage() {
                     bookingRooms: Array<{ roomType: { name: string }; room?: { roomNumber: string } | null }>
                     status: string
                   }>).map(b => (
-                    <tr key={b.id} className="border-b border-white/5 hover:bg-white/[0.03] transition-colors">
-                      <td className="px-4 py-3 font-mono text-amber-300 text-xs">{b.bookingNumber}</td>
+                    <tr
+                      key={b.id}
+                      onClick={() => router.push(`/bookings/${b.id}`)}
+                      className="border-b border-white/5 hover:bg-white/[0.05] transition-colors cursor-pointer group"
+                    >
+                      <td className="px-4 py-3 font-mono text-amber-300 text-xs group-hover:text-amber-200">{b.bookingNumber}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <User className="h-3.5 w-3.5 text-stone-600" />
@@ -108,11 +108,6 @@ export default function BookingsPage() {
                       <td className="px-4 py-3 text-stone-300">{formatDate(b.checkOutDate, 'dd/MM/yy')}</td>
                       <td className="px-4 py-3 text-right text-stone-400">{calcNights(b.checkInDate, b.checkOutDate)}</td>
                       <td className="px-4 py-3"><StatusBadge status={b.status} size="sm" /></td>
-                      <td className="px-4 py-3 text-right">
-                        <Link href={`/bookings/${b.id}`}>
-                          <Button variant="ghost" size="sm">ดูรายละเอียด</Button>
-                        </Link>
-                      </td>
                     </tr>
                   ))}
                 </tbody>
