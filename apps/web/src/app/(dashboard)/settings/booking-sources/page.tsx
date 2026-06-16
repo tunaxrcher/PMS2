@@ -49,8 +49,8 @@ export default function BookingSourcesPage() {
 
   const handleSubmit = () => {
     if (!form.name) { toast.error('กรุณาระบุชื่อช่องทาง'); return }
-    if (editId) updateMutation.mutate({ id: editId, data: form as Record<string, unknown> })
-    else createMutation.mutate(form as Record<string, unknown>)
+    if (editId) updateMutation.mutate({ id: editId, data: form as unknown as Record<string, unknown> })
+    else createMutation.mutate(form as unknown as Record<string, unknown>)
   }
 
   const openCreate = () => { setEditId(null); setForm({ name: '', sourceType: 'direct', active: true }); setDialogOpen(true) }
