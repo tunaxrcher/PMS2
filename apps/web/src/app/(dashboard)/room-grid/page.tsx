@@ -234,26 +234,34 @@ export default function RoomGridPage() {
   const activeFilters = [zoneFilter, rtFilter, statusFilter].filter(Boolean).length
 
   return (
-    <AppShell
-      title="ปฏิทินห้องพัก"
-      subtitle={`${format(startDate, 'MMMM yyyy', { locale: th })}`}
-      headerActions={
-        <div className="flex items-center gap-2">
-          <div className="flex items-center rounded-xl border border-white/15 bg-white/[0.06] overflow-hidden">
-            <button onClick={prevMonth} className="px-2.5 py-2 hover:bg-white/[0.06] transition-colors"><ChevronLeft className="h-4 w-4 text-stone-400" /></button>
-            <button onClick={goToday} className="px-3 py-2 text-xs font-medium text-stone-300 hover:text-amber-300 transition-colors border-x border-white/10">วันนี้</button>
-            <button onClick={nextMonth} className="px-2.5 py-2 hover:bg-white/[0.06] transition-colors"><ChevronRight className="h-4 w-4 text-stone-400" /></button>
-          </div>
-          <button onClick={() => refetch()} className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/15 bg-white/[0.06] text-stone-400 hover:bg-white/[0.10] hover:text-stone-100 transition-colors">
-            <RefreshCw className="h-4 w-4" />
-          </button>
-          <Button size="sm" onClick={() => { setPrefillDate(undefined); setPrefillRoomTypeId(undefined); setPrefillRoomId(undefined); setCreateOpen(true) }}>
-            <Plus className="h-4 w-4" /> สร้างการจอง
-          </Button>
-        </div>
-      }
-    >
+    <AppShell title="ปฏิทินห้องพัก" subtitle={`${format(startDate, 'MMMM yyyy', { locale: th })}`}>
       <div className="flex flex-col gap-4">
+        {/* Navigation controls */}
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center rounded-xl border border-white/15 bg-white/[0.06] overflow-hidden">
+              <button onClick={prevMonth} className="px-2.5 py-2 hover:bg-white/[0.06] transition-colors">
+                <ChevronLeft className="h-4 w-4 text-stone-400" />
+              </button>
+              <button onClick={goToday} className="px-3 py-2 text-xs font-medium text-stone-300 hover:text-amber-300 transition-colors border-x border-white/10">
+                วันนี้
+              </button>
+              <button onClick={nextMonth} className="px-2.5 py-2 hover:bg-white/[0.06] transition-colors">
+                <ChevronRight className="h-4 w-4 text-stone-400" />
+              </button>
+            </div>
+            <span className="text-sm font-medium text-stone-300">{format(startDate, 'MMMM yyyy', { locale: th })}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={() => refetch()} className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/15 bg-white/[0.06] text-stone-400 hover:bg-white/[0.10] hover:text-stone-100 transition-colors">
+              <RefreshCw className="h-3.5 w-3.5" />
+            </button>
+            <Button size="sm" onClick={() => { setPrefillDate(undefined); setPrefillRoomTypeId(undefined); setPrefillRoomId(undefined); setCreateOpen(true) }}>
+              <Plus className="h-4 w-4" /> สร้างการจอง
+            </Button>
+          </div>
+        </div>
+
         {/* Filter bar */}
         <div className="flex flex-wrap items-center gap-2">
           {/* Legend */}

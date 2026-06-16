@@ -142,7 +142,7 @@ export default function ReceiptPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(folio.items as Array<{ id: string; description: string; quantity: number; unitPrice: number | string; totalAmount: number | string }> || [])
+                  {(folio.items as Array<{ id: string; description: string; quantity: number; unitPrice: number | string; totalAmount: number | string; isVoided?: boolean }> || [])
                     .filter((item: { isVoided?: boolean }) => !item.isVoided)
                     .map((item) => (
                     <tr key={item.id} className="border-b border-white/5 print:border-gray-200">
