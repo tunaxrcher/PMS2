@@ -120,6 +120,85 @@ export class RoomsService {
     return this.prisma.roomImage.findMany({ where: { roomId }, orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }] })
   }
 
+  // Room Map: rooms grouped by zone with booking status for a date
+  async getRoomMap(propertyId: string, date: string) {
+    const targetDate = new Date(date)
+
+    const zones = await this.prisma.zone.findMany({
+      where: { propertyId, active: true },
+      orderBy: { sortOrder: 'asc' },
+    })
+
+    const rooms = await this.prisma.room.findMany({
+      where: { propertyId, active: true },
+      include: {
+        roomType: { select: { id: true, name: true, imageUrl: true, baseRate: true } },
+        zone: { select: { id: true, name: true, imageUrl: true } },
+        images: { where: { isPrimary: true }, take: 1 },
+        bookingRooms: {
+          where: {
+            status: { notIn: ['cancelled'] },
+            checkInDate: { lte: targetDate },
+            checkOutDate: { gt: targetDate },
+            booking: { propertyId, status: { notIn: ['cancelled', 'no_show'] } },
+          },
+          include: {
+            booking: {
+              include: {
+                guest: { select: { firstName: true, lastName: true } },
+              },
+            },
+          },
+          take: 1,
+        },
+      },
+      orderBy: [{ zone: { sortOrder: 'asc' } }, { roomNumber: 'asc' }],
+    })
+
+    const today = new Date(); today.setHours(0, 0, 0, 0)
+    const isTargetToday = targetDate.getTime() === today.getTime()
+
+    // Compute effective status for the selected date
+    const roomsWithStatus = rooms.map((room) => {
+      const activeBooking = room.bookingRooms[0]
+      let dateStatus: string
+
+      if (activeBooking) {
+        // Has a booking on this date
+        if (activeBooking.booking.status === 'checked_in') dateStatus = 'occupied'
+        else dateStatus = 'reserved'
+      } else if (room.currentStatus === 'out_of_order' || room.currentStatus === 'out_of_service') {
+        // OOO/OOS is always shown regardless of date
+        dateStatus = room.currentStatus
+      } else if (isTargetToday) {
+        // Today: use actual physical status (dirty/cleaning matters for housekeeping)
+        dateStatus = room.currentStatus
+      } else {
+        // Future/past date with no booking → available
+        dateStatus = 'clean'
+      }
+
+      return {
+        ...room,
+        dateStatus,
+        activeBooking: activeBooking ? {
+          id: activeBooking.booking.id,
+          bookingNumber: activeBooking.booking.bookingNumber,
+          status: activeBooking.booking.status,
+          checkOutDate: activeBooking.checkOutDate,
+          guest: activeBooking.booking.guest,
+        } : null,
+        primaryImage: room.images[0]?.url ?? room.roomType.imageUrl ?? null,
+      }
+    })
+
+    // Group by zone
+    return zones.map((zone) => ({
+      zone,
+      rooms: roomsWithStatus.filter((r) => r.zoneId === zone.id),
+    })).filter((g) => g.rooms.length > 0)
+  }
+
   // Get room type availability for date range
   async getAvailability(propertyId: string, from: string, to: string) {
     const checkIn = new Date(from)

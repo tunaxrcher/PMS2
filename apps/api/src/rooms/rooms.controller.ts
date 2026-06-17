@@ -21,6 +21,15 @@ export class RoomsController {
     return this.service.findAll(user.propertyId!, { zoneId, roomTypeId, status })
   }
 
+  @Get('map')
+  getRoomMap(
+    @CurrentUser() user: JwtPayload,
+    @Query('date') date?: string,
+  ) {
+    const d = date || new Date().toISOString().split('T')[0]
+    return this.service.getRoomMap(user.propertyId!, d)
+  }
+
   @Get('availability')
   getAvailability(
     @CurrentUser() user: JwtPayload,

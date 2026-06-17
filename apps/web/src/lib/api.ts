@@ -74,6 +74,7 @@ export const roomsApi = {
     api.patch(`/rooms/${id}/status`, { status, reason }),
   grid: (from: string, to: string) => api.get('/rooms/grid', { params: { from, to } }),
   availability: (from: string, to: string) => api.get('/rooms/availability', { params: { from, to } }),
+  map: (date?: string) => api.get('/rooms/map', { params: { date } }),
   getImages: (id: string) => api.get(`/rooms/${id}/images`),
   addImage: (id: string, data: { url: string; caption?: string; isPrimary?: boolean }) =>
     api.post(`/rooms/${id}/images`, data),

@@ -43,6 +43,7 @@ const navSections: NavSection[] = [
     label: 'MAIN',
     items: [
       { href: '/dashboard', icon: LayoutDashboard, label: 'ภาพรวม' },
+      { href: '/room-map', icon: Building2, label: 'ผังห้อง' },
       { href: '/room-grid', icon: CalendarRange, label: 'ปฏิทินห้องพัก' },
       { href: '/bookings', icon: BookOpen, label: 'การจอง' },
       { href: '/guests', icon: Users, label: 'ลูกค้า' },

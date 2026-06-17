@@ -85,20 +85,44 @@ async function main() {
   const adminUser = await prisma.user.findUnique({ where: { phone: '0800000001' } })
   console.log('✅ Users')
 
-  // --- Zones ---
-  const beachZone = await prisma.zone.upsert({ where: { id: 'zone-beach' }, update: {}, create: { id: 'zone-beach', propertyId: property.id, name: 'Beach Zone', zoneType: 'beach_zone', sortOrder: 1 } })
-  const poolZone = await prisma.zone.upsert({ where: { id: 'zone-pool' }, update: {}, create: { id: 'zone-pool', propertyId: property.id, name: 'Pool Villa Zone', zoneType: 'pool_zone', sortOrder: 2 } })
-  const gardenZone = await prisma.zone.upsert({ where: { id: 'zone-garden' }, update: {}, create: { id: 'zone-garden', propertyId: property.id, name: 'Garden Zone', zoneType: 'garden_zone', sortOrder: 3 } })
-  console.log('✅ Zones')
+  const CDN = 'https://pms-unityx.sgp1.cdn.digitaloceanspaces.com/images'
+  const ROOM_IMGS = [`${CDN}/room-1.jpg`, `${CDN}/room-2.jpg`, `${CDN}/room-3.jpg`]
 
-  // --- Room Types ---
-  const standardType = await prisma.roomType.upsert({ where: { id: 'rt-standard' }, update: {}, create: { id: 'rt-standard', propertyId: property.id, name: 'Standard Room', description: 'ห้องมาตรฐาน วิวสวน', baseOccupancy: 2, maxOccupancy: 3, baseRate: 2500 } })
-  const deluxeType = await prisma.roomType.upsert({ where: { id: 'rt-deluxe' }, update: {}, create: { id: 'rt-deluxe', propertyId: property.id, name: 'Deluxe Room', description: 'ห้อง Deluxe วิวสระว่ายน้ำ', baseOccupancy: 2, maxOccupancy: 4, baseRate: 3500 } })
-  const poolVillaType = await prisma.roomType.upsert({ where: { id: 'rt-pool-villa' }, update: {}, create: { id: 'rt-pool-villa', propertyId: property.id, name: 'Pool Villa', description: 'วิลล่าพร้อมสระส่วนตัว', baseOccupancy: 2, maxOccupancy: 4, baseRate: 8500 } })
-  const beachVillaType = await prisma.roomType.upsert({ where: { id: 'rt-beach-villa' }, update: {}, create: { id: 'rt-beach-villa', propertyId: property.id, name: 'Beachfront Villa', description: 'วิลล่าหน้าหาด วิวทะเล', baseOccupancy: 2, maxOccupancy: 6, baseRate: 12000 } })
-  console.log('✅ Room Types')
+  // --- Zones (with images) ---
+  const beachZone = await prisma.zone.upsert({
+    where: { id: 'zone-beach' }, update: { imageUrl: `${CDN}/zone1.jpg` },
+    create: { id: 'zone-beach', propertyId: property.id, name: 'Beach Zone', zoneType: 'beach_zone', sortOrder: 1, imageUrl: `${CDN}/zone1.jpg` },
+  })
+  const poolZone = await prisma.zone.upsert({
+    where: { id: 'zone-pool' }, update: { imageUrl: `${CDN}/zone2.webp` },
+    create: { id: 'zone-pool', propertyId: property.id, name: 'Pool Villa Zone', zoneType: 'pool_zone', sortOrder: 2, imageUrl: `${CDN}/zone2.webp` },
+  })
+  const gardenZone = await prisma.zone.upsert({
+    where: { id: 'zone-garden' }, update: { imageUrl: `${CDN}/zone3.jpg` },
+    create: { id: 'zone-garden', propertyId: property.id, name: 'Garden Zone', zoneType: 'garden_zone', sortOrder: 3, imageUrl: `${CDN}/zone3.jpg` },
+  })
+  console.log('✅ Zones (with images)')
 
-  // --- Rooms ---
+  // --- Room Types (with images) ---
+  const standardType = await prisma.roomType.upsert({
+    where: { id: 'rt-standard' }, update: { imageUrl: `${CDN}/room_type1.png` },
+    create: { id: 'rt-standard', propertyId: property.id, name: 'Standard Room', description: 'ห้องมาตรฐาน วิวสวน', baseOccupancy: 2, maxOccupancy: 3, baseRate: 2500, imageUrl: `${CDN}/room_type1.png` },
+  })
+  const deluxeType = await prisma.roomType.upsert({
+    where: { id: 'rt-deluxe' }, update: { imageUrl: `${CDN}/room_type2.png` },
+    create: { id: 'rt-deluxe', propertyId: property.id, name: 'Deluxe Room', description: 'ห้อง Deluxe วิวสระว่ายน้ำ', baseOccupancy: 2, maxOccupancy: 4, baseRate: 3500, imageUrl: `${CDN}/room_type2.png` },
+  })
+  const poolVillaType = await prisma.roomType.upsert({
+    where: { id: 'rt-pool-villa' }, update: { imageUrl: `${CDN}/room_type3.png` },
+    create: { id: 'rt-pool-villa', propertyId: property.id, name: 'Pool Villa', description: 'วิลล่าพร้อมสระส่วนตัว', baseOccupancy: 2, maxOccupancy: 4, baseRate: 8500, imageUrl: `${CDN}/room_type3.png` },
+  })
+  const beachVillaType = await prisma.roomType.upsert({
+    where: { id: 'rt-beach-villa' }, update: { imageUrl: `${CDN}/room_type4.png` },
+    create: { id: 'rt-beach-villa', propertyId: property.id, name: 'Beachfront Villa', description: 'วิลล่าหน้าหาด วิวทะเล', baseOccupancy: 2, maxOccupancy: 6, baseRate: 12000, imageUrl: `${CDN}/room_type4.png` },
+  })
+  console.log('✅ Room Types (with images)')
+
+  // --- Rooms + RoomImages ---
   const roomsData = [
     { id: 'room-101', roomTypeId: standardType.id, zoneId: gardenZone.id, roomNumber: '101', roomName: 'Garden View 101', floorNo: '1' },
     { id: 'room-102', roomTypeId: standardType.id, zoneId: gardenZone.id, roomNumber: '102', roomName: 'Garden View 102', floorNo: '1' },
@@ -111,10 +135,26 @@ async function main() {
     { id: 'room-bv1', roomTypeId: beachVillaType.id, zoneId: beachZone.id, roomNumber: 'BV-01', roomName: 'Beachfront Villa 01' },
     { id: 'room-bv2', roomTypeId: beachVillaType.id, zoneId: beachZone.id, roomNumber: 'BV-02', roomName: 'Beachfront Villa 02' },
   ]
-  for (const r of roomsData) {
+  for (let i = 0; i < roomsData.length; i++) {
+    const r = roomsData[i]
     await prisma.room.upsert({ where: { id: r.id }, update: {}, create: { ...r, propertyId: property.id, maxOccupancy: 4, currentStatus: 'clean' } })
+
+    // Add room images (cycle through 3 images, 2-3 images per room)
+    const existingImages = await prisma.roomImage.count({ where: { roomId: r.id } })
+    if (existingImages === 0) {
+      const imgA = ROOM_IMGS[i % 3]
+      const imgB = ROOM_IMGS[(i + 1) % 3]
+      const imgC = ROOM_IMGS[(i + 2) % 3]
+      await prisma.roomImage.createMany({
+        data: [
+          { roomId: r.id, url: imgA, isPrimary: true, sortOrder: 0 },
+          { roomId: r.id, url: imgB, isPrimary: false, sortOrder: 1 },
+          { roomId: r.id, url: imgC, isPrimary: false, sortOrder: 2 },
+        ],
+      })
+    }
   }
-  console.log('✅ Rooms')
+  console.log('✅ Rooms + Room Images')
 
   // --- Booking Sources ---
   const sources = [
