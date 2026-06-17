@@ -10,7 +10,7 @@ import {
 } from '@dnd-kit/core'
 import {
   ChevronLeft, ChevronRight, RefreshCw, Plus, AlertTriangle,
-  BedDouble, Filter, Layers, MapPin
+  BedDouble, Filter, MapPin
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -22,6 +22,7 @@ import { Input } from '@/components/ui/input'
 import { roomsApi, bookingsApi, zonesApi, roomTypesApi } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { CreateBookingDialog } from '@/components/bookings/create-booking-dialog'
+import { useRouter } from 'next/navigation'
 
 const CELL_W = 52
 const ROW_H = 56
@@ -114,10 +115,11 @@ function DropCell({ roomId, dateIdx, isOOO, onClick }: {
 }
 
 export default function RoomGridPage() {
+  const router = useRouter()
   const qc = useQueryClient()
   const today = new Date()
   const [startDate, setStartDate] = useState(() => { const d = new Date(); d.setDate(1); return d })
-  const [days] = useState(30)
+  const days = 30
   const [zoneFilter, setZoneFilter] = useState('')
   const [rtFilter, setRtFilter] = useState('')
   const [statusFilters, setStatusFilters] = useState<string[]>([])
@@ -176,12 +178,14 @@ export default function RoomGridPage() {
     setZoneFilter(''); setRtFilter(''); setStatusFilters([])
   }, [])
 
-  const filteredRooms = (rooms || []).filter((r: Room) => {
-    if (zoneFilter && r.zone?.id !== zoneFilter) return false
-    if (rtFilter && r.roomType?.id !== rtFilter) return false
-    if (statusFilters.length > 0 && !statusFilters.includes(r.currentStatus)) return false
-    return true
-  })
+  const filteredRooms = React.useMemo(() =>
+    (rooms || []).filter((r: Room) => {
+      if (zoneFilter && r.zone?.id !== zoneFilter) return false
+      if (rtFilter && r.roomType?.id !== rtFilter) return false
+      if (statusFilters.length > 0 && !statusFilters.includes(r.currentStatus)) return false
+      return true
+    }),
+  [rooms, zoneFilter, rtFilter, statusFilters])
 
   // Group rooms by zone
   const groupedRooms = React.useMemo(() => {
@@ -426,7 +430,7 @@ export default function RoomGridPage() {
                             <div key={u.id}
                               className="absolute inset-y-1.5 rounded-lg border border-dashed border-amber-300/40 bg-amber-400/10 text-amber-200 text-[10px] flex items-center px-2 cursor-pointer hover:bg-amber-400/20 transition-colors"
                               style={{ left: offset * CELL_W + 3, width: width * CELL_W - 6 }}
-                              onClick={() => window.location.href = `/bookings/${u.bookingId}`}
+                              onClick={() => router.push(`/bookings/${u.bookingId}`)}
                               title={`${u.booking.guest.firstName} ${u.booking.guest.lastName} — ${u.roomType.name} (รอกำหนดห้อง)`}
                             >
                               <span className="truncate">{u.booking.guest.firstName} {u.booking.guest.lastName?.[0]}. — {u.roomType.name}</span>
@@ -539,7 +543,7 @@ export default function RoomGridPage() {
                                 const colorClass = BOOKING_BLOCK_COLORS[br.booking?.status] || BOOKING_BLOCK_COLORS.confirmed
                                 return (
                                   <BookingBlock key={br.id} br={br} startOffset={offset} width={width} colorClass={colorClass}
-                                    onClick={() => window.location.href = `/bookings/${br.bookingId}`} />
+                                    onClick={() => router.push(`/bookings/${br.bookingId}`)} />
                                 )
                               })}
                             </div>

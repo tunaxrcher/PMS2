@@ -4,11 +4,11 @@ import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import { createPortal } from 'react-dom'
-import { format, addDays, isToday, isTomorrow } from 'date-fns'
+import { format, addDays, parseISO, isToday, isTomorrow } from 'date-fns'
 import { th } from 'date-fns/locale'
 import {
-  ChevronLeft, ChevronRight, RefreshCw, Plus, DoorOpen, DoorClosed,
-  Sparkles, Wrench, AlertTriangle, BedDouble, X, CheckCircle2, Filter,
+  ChevronLeft, ChevronRight, RefreshCw, Plus,
+  AlertTriangle, BedDouble, Filter,
 } from 'lucide-react'
 
 import { toast } from 'sonner'
@@ -18,22 +18,21 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { PmsDialog } from '@/components/ui/pms-dialog'
 import { Input } from '@/components/ui/input'
-// Select removed — using pill buttons instead
 import { roomsApi, zonesApi, roomTypesApi, housekeepingApi } from '@/lib/api'
 import { cn, formatDate } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 import { CreateBookingDialog } from '@/components/bookings/create-booking-dialog'
 
 // ── Status config ──────────────────────────────────────────
-const STATUS_CFG: Record<string, { label: string; border: string; badge: string; glow: string; dim: boolean }> = {
-  clean:          { label: 'ว่าง',              border: 'border-emerald-400/70', badge: 'bg-emerald-500 text-white',   glow: 'shadow-[0_0_20px_rgba(52,211,153,0.35)]', dim: false },
-  dirty:          { label: 'รอทำความสะอาด',    border: 'border-amber-400/70',   badge: 'bg-amber-500 text-white',     glow: 'shadow-[0_0_20px_rgba(251,191,36,0.30)]', dim: false },
-  occupied:       { label: 'มีผู้เข้าพัก',      border: 'border-rose-400/70',    badge: 'bg-rose-500 text-white',      glow: 'shadow-[0_0_20px_rgba(248,113,113,0.35)]', dim: false },
-  reserved:       { label: 'จองแล้ว',           border: 'border-sky-400/70',     badge: 'bg-sky-500 text-white',       glow: 'shadow-[0_0_20px_rgba(56,189,248,0.30)]', dim: false },
-  cleaning:       { label: 'กำลังทำ',          border: 'border-sky-300/50',     badge: 'bg-sky-400/90 text-white',    glow: '', dim: false },
-  out_of_order:   { label: 'ห้องเสีย',          border: 'border-stone-600/50',   badge: 'bg-stone-700 text-stone-400', glow: '', dim: true  },
-  out_of_service: { label: 'ปิดบริการ',         border: 'border-stone-500/40',   badge: 'bg-stone-600 text-stone-500', glow: '', dim: true  },
-  inspected:      { label: 'ตรวจแล้ว',          border: 'border-teal-400/60',    badge: 'bg-teal-500 text-white',      glow: '', dim: false },
+const STATUS_CFG: Record<string, { label: string; border: string; badge: string; glow: string; dim: boolean; color: string; dot: string }> = {
+  clean:          { label: 'ว่าง',              border: 'border-emerald-400/70', badge: 'bg-emerald-500 text-white',   glow: 'shadow-[0_0_20px_rgba(52,211,153,0.35)]', dim: false, color: 'text-emerald-400', dot: 'bg-emerald-400'  },
+  dirty:          { label: 'รอทำความสะอาด',    border: 'border-amber-400/70',   badge: 'bg-amber-500 text-white',     glow: 'shadow-[0_0_20px_rgba(251,191,36,0.30)]', dim: false, color: 'text-amber-400',   dot: 'bg-amber-400'    },
+  occupied:       { label: 'มีผู้เข้าพัก',      border: 'border-rose-400/70',    badge: 'bg-rose-500 text-white',      glow: 'shadow-[0_0_20px_rgba(248,113,113,0.35)]', dim: false, color: 'text-rose-400',    dot: 'bg-rose-400'     },
+  reserved:       { label: 'จองแล้ว',           border: 'border-sky-400/70',     badge: 'bg-sky-500 text-white',       glow: 'shadow-[0_0_20px_rgba(56,189,248,0.30)]', dim: false, color: 'text-sky-400',     dot: 'bg-sky-400'      },
+  cleaning:       { label: 'กำลังทำ',          border: 'border-sky-300/50',     badge: 'bg-sky-400/90 text-white',    glow: '', dim: false, color: 'text-sky-300',     dot: 'bg-sky-300'      },
+  out_of_order:   { label: 'ห้องเสีย',          border: 'border-stone-600/50',   badge: 'bg-stone-700 text-stone-400', glow: '', dim: true,  color: 'text-stone-500',   dot: 'bg-stone-500'    },
+  out_of_service: { label: 'ปิดบริการ',         border: 'border-stone-500/40',   badge: 'bg-stone-600 text-stone-500', glow: '', dim: true,  color: 'text-stone-400',   dot: 'bg-stone-400'    },
+  inspected:      { label: 'ตรวจแล้ว',          border: 'border-teal-400/60',    badge: 'bg-teal-500 text-white',      glow: '', dim: false, color: 'text-teal-400',    dot: 'bg-teal-400'     },
 }
 
 interface RoomData {
@@ -53,7 +52,6 @@ interface ZoneGroup {
 // ── Game-style Action Menu ────────────────────────────────
 function ActionMenuPortal({ room, onClose, onAction }: {
   room: RoomData
-  anchor: { x: number; y: number; width: number }
   onClose: () => void
   onAction: (room: RoomData, action: string) => void
 }) {
@@ -137,7 +135,7 @@ function ActionMenuPortal({ room, onClose, onAction }: {
             ห้อง {room.roomNumber}
           </motion.h2>
           <motion.div
-            className={cn('mt-2 text-sm font-bold uppercase tracking-widest', cfg.badge.replace('bg-', 'text-').replace(' text-white', '').replace('/90', ''))}
+            className={cn('mt-2 text-sm font-bold uppercase tracking-widest', cfg.color)}
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.12 }}
           >
             — {cfg.label} —
@@ -266,7 +264,7 @@ function RoomCard({ room, onAction }: { room: RoomData; onAction: (room: RoomDat
       >
         {/* Slideshow images */}
         {images.length > 0 ? (
-          <AnimatePresence mode="crossfade">
+          <AnimatePresence>
             <motion.img
               key={imgIndex}
               src={images[imgIndex]}
@@ -323,7 +321,6 @@ function RoomCard({ room, onAction }: { room: RoomData; onAction: (room: RoomDat
         {menuAnchor && (
           <ActionMenuPortal
             room={room}
-            anchor={menuAnchor}
             onClose={() => setMenuAnchor(null)}
             onAction={onAction}
           />
@@ -337,7 +334,7 @@ function RoomCard({ room, onAction }: { room: RoomData; onAction: (room: RoomDat
 export default function RoomMapPage() {
   const router = useRouter()
   const qc = useQueryClient()
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
+  const [selectedDate, setSelectedDate] = useState(() => format(new Date(), 'yyyy-MM-dd'))
   const [mapData, setMapData] = useState<ZoneGroup[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [zoneFilter, setZoneFilter] = useState('')
@@ -357,7 +354,9 @@ export default function RoomMapPage() {
     try {
       const res = await roomsApi.map(date)
       setMapData(res.data || [])
-    } catch { /* ignore */ } finally {
+    } catch {
+      toast.error('โหลดข้อมูลห้องไม่สำเร็จ')
+    } finally {
       setIsLoading(false)
     }
   }, [])
@@ -411,13 +410,7 @@ export default function RoomMapPage() {
   }
 
   const navigateDate = (delta: number) => {
-    const parts = selectedDate.split('-').map(Number)
-    const d = new Date(parts[0], parts[1] - 1, parts[2])
-    d.setDate(d.getDate() + delta)
-    const y = d.getFullYear()
-    const m = String(d.getMonth() + 1).padStart(2, '0')
-    const day = String(d.getDate()).padStart(2, '0')
-    setSelectedDate(`${y}-${m}-${day}`)
+    setSelectedDate(prev => format(addDays(parseISO(prev), delta), 'yyyy-MM-dd'))
   }
 
   const toggleStatus = (s: string) => setStatusFilters(prev =>
@@ -426,9 +419,6 @@ export default function RoomMapPage() {
 
   const clearAllFilters = () => { setZoneFilter(''); setTypeFilter(''); setStatusFilters([]) }
   const activeFilterCount = (zoneFilter ? 1 : 0) + (typeFilter ? 1 : 0) + statusFilters.length
-
-  // Auto-open filter panel if there are active filters
-  React.useEffect(() => { if (activeFilterCount > 0) setFilterOpen(true) }, [])
 
   const filteredGroups = mapData
     .map(g => ({
@@ -445,10 +435,7 @@ export default function RoomMapPage() {
   const totalRooms = filteredGroups.reduce((s, g) => s + g.rooms.length, 0)
   const availableRooms = filteredGroups.reduce((s, g) => s + g.rooms.filter(r => ['clean', 'inspected'].includes(r.dateStatus)).length, 0)
 
-  const currentDateObj = (() => {
-    const parts = selectedDate.split('-').map(Number)
-    return new Date(parts[0], parts[1] - 1, parts[2])
-  })()
+  const currentDateObj = parseISO(selectedDate)
 
   const dateLabel = (() => {
     if (isToday(currentDateObj)) return 'วันนี้'
@@ -466,7 +453,7 @@ export default function RoomMapPage() {
             <button onClick={() => navigateDate(-1)} className="px-2.5 py-2 hover:bg-white/[0.06] transition-colors">
               <ChevronLeft className="h-4 w-4 text-stone-400" />
             </button>
-            <button onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}
+            <button onClick={() => setSelectedDate(format(new Date(), 'yyyy-MM-dd'))}
               className={cn('px-3 py-2 text-xs font-medium transition-colors border-x border-white/10', isToday(currentDateObj) ? 'text-amber-300' : 'text-stone-400 hover:text-amber-300')}>
               วันนี้
             </button>
@@ -580,7 +567,11 @@ export default function RoomMapPage() {
                               'flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium border transition-all',
                               isSelected ? `${v.badge} border-transparent` : 'border-white/10 text-stone-500 hover:border-white/20 hover:text-stone-300'
                             )}>
-                            {isSelected && <span className="text-[9px] font-black">✓</span>}
+                            {isSelected ? (
+                              <span className="text-[9px] font-black">✓</span>
+                            ) : (
+                              <span className={cn('h-2 w-2 rounded-full flex-shrink-0', v.dot)} />
+                            )}
                             {v.label}
                           </button>
                         )
