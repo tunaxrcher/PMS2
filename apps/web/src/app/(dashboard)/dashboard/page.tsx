@@ -246,7 +246,7 @@ export default function DashboardPage() {
               {user?.property?.name || 'Serene Resort'}
             </h1>
             <p className="mt-3 text-sm text-stone-400">
-              {format(new Date(), 'EEEE, d MMMM yyyy', { locale: th })}
+              {format(new Date(), 'EEEE, d MMMM yyyy', { locale: th })} (อยู่ในช่วงทดสอบระบบ)
             </p>
           </div>
 
