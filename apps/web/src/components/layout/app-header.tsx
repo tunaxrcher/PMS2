@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
@@ -77,7 +78,7 @@ function SearchModal({ open, onClose }: { open: boolean; onClose: () => void }) 
             placeholder="ค้นหาลูกค้า, การจอง, เลขห้อง..."
             className="flex-1 bg-transparent text-stone-100 placeholder:text-stone-600 outline-none text-sm" />
           {query && <button onClick={() => setQuery('')} className="text-stone-600 hover:text-stone-400"><X className="h-4 w-4" /></button>}
-          <kbd className="hidden sm:block text-[10px] text-stone-700 border border-white/10 rounded px-1.5 py-0.5">ESC</kbd>
+          <kbd className="hidden sm:block text-[0.625rem] text-stone-700 border border-white/10 rounded px-1.5 py-0.5">ESC</kbd>
         </div>
 
         {query.length >= 2 && (
@@ -85,7 +86,7 @@ function SearchModal({ open, onClose }: { open: boolean; onClose: () => void }) 
             initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.15 }}>
             {(bookings?.bookings?.length > 0) && (
               <div>
-                <div className="flex items-center gap-2 px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-stone-600 border-b border-white/5">
+                <div className="flex items-center gap-2 px-4 py-2 text-[0.625rem] font-semibold uppercase tracking-wider text-stone-600 border-b border-white/5">
                   <BookOpen className="h-3 w-3" /> การจอง
                 </div>
                 {(bookings.bookings as Array<{ id: string; bookingNumber: string; guest: { firstName: string; lastName: string }; checkInDate: string }>).map(b => (
@@ -100,7 +101,7 @@ function SearchModal({ open, onClose }: { open: boolean; onClose: () => void }) 
             )}
             {(guests as unknown[])?.length > 0 && (
               <div>
-                <div className="flex items-center gap-2 px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-stone-600 border-b border-white/5">
+                <div className="flex items-center gap-2 px-4 py-2 text-[0.625rem] font-semibold uppercase tracking-wider text-stone-600 border-b border-white/5">
                   <Users className="h-3 w-3" /> ลูกค้า
                 </div>
                 {(guests as Array<{ id: string; firstName: string; lastName: string; phone?: string | null }>).slice(0, 4).map(g => (
@@ -283,6 +284,8 @@ export function AppHeader() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [changePinOpen, setChangePinOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
 
   const today = format(new Date(), 'EEEE, d MMMM yyyy', { locale: th })
 
@@ -334,7 +337,7 @@ export function AppHeader() {
             </div>
             <div className="leading-tight">
               <div className="text-sm font-semibold text-stone-100">Serene PMS</div>
-              <div className="text-[10px] text-stone-500">{user?.property?.name || '...'}</div>
+              <div className="text-[0.625rem] text-stone-500">{user?.property?.name || '...'}</div>
             </div>
           </div>
 
@@ -357,7 +360,7 @@ export function AppHeader() {
                 <button className="relative flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-stone-400 hover:bg-white/[0.10] hover:text-stone-200 transition-colors">
                   <Bell className="h-4 w-4" />
                   {notifications.length > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-400 text-[9px] font-bold text-stone-900">
+                    <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-400 text-[0.625rem] font-bold text-stone-900">
                       {notifications.length}
                     </span>
                   )}
@@ -368,7 +371,7 @@ export function AppHeader() {
                   className="z-[200] w-80 rounded-2xl border border-white/15 bg-black/80 backdrop-blur-2xl shadow-2xl p-2 text-stone-100">
                   <div className="px-3 py-2 border-b border-white/10 mb-1 flex items-center justify-between">
                     <span className="text-sm font-semibold">การแจ้งเตือน</span>
-                    <span className="text-[10px] text-stone-600">ข้อมูลวันนี้</span>
+                    <span className="text-[0.625rem] text-stone-600">ข้อมูลวันนี้</span>
                   </div>
                   {notifications.length === 0 ? (
                     <div className="flex flex-col items-center gap-2 py-6">
@@ -396,7 +399,7 @@ export function AppHeader() {
             <DropdownMenu.Root>
               <DropdownMenu.Trigger asChild>
                 <button className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.05] pl-1 pr-2.5 py-1 hover:bg-white/[0.10] transition-colors outline-none">
-                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-400/20 text-[10px] font-bold text-amber-300">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-400/20 text-[0.625rem] font-bold text-amber-300">
                     {user?.firstName?.[0]}{user?.lastName?.[0]}
                   </div>
                   <span className="hidden sm:block text-stone-300 text-xs max-w-[80px] truncate">{user?.firstName}</span>
@@ -408,16 +411,12 @@ export function AppHeader() {
                   className="z-[200] w-52 rounded-2xl border border-white/15 bg-black/80 backdrop-blur-2xl p-1.5 shadow-2xl text-stone-100">
                   <div className="px-3 py-2 border-b border-white/10 mb-1">
                     <div className="text-sm font-medium text-stone-200">{user?.firstName} {user?.lastName}</div>
-                    <div className="text-[11px] text-stone-500">{user?.phone}</div>
-                    <div className="text-[10px] text-amber-500/70 mt-0.5">{roleLabel}</div>
+                    <div className="text-[0.6875rem] text-stone-500">{user?.phone}</div>
+                    <div className="text-[0.625rem] text-amber-500/70 mt-0.5">{roleLabel}</div>
                   </div>
                   <DropdownMenu.Item onSelect={() => setChangePinOpen(true)}
                     className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-stone-400 hover:bg-white/[0.08] hover:text-stone-100 transition-colors outline-none cursor-pointer">
                     <Key className="h-4 w-4" /> เปลี่ยน PIN
-                  </DropdownMenu.Item>
-                  <DropdownMenu.Item onSelect={() => setSettingsOpen(true)}
-                    className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-stone-400 hover:bg-white/[0.08] hover:text-stone-100 transition-colors outline-none cursor-pointer">
-                    <Settings className="h-4 w-4" /> ตั้งค่า
                   </DropdownMenu.Item>
                   <DropdownMenu.Separator className="my-1 h-px bg-white/10" />
                   <DropdownMenu.Item onClick={handleLogout}
@@ -434,22 +433,29 @@ export function AppHeader() {
         <div className="flex justify-center px-6 pt-1 pb-5">
           <nav className="flex items-center gap-0.5 overflow-x-auto rounded-2xl border border-white/[0.12] bg-black/35 backdrop-blur-sm px-1.5 py-1.5 shadow-[0_4px_20px_rgba(0,0,0,0.45)] scrollbar-none">
             {NAV_ITEMS.map(item => {
-              const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    'group flex flex-col items-center gap-0.5 rounded-xl px-3.5 py-1.5 transition-all duration-200 flex-shrink-0 border',
-                    isActive
-                      ? 'bg-amber-400/15 border-amber-300/25 shadow-[0_0_14px_rgba(251,191,36,0.15)]'
-                      : 'border-transparent text-stone-500 hover:bg-white/[0.06] hover:text-stone-300'
-                  )}
-                >
-                  <item.icon className={cn('h-[15px] w-[15px]', isActive ? 'text-amber-300' : 'text-stone-500 group-hover:text-stone-300')} />
-                  <span className={cn('text-[10px] font-medium leading-none whitespace-nowrap', isActive ? 'text-amber-200' : 'group-hover:text-stone-300')}>
+              const isSettings = item.href === '/settings'
+              const isActive = !isSettings && (pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href)))
+              const itemClass = cn(
+                'group flex flex-col items-center gap-1 rounded-xl px-4 py-2 transition-all duration-200 flex-shrink-0 border',
+                isActive
+                  ? 'bg-amber-400/15 border-amber-300/25 shadow-[0_0_14px_rgba(251,191,36,0.15)]'
+                  : 'border-transparent text-stone-500 hover:bg-white/[0.06] hover:text-stone-300'
+              )
+              const itemContent = (
+                <>
+                  <item.icon className={cn('h-4 w-4', isActive ? 'text-amber-300' : 'text-stone-500 group-hover:text-stone-300')} />
+                  <span className={cn('text-xs font-medium leading-none whitespace-nowrap', isActive ? 'text-amber-200' : 'group-hover:text-stone-300')}>
                     {item.label}
                   </span>
+                </>
+              )
+              return isSettings ? (
+                <button key={item.href} onClick={() => setSettingsOpen(true)} className={itemClass}>
+                  {itemContent}
+                </button>
+              ) : (
+                <Link key={item.href} href={item.href} className={itemClass}>
+                  {itemContent}
                 </Link>
               )
             })}
@@ -464,6 +470,27 @@ export function AppHeader() {
       </AnimatePresence>
       <ChangePinDialog open={changePinOpen} onClose={() => setChangePinOpen(false)} />
       <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+
+      {/* Floating Settings Button — portal to body so fixed works correctly */}
+      {mounted && createPortal(
+        <motion.button
+          onClick={() => setSettingsOpen(true)}
+          title="ตั้งค่า"
+          className="fixed bottom-6 right-6 z-[9990] flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-black/50 backdrop-blur-xl text-stone-400 shadow-[0_4px_24px_rgba(0,0,0,0.5)] hover:border-amber-300/30 hover:text-amber-300 transition-colors"
+          whileTap={{ scale: 0.88 }}
+          initial={{ opacity: 0, scale: 0.7 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.5, type: 'spring', stiffness: 260, damping: 20 }}
+        >
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 10, repeat: Infinity, ease: 'linear' }}
+          >
+            <Settings className="h-5 w-5" />
+          </motion.div>
+        </motion.button>,
+        document.body
+      )}
     </>
   )
 }

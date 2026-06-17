@@ -239,7 +239,7 @@ export default function LoginPage() {
             animate={{ opacity: 1 }}
             transition={{ duration: 0.4, delay: 0.5 }}
           >
-            <p className="mb-2 text-center text-[10px] text-stone-700">For Development</p>
+            <p className="mb-2 text-center text-[0.625rem] text-stone-700">For Development</p>
             <div className="grid grid-cols-3 gap-2">
               {[
                 { role: 'Admin', phone: '0800000001', icon: Crown, color: 'hover:border-amber-300/30 hover:bg-amber-400/8 hover:text-amber-400' },
@@ -258,13 +258,13 @@ export default function LoginPage() {
                   }`}
                 >
                   <Icon className="h-3.5 w-3.5" />
-                  <span className="text-[10px] font-medium leading-none">{role}</span>
+                  <span className="text-[0.625rem] font-medium leading-none">{role}</span>
                 </motion.button>
               ))}
             </div>
           </motion.div>
 
-          <motion.p className="mt-3 text-center text-[10px] text-stone-700"
+          <motion.p className="mt-3 text-center text-[0.625rem] text-stone-700"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }}>
             Serene PMS v1.0 — Property Management System
           </motion.p>

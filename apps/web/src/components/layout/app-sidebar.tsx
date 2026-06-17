@@ -107,7 +107,7 @@ export function AppSidebar() {
           {navSections.map((section) => (
             <div key={section.label} className="mb-5">
               {!sidebarCollapsed && (
-                <div className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-widest text-stone-600">
+                <div className="mb-2 px-2 text-[0.625rem] font-semibold uppercase tracking-widest text-stone-600">
                   {section.label}
                 </div>
               )}
@@ -139,7 +139,7 @@ export function AppSidebar() {
                       />
                       {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
                       {!sidebarCollapsed && item.badge != null && item.badge > 0 && (
-                        <span className="ml-auto rounded-full bg-amber-400/25 px-2 py-0.5 text-[10px] font-semibold text-amber-300">
+                        <span className="ml-auto rounded-full bg-amber-400/25 px-2 py-0.5 text-[0.625rem] font-semibold text-amber-300">
                           {item.badge}
                         </span>
                       )}

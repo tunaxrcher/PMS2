@@ -90,10 +90,10 @@ function BookingBlock({ br, startOffset, width, colorClass, onClick }: {
       onClick={(e) => { e.stopPropagation(); onClick() }}
     >
       <div className="flex items-center gap-1.5 min-w-0">
-        <span className="truncate font-medium text-[11px]">
+        <span className="truncate font-medium text-[0.6875rem]">
           {br.booking?.guest?.firstName} {br.booking?.guest?.lastName?.[0]}.
         </span>
-        {width > 2 && <span className="flex-shrink-0 text-[10px] opacity-70">{nights}ค</span>}
+        {width > 2 && <span className="flex-shrink-0 text-[0.625rem] opacity-70">{nights}ค</span>}
       </div>
     </div>
   )
@@ -284,7 +284,7 @@ export default function RoomGridPage() {
               <Filter className="h-4 w-4 text-stone-500" />
               <span className="text-sm font-medium text-stone-400">ตัวกรอง</span>
               {activeFilters > 0 && (
-                <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-amber-400 px-1.5 text-[10px] font-bold text-stone-900">
+                <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-amber-400 px-1.5 text-[0.625rem] font-bold text-stone-900">
                   {activeFilters}
                 </span>
               )}
@@ -315,7 +315,7 @@ export default function RoomGridPage() {
                 <div className="border-t border-white/[0.06] divide-y divide-white/[0.06]">
                   {/* Zone */}
                   <div className="flex items-start gap-3 px-4 py-3">
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-stone-600 w-12 flex-shrink-0 pt-1">โซน</span>
+                    <span className="text-[0.625rem] font-semibold uppercase tracking-wider text-stone-600 w-12 flex-shrink-0 pt-1">โซน</span>
                     <div className="flex flex-wrap gap-1.5">
                       <button onClick={() => setZoneFilter('')}
                         className={cn('rounded-full px-3 py-1 text-xs font-medium border transition-all', zoneFilter === '' ? 'bg-amber-400/15 border-amber-300/30 text-amber-200' : 'border-white/10 text-stone-500 hover:border-white/20 hover:text-stone-300')}>
@@ -332,7 +332,7 @@ export default function RoomGridPage() {
 
                   {/* Room Type */}
                   <div className="flex items-start gap-3 px-4 py-3">
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-stone-600 w-12 flex-shrink-0 pt-1">ประเภท</span>
+                    <span className="text-[0.625rem] font-semibold uppercase tracking-wider text-stone-600 w-12 flex-shrink-0 pt-1">ประเภท</span>
                     <div className="flex flex-wrap gap-1.5">
                       <button onClick={() => setRtFilter('')}
                         className={cn('rounded-full px-3 py-1 text-xs font-medium border transition-all', rtFilter === '' ? 'bg-amber-400/15 border-amber-300/30 text-amber-200' : 'border-white/10 text-stone-500 hover:border-white/20 hover:text-stone-300')}>
@@ -349,7 +349,7 @@ export default function RoomGridPage() {
 
                   {/* Status multi-select */}
                   <div className="flex items-start gap-3 px-4 py-3">
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-stone-600 w-12 flex-shrink-0 pt-1">สถานะ</span>
+                    <span className="text-[0.625rem] font-semibold uppercase tracking-wider text-stone-600 w-12 flex-shrink-0 pt-1">สถานะ</span>
                     <div className="flex flex-wrap gap-1.5">
                       {Object.entries(ROOM_STATUS_TH).map(([k, v]) => {
                         const isSelected = statusFilters.includes(k)
@@ -360,7 +360,7 @@ export default function RoomGridPage() {
                               isSelected ? `${v.badge} border-transparent` : 'border-white/10 text-stone-500 hover:border-white/20 hover:text-stone-300'
                             )}>
                             {isSelected ? (
-                              <span className="text-[9px] font-black">✓</span>
+                              <span className="text-[0.625rem] font-black">✓</span>
                             ) : (
                               <span className={cn('h-2 w-2 rounded-full flex-shrink-0', v.dot)} />
                             )}
@@ -393,7 +393,7 @@ export default function RoomGridPage() {
                     className="flex-shrink-0 border-r border-white/10 px-4 py-3 flex items-center gap-2">
                     <BedDouble className="h-3.5 w-3.5 text-stone-600" />
                     <span className="text-xs font-semibold text-stone-500 uppercase tracking-wide">ห้อง</span>
-                    <span className="ml-auto text-[10px] text-stone-700">{filteredRooms.length} ห้อง</span>
+                    <span className="ml-auto text-[0.625rem] text-stone-700">{filteredRooms.length} ห้อง</span>
                   </div>
                   {dateColumns.map(date => {
                     const isToday = isSameDay(date, today)
@@ -401,7 +401,7 @@ export default function RoomGridPage() {
                     return (
                       <div key={date.toISOString()} style={{ width: CELL_W, minWidth: CELL_W }}
                         className={cn('flex-shrink-0 border-r border-white/[0.06] px-1 py-2 text-center', isToday && 'bg-amber-400/15', isWeekend && !isToday && 'bg-white/[0.02]')}>
-                        <div className={cn('text-[9px] font-medium leading-none mb-0.5', isToday ? 'text-amber-400' : 'text-stone-600')}>
+                        <div className={cn('text-[0.625rem] font-medium leading-none mb-0.5', isToday ? 'text-amber-400' : 'text-stone-600')}>
                           {format(date, 'EEE', { locale: th })}
                         </div>
                         <div className={cn('text-xs font-bold leading-none', isToday ? 'text-amber-300' : isWeekend ? 'text-stone-400' : 'text-stone-500')}>
@@ -418,8 +418,8 @@ export default function RoomGridPage() {
                     <div className="flex border-b border-amber-300/10" style={{ minWidth: ROOM_COL_W + CELL_W * days }}>
                       <div style={{ width: ROOM_COL_W, minWidth: ROOM_COL_W }}
                         className="flex-shrink-0 border-r border-amber-300/15 px-4 py-2 flex items-center gap-1.5">
-                        <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400/80">⏳ รอกำหนดห้อง</span>
-                        <span className="text-[9px] text-amber-400/60 rounded-full bg-amber-400/15 px-1.5">{unassigned.length}</span>
+                        <span className="text-[0.625rem] font-semibold uppercase tracking-wider text-amber-400/80">⏳ รอกำหนดห้อง</span>
+                        <span className="text-[0.625rem] text-amber-400/60 rounded-full bg-amber-400/15 px-1.5">{unassigned.length}</span>
                       </div>
                       <div className="flex-1 relative" style={{ height: 36 }}>
                         {unassigned.map((u: UnassignedBooking) => {
@@ -428,7 +428,7 @@ export default function RoomGridPage() {
                           if (offset >= days || width <= 0) return null
                           return (
                             <div key={u.id}
-                              className="absolute inset-y-1.5 rounded-lg border border-dashed border-amber-300/40 bg-amber-400/10 text-amber-200 text-[10px] flex items-center px-2 cursor-pointer hover:bg-amber-400/20 transition-colors"
+                              className="absolute inset-y-1.5 rounded-lg border border-dashed border-amber-300/40 bg-amber-400/10 text-amber-200 text-[0.625rem] flex items-center px-2 cursor-pointer hover:bg-amber-400/20 transition-colors"
                               style={{ left: offset * CELL_W + 3, width: width * CELL_W - 6 }}
                               onClick={() => router.push(`/bookings/${u.bookingId}`)}
                               title={`${u.booking.guest.firstName} ${u.booking.guest.lastName} — ${u.roomType.name} (รอกำหนดห้อง)`}
@@ -460,7 +460,7 @@ export default function RoomGridPage() {
                         <div style={{ width: ROOM_COL_W, minWidth: ROOM_COL_W }}
                           className="flex-shrink-0 border-r border-white/10 px-4 py-1.5 flex items-center gap-1.5">
                           <MapPin className="h-3 w-3 text-amber-400/70" />
-                          <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400/70">{group.zone}</span>
+                          <span className="text-[0.625rem] font-semibold uppercase tracking-wider text-amber-400/70">{group.zone}</span>
                         </div>
                         <div className="flex-1 bg-amber-400/[0.02]" />
                       </div>
@@ -479,14 +479,14 @@ export default function RoomGridPage() {
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-baseline gap-2">
                                   <span className="text-sm font-bold text-stone-200">{room.roomNumber}</span>
-                                  {isOOO && <span className="text-[9px] text-rose-400 font-medium">OOO</span>}
+                                  {isOOO && <span className="text-[0.625rem] text-rose-400 font-medium">OOO</span>}
                                 </div>
-                                <div className="text-[10px] text-stone-600 truncate">{room.roomType.name}</div>
+                                <div className="text-[0.625rem] text-stone-600 truncate">{room.roomType.name}</div>
                               </div>
                               {/* OOO toggle on hover */}
                               <button
                                 onClick={() => isOOO ? clearOooMutation.mutate(room.id) : setOooDialog({ roomId: room.id, roomNumber: room.roomNumber })}
-                                className="opacity-0 group-hover:opacity-100 flex-shrink-0 transition-opacity text-[9px] px-1.5 py-0.5 rounded border"
+                                className="opacity-0 group-hover:opacity-100 flex-shrink-0 transition-opacity text-[0.625rem] px-1.5 py-0.5 rounded border"
                                 style={{ background: isOOO ? 'rgba(52,211,153,0.1)' : 'rgba(239,68,68,0.1)', borderColor: isOOO ? 'rgba(52,211,153,0.3)' : 'rgba(239,68,68,0.3)', color: isOOO ? '#6ee7b7' : '#fca5a5' }}
                                 title={isOOO ? 'เคลียร์ OOO' : 'ตั้ง OOO'}
                               >
@@ -531,7 +531,7 @@ export default function RoomGridPage() {
                               {/* OOO stripe */}
                               {isOOO && (
                                 <div className="absolute inset-y-1 left-0 right-0 flex items-center justify-center mx-0.5 rounded-xl bg-stone-500/15 border border-dashed border-stone-500/25 pointer-events-none">
-                                  <span className="text-[10px] text-stone-600 font-medium select-none">ห้องเสีย — Out of Order</span>
+                                  <span className="text-[0.625rem] text-stone-600 font-medium select-none">ห้องเสีย — Out of Order</span>
                                 </div>
                               )}
 

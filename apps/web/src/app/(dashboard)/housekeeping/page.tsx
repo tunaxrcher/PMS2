@@ -120,8 +120,8 @@ export default function HousekeepingPage() {
 
                 <div className="mb-3 text-xs text-stone-400">{taskTypeLabel[task.taskType] || task.taskType}</div>
 
-                {task.startedAt && <div className="mb-1 text-[11px] text-stone-500">เริ่ม: {formatDateTime(task.startedAt)}</div>}
-                {task.completedAt && <div className="mb-1 text-[11px] text-emerald-500">เสร็จ: {formatDateTime(task.completedAt)}</div>}
+                {task.startedAt && <div className="mb-1 text-[0.6875rem] text-stone-500">เริ่ม: {formatDateTime(task.startedAt)}</div>}
+                {task.completedAt && <div className="mb-1 text-[0.6875rem] text-emerald-500">เสร็จ: {formatDateTime(task.completedAt)}</div>}
 
                 <div className="flex gap-2 mt-3">
                   {task.status === 'pending' && (

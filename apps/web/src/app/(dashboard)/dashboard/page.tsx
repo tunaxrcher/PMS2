@@ -101,21 +101,21 @@ function OccupancyGauge({ pct, occupied, available, ooo }: { pct: number; occupi
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span className="text-3xl font-black text-stone-50">{pct}%</span>
-          <span className="text-[10px] text-stone-600 mt-0.5">Occupancy</span>
+          <span className="text-[0.625rem] text-stone-600 mt-0.5">Occupancy</span>
         </div>
       </div>
-      <div className="mt-3 w-full grid grid-cols-3 gap-1.5 text-center text-[11px]">
+      <div className="mt-3 w-full grid grid-cols-3 gap-1.5 text-center text-[0.6875rem]">
         <div className="rounded-2xl bg-rose-500/10 py-2">
           <div className="font-bold text-rose-300 text-base">{occupied}</div>
-          <div className="text-stone-600 text-[9px] mt-0.5">เข้าพัก</div>
+          <div className="text-stone-600 text-[0.625rem] mt-0.5">เข้าพัก</div>
         </div>
         <div className="rounded-2xl bg-emerald-500/10 py-2">
           <div className="font-bold text-emerald-300 text-base">{available}</div>
-          <div className="text-stone-600 text-[9px] mt-0.5">ว่าง</div>
+          <div className="text-stone-600 text-[0.625rem] mt-0.5">ว่าง</div>
         </div>
         <div className="rounded-2xl bg-stone-500/10 py-2">
           <div className="font-bold text-stone-400 text-base">{ooo}</div>
-          <div className="text-stone-600 text-[9px] mt-0.5">OOO</div>
+          <div className="text-stone-600 text-[0.625rem] mt-0.5">OOO</div>
         </div>
       </div>
     </div>
@@ -132,13 +132,13 @@ function BookingRow({ b, type, index = 0 }: { b: BookingItem; type: 'in' | 'out'
     >
     <Link href={`/bookings/${b.id}`}
       className="flex items-center gap-2.5 px-3 py-2 rounded-2xl hover:bg-white/[0.05] transition-colors group">
-      <div className={cn('flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-xl text-[11px] font-bold',
+      <div className={cn('flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-xl text-[0.6875rem] font-bold',
         type === 'in' ? 'bg-emerald-400/15 text-emerald-300' : 'bg-amber-400/15 text-amber-300')}>
         {b.guest.firstName[0]}{b.guest.lastName[0]}
       </div>
       <div className="flex-1 min-w-0">
         <div className="text-xs font-medium text-stone-200 truncate">{b.guest.firstName} {b.guest.lastName}</div>
-        <div className="text-[10px] text-stone-600 truncate">{b.bookingRooms[0]?.room?.roomNumber || b.bookingRooms[0]?.roomType?.name}</div>
+        <div className="text-[0.625rem] text-stone-600 truncate">{b.bookingRooms[0]?.room?.roomNumber || b.bookingRooms[0]?.roomType?.name}</div>
       </div>
       <StatusBadge status={b.status} size="sm" />
     </Link>
@@ -229,7 +229,7 @@ export default function DashboardPage() {
         {/* ═══════════════════════════════════════════════ */}
         {/* ROW 1  — 4.5 : 3.75 : 3.75 custom grid       */}
         {/* ═══════════════════════════════════════════════ */}
-        <div className="col-span-12 grid grid-cols-[4.3fr_3.85fr_3.85fr] gap-3.5">
+        <div className="col-span-12 grid grid-cols-[4.3fr_3.85fr_3.85fr] gap-3.5 items-stretch">
 
         {/* LEFT — no card, floating text (like reference) */}
         <motion.div
@@ -252,13 +252,13 @@ export default function DashboardPage() {
 
           {/* Members */}
           <div className="mt-6">
-            <p className="text-[10px] text-stone-600 mb-2.5 font-semibold tracking-widest uppercase">Members</p>
+            <p className="text-[0.625rem] text-stone-600 mb-2.5 font-semibold tracking-widest uppercase">Members</p>
             <div className="flex items-center -space-x-2">
               <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-amber-400/50 bg-amber-400/15 text-sm font-bold text-amber-300 z-10">
                 {user?.firstName?.[0]}{user?.lastName?.[0]}
               </div>
               {['SM', 'PK', 'NK', 'TT'].map((initials, i) => (
-                <div key={initials} className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-stone-800 bg-stone-700/60 text-[11px] font-medium text-stone-400"
+                <div key={initials} className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-stone-800 bg-stone-700/60 text-[0.6875rem] font-medium text-stone-400"
                   style={{ zIndex: 9 - i }}>
                   {initials}
                 </div>
@@ -275,12 +275,12 @@ export default function DashboardPage() {
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
             </span>
-            <span className="text-[11px] text-stone-600">Live Dashboard</span>
+            <span className="text-[0.6875rem] text-stone-600">Live Dashboard</span>
           </div>
         </motion.div>
 
         {/* CENTER — Room image widget (camera-like, header+footer overlaid on image) */}
-        <GlassCard className="relative" delay={0.05} style={{ aspectRatio: '16/10' }}>
+        <GlassCard className="relative min-h-[260px]" delay={0.05}>
           {/* Room image — fills entire card */}
           <AnimatePresence mode="wait">
             {roomImage ? (
@@ -320,7 +320,7 @@ export default function DashboardPage() {
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 opacity-75" />
                 <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-rose-400" />
               </span>
-              <span className="text-[11px] text-stone-300 font-medium">Live</span>
+              <span className="text-[0.6875rem] text-stone-300 font-medium">Live</span>
             </div>
           </motion.div>
 
@@ -335,7 +335,7 @@ export default function DashboardPage() {
                   <div className="text-white font-bold text-base leading-tight">ห้อง {activeRoom.room.roomNumber}</div>
                   <div className="text-white/55 text-xs mt-0.5">{activeRoom.room.zone?.name || activeRoom.room.roomType.name}</div>
                 </div>
-                <span className="rounded-full bg-amber-400/90 text-stone-900 text-[10px] font-bold px-2.5 py-1">
+                <span className="rounded-full bg-amber-400/90 text-stone-900 text-[0.625rem] font-bold px-2.5 py-1">
                   {activeRoom.status === 'in_progress' ? 'กำลังทำ' : 'รอทำ'}
                 </span>
               </div>
@@ -406,7 +406,7 @@ export default function DashboardPage() {
                 {isLoading ? <Skeleton className="h-6 w-10 ml-auto" /> : (
                   <span className="text-2xl font-black text-stone-200">{occ?.available ?? 0}</span>
                 )}
-                <p className="text-[10px] text-stone-600">ห้องว่าง</p>
+                <p className="text-[0.625rem] text-stone-600">ห้องว่าง</p>
               </div>
             </div>
           </div>
@@ -448,7 +448,7 @@ export default function DashboardPage() {
               <motion.div key={s.label} className="flex flex-col items-center gap-1.5 text-center"
                 initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5 + i * 0.08, duration: 0.25 }}>
-                <span className="text-[11px] text-stone-600 font-medium">{s.label}</span>
+                <span className="text-[0.6875rem] text-stone-600 font-medium">{s.label}</span>
                 <s.icon className={cn('h-5 w-5', s.color)} />
                 {isLoading ? <Skeleton className="h-4 w-5" /> : (
                   <span className={cn('text-sm font-bold', s.color)}>{s.val ?? 0}</span>
@@ -469,7 +469,7 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between px-4 pt-4 pb-0">
             <div>
               <p className="text-sm font-semibold text-stone-200">สถานะห้อง</p>
-              <p className="text-[10px] text-stone-500 mt-0.5">{occ?.totalRooms ?? 0} ห้องทั้งหมด</p>
+              <p className="text-[0.625rem] text-stone-500 mt-0.5">{occ?.totalRooms ?? 0} ห้องทั้งหมด</p>
             </div>
             <Link href="/room-map" className="flex h-7 w-7 items-center justify-center rounded-full bg-white/[0.06] text-stone-500 hover:bg-white/[0.12] hover:text-stone-300 transition-colors text-xs">→</Link>
           </div>
@@ -488,9 +488,9 @@ export default function DashboardPage() {
               <div>
                 <p className="text-sm font-semibold text-stone-200 flex items-center gap-2">
                   <DoorOpen className="h-4 w-4 text-emerald-400" /> เช็คอิน
-                  {arrList.length > 0 && <span className="rounded-full bg-emerald-400/15 px-1.5 py-0.5 text-[9px] font-bold text-emerald-400">{arrList.length}</span>}
+                  {arrList.length > 0 && <span className="rounded-full bg-emerald-400/15 px-1.5 py-0.5 text-[0.625rem] font-bold text-emerald-400">{arrList.length}</span>}
                 </p>
-                <p className="text-[10px] text-stone-500 mt-0.5">วันนี้</p>
+                <p className="text-[0.625rem] text-stone-500 mt-0.5">วันนี้</p>
               </div>
               <Link href="/bookings?status=confirmed" className="flex h-7 w-7 items-center justify-center rounded-full bg-white/[0.06] text-stone-500 hover:bg-white/[0.12] hover:text-stone-300 transition-colors text-xs">→</Link>
             </div>
@@ -509,9 +509,9 @@ export default function DashboardPage() {
               <div>
                 <p className="text-sm font-semibold text-stone-200 flex items-center gap-2">
                   <DoorClosed className="h-4 w-4 text-amber-400" /> เช็คเอาท์
-                  {depList.length > 0 && <span className="rounded-full bg-amber-400/15 px-1.5 py-0.5 text-[9px] font-bold text-amber-400">{depList.length}</span>}
+                  {depList.length > 0 && <span className="rounded-full bg-amber-400/15 px-1.5 py-0.5 text-[0.625rem] font-bold text-amber-400">{depList.length}</span>}
                 </p>
-                <p className="text-[10px] text-stone-500 mt-0.5">วันนี้</p>
+                <p className="text-[0.625rem] text-stone-500 mt-0.5">วันนี้</p>
               </div>
               <Link href="/bookings?status=checked_in" className="flex h-7 w-7 items-center justify-center rounded-full bg-white/[0.06] text-stone-500 hover:bg-white/[0.12] hover:text-stone-300 transition-colors text-xs">→</Link>
             </div>
@@ -528,27 +528,23 @@ export default function DashboardPage() {
         {/* HK + OOO mini stacked — col 2 (Alexa + WiFi-like) */}
         <div className="col-span-6 md:col-span-3 xl:col-span-2 flex flex-col gap-3">
           <GlassCard delay={0.28} className="flex-1">
-            <div className="flex flex-col items-center justify-center h-full py-5 px-3 gap-2">
-              <div className="flex items-center justify-between w-full px-1 mb-1">
-                <Sparkles className="h-4 w-4 text-sky-400" />
-                <Link href="/housekeeping" className="text-[10px] text-stone-600 hover:text-sky-400">ดู →</Link>
-              </div>
+            <div className="flex flex-col items-center justify-center h-full py-4 px-3 gap-1">
+              <p className="text-xs text-stone-400 w-full text-center">งานแม่บ้านค้าง</p>
               {isLoading ? <Skeleton className="h-9 w-12" /> : (
-                <div className="text-4xl font-black text-stone-50">{hkCount}</div>
+                <Link href="/housekeeping" className="text-4xl font-black text-stone-50 hover:text-sky-400 transition-colors">
+                  {hkCount}
+                </Link>
               )}
-              <div className="text-xs text-stone-500 text-center">งานแม่บ้านค้าง</div>
             </div>
           </GlassCard>
           <GlassCard delay={0.3} className="flex-1">
-            <div className="flex flex-col items-center justify-center h-full py-5 px-3 gap-2">
-              <div className="flex items-center justify-between w-full px-1 mb-1">
-                <Wrench className="h-4 w-4 text-rose-400" />
-                <Link href="/maintenance" className="text-[10px] text-stone-600 hover:text-rose-400">ดู →</Link>
-              </div>
+            <div className="flex flex-col items-center justify-center h-full py-4 px-3 gap-1">
+              <p className="text-xs text-stone-400 w-full text-center">ห้อง OOO</p>
               {isLoading ? <Skeleton className="h-9 w-12" /> : (
-                <div className="text-4xl font-black text-stone-50">{oooCount}</div>
+                <Link href="/maintenance" className="text-4xl font-black text-stone-50 hover:text-rose-400 transition-colors">
+                  {oooCount}
+                </Link>
               )}
-              <div className="text-xs text-stone-500 text-center">ห้อง OOO</div>
             </div>
           </GlassCard>
         </div>
@@ -559,7 +555,7 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between px-4 pt-4 pb-0">
             <div>
               <p className="text-sm font-semibold text-stone-200">รายได้วันนี้</p>
-              <p className="text-[10px] text-stone-500 mt-0.5">{rev?.transactionCount ?? 0} รายการ</p>
+              <p className="text-[0.625rem] text-stone-500 mt-0.5">{rev?.transactionCount ?? 0} รายการ</p>
             </div>
             <Link href="/reports" className="flex h-7 w-7 items-center justify-center rounded-full bg-white/[0.06] text-stone-500 hover:bg-white/[0.12] hover:text-stone-300 transition-colors text-xs">→</Link>
           </div>
@@ -579,7 +575,7 @@ export default function DashboardPage() {
               const pct = (rev?.totalGross ?? 0) > 0 ? Math.round((amt / rev.totalGross) * 100) : 0
               return (
                 <div key={m.key}>
-                  <div className="flex justify-between text-[11px] mb-1">
+                  <div className="flex justify-between text-[0.6875rem] mb-1">
                     <span className="text-stone-500">{m.label}</span>
                     <span className="text-stone-400 font-medium">{formatCurrency(amt)}</span>
                   </div>
@@ -600,7 +596,7 @@ export default function DashboardPage() {
           {/* Total bar */}
           {(rev?.totalGross ?? 0) > 0 && (
             <div className="border-t border-white/[0.06] px-4 py-3">
-              <div className="flex justify-between text-[11px] text-stone-600 mb-1.5">
+              <div className="flex justify-between text-[0.6875rem] text-stone-600 mb-1.5">
                 <span>รวมทั้งหมด</span>
                 <span className="text-stone-400 font-medium">{formatCurrency(rev?.totalGross ?? 0)}</span>
               </div>

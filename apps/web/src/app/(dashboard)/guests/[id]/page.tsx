@@ -235,7 +235,7 @@ export default function GuestProfilePage() {
             <div className="flex items-center gap-2 border-b border-white/10 px-5 py-4">
               <BookOpen className="h-4 w-4 text-amber-400" />
               <h3 className="text-sm font-semibold text-stone-100">ประวัติการเข้าพัก</h3>
-              <span className="ml-1 rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-bold text-amber-300">
+              <span className="ml-1 rounded-full bg-amber-400/15 px-2 py-0.5 text-[0.625rem] font-bold text-amber-300">
                 {(bookingHistory as unknown[] || []).length}
               </span>
             </div>

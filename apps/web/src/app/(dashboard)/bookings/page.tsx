@@ -174,12 +174,12 @@ export default function BookingsPage() {
                           {b.guest.firstName} {b.guest.lastName}
                         </span>
                         {isToCheck && (
-                          <span className="text-[9px] font-bold text-amber-400 bg-amber-400/15 border border-amber-300/25 rounded-full px-1.5 py-0.5 animate-pulse flex-shrink-0">
+                          <span className="text-[0.625rem] font-bold text-amber-400 bg-amber-400/15 border border-amber-300/25 rounded-full px-1.5 py-0.5 animate-pulse flex-shrink-0">
                             เช็คอินวันนี้
                           </span>
                         )}
                         {b.guest.nationality && b.guest.nationality !== 'ไทย' && (
-                          <span className="text-[10px] text-stone-600">{b.guest.nationality}</span>
+                          <span className="text-[0.625rem] text-stone-600">{b.guest.nationality}</span>
                         )}
                       </div>
                       <div className="flex items-center gap-3 mt-0.5 text-xs text-stone-500 flex-wrap">

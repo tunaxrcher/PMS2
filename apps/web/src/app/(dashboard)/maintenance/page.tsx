@@ -91,7 +91,7 @@ export default function MaintenancePage() {
                     </div>
                     <div className="font-medium text-stone-200">{ticket.issueTitle}</div>
                     {ticket.issueDetail && <div className="text-xs text-stone-500 mt-1">{ticket.issueDetail}</div>}
-                    <div className="text-[11px] text-stone-600 mt-1">{formatDateTime(ticket.createdAt)}</div>
+                    <div className="text-[0.6875rem] text-stone-600 mt-1">{formatDateTime(ticket.createdAt)}</div>
                   </div>
                   {['open', 'in_progress'].includes(ticket.status) && (
                     <Button size="sm" variant="secondary" onClick={() => resolveMutation.mutate(ticket.id)} loading={resolveMutation.isPending}>
