@@ -322,10 +322,10 @@ export function AppHeader() {
 
   return (
     <>
-      <header className="flex-shrink-0">
+      <header className="flex-shrink-0 pt-3">
 
         {/* ── Row 1: Branding + User controls ── */}
-        <div className="flex items-center justify-between px-5 py-2.5">
+        <div className="flex items-center justify-between px-6 py-4 xl:max-w-[1400px] xl:mx-auto 2xl:max-w-[1600px] w-full">
 
           {/* Logo + Property name */}
           <div className="flex items-center gap-2.5">
@@ -431,7 +431,7 @@ export function AppHeader() {
         </div>
 
         {/* ── Row 2: Centered floating nav pill ── */}
-        <div className="flex justify-center px-4 pb-2.5">
+        <div className="flex justify-center px-6 pt-1 pb-5">
           <nav className="flex items-center gap-0.5 overflow-x-auto rounded-2xl border border-white/[0.12] bg-black/35 backdrop-blur-sm px-1.5 py-1.5 shadow-[0_4px_20px_rgba(0,0,0,0.45)] scrollbar-none">
             {NAV_ITEMS.map(item => {
               const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))

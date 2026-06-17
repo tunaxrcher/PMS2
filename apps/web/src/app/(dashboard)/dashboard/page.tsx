@@ -6,19 +6,17 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   BedDouble, DoorOpen, DoorClosed, Sparkles, Wrench,
   TrendingUp, Activity, ChevronDown, ChevronLeft, ChevronRight,
-  Plus, Building2, CalendarRange, BarChart3, Receipt, MapPin,
+  Plus, Building2, MapPin,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { th } from 'date-fns/locale'
 import { AppShell } from '@/components/layout/app-shell'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { reportsApi, housekeepingApi, bookingsApi, roomsApi } from '@/lib/api'
-import { formatCurrency } from '@/lib/utils'
+import { reportsApi, housekeepingApi, bookingsApi } from '@/lib/api'
+import { cn, formatCurrency } from '@/lib/utils'
 import { useAuth } from '@/hooks/use-auth'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { cn } from '@/lib/utils'
 
 // ── Types ─────────────────────────────────────────────────────
 interface BookingItem {
@@ -36,6 +34,14 @@ interface HkTask {
     roomType: { name: string; imageUrl?: string | null }
   }
 }
+
+// ── Constants (outside component to avoid recreation on every render) ──
+const PAYMENT_METHODS = [
+  { key: 'cash',        label: 'เงินสด',  color: 'bg-amber-400'  },
+  { key: 'transfer',    label: 'โอนเงิน', color: 'bg-sky-400'    },
+  { key: 'credit_card', label: 'บัตร',     color: 'bg-violet-400' },
+  { key: 'ota',         label: 'OTA',      color: 'bg-rose-400'   },
+]
 
 // ── Glass card ─────────────────────────────────────────────────
 function GlassCard({ children, className = '', delay = 0, ...props }: React.HTMLAttributes<HTMLDivElement> & { delay?: number }) {
@@ -111,10 +117,31 @@ function BookingRow({ b, type }: { b: BookingItem; type: 'in' | 'out' }) {
   )
 }
 
+// ── Mini Ring Gauge (weather icon equivalent) ─────────────────
+function MiniRing({ pct }: { pct: number }) {
+  const sz = 64, sw = 7, r = (sz - sw) / 2
+  const circ = 2 * Math.PI * r
+  const col = pct > 80 ? '#f87171' : pct > 50 ? '#fbbf24' : '#34d399'
+  return (
+    <div className="relative flex-shrink-0" style={{ width: sz, height: sz }}>
+      <svg width={sz} height={sz} className="-rotate-90">
+        <circle cx={sz/2} cy={sz/2} r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth={sw} />
+        <motion.circle cx={sz/2} cy={sz/2} r={r} fill="none" stroke={col} strokeWidth={sw}
+          strokeLinecap="round" strokeDasharray={circ}
+          initial={{ strokeDashoffset: circ }}
+          animate={{ strokeDashoffset: circ - (pct / 100) * circ }}
+          transition={{ duration: 1.2, ease: 'easeOut', delay: 0.25 }} />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <BedDouble className="h-5 w-5" style={{ color: col }} />
+      </div>
+    </div>
+  )
+}
+
 // ── Dashboard ─────────────────────────────────────────────────
 export default function DashboardPage() {
   const { user } = useAuth()
-  const router = useRouter()
   const today = format(new Date(), 'yyyy-MM-dd')
   const [roomIdx, setRoomIdx] = useState(0)
 
@@ -160,68 +187,60 @@ export default function DashboardPage() {
     return 'สวัสดีตอนเย็น'
   }
 
-  const PAYMENT_METHODS = [
-    { key: 'cash',        label: 'เงินสด',     color: 'bg-amber-400'  },
-    { key: 'transfer',    label: 'โอนเงิน',    color: 'bg-sky-400'    },
-    { key: 'credit_card', label: 'บัตร',        color: 'bg-violet-400' },
-    { key: 'ota',         label: 'OTA',         color: 'bg-rose-400'   },
-  ]
-
-
   return (
     <AppShell>
-      <div className="grid grid-cols-12 gap-4">
+      <div className="grid grid-cols-12 gap-3.5">
 
         {/* ═══════════════════════════════════════════════ */}
         {/* ROW 1  — 4.5 : 3.75 : 3.75 custom grid       */}
         {/* ═══════════════════════════════════════════════ */}
-        <div className="col-span-12 grid grid-cols-[4.3fr_3.85fr_3.85fr] gap-4">
+        <div className="col-span-12 grid grid-cols-[4.3fr_3.85fr_3.85fr] gap-3.5">
 
         {/* LEFT — no card, floating text (like reference) */}
         <motion.div
-          className="flex flex-col gap-8 py-2 px-1"
+          className="flex flex-col justify-between py-1 px-1"
+          style={{ minHeight: '100%' }}
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5 }}
         >
           {/* Greeting + property name */}
           <div>
-            <p className="text-sm text-stone-400 tracking-wide">{greeting()}, {user?.firstName}!</p>
-            <h1 className="mt-2 font-black text-stone-50 leading-[1.0] tracking-tight"
-              style={{ fontSize: 'clamp(2.5rem, 4vw, 3.5rem)' }}>
+            <p className="text-base text-stone-300 font-medium">{greeting()}, {user?.firstName}!</p>
+            <h1 className="mt-2 text-5xl font-black text-stone-50 leading-[1.05] tracking-tight break-words">
               {user?.property?.name || 'Serene Resort'}
             </h1>
-            <p className="mt-3 text-sm text-stone-500">
+            <p className="mt-3 text-sm text-stone-400">
               {format(new Date(), 'EEEE, d MMMM yyyy', { locale: th })}
             </p>
           </div>
 
           {/* Members */}
-          <div>
-            <p className="text-xs text-stone-600 mb-3 font-medium tracking-widest uppercase">Members</p>
+          <div className="mt-6">
+            <p className="text-[10px] text-stone-600 mb-2.5 font-semibold tracking-widest uppercase">Members</p>
             <div className="flex items-center -space-x-2">
-              <div className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-amber-400/50 bg-amber-400/15 text-sm font-bold text-amber-300 z-10">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-amber-400/50 bg-amber-400/15 text-sm font-bold text-amber-300 z-10">
                 {user?.firstName?.[0]}{user?.lastName?.[0]}
               </div>
               {['SM', 'PK', 'NK', 'TT'].map((initials, i) => (
-                <div key={initials} className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-stone-800 bg-stone-700/60 text-[11px] font-medium text-stone-400"
+                <div key={initials} className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-stone-800 bg-stone-700/60 text-[11px] font-medium text-stone-400"
                   style={{ zIndex: 9 - i }}>
                   {initials}
                 </div>
               ))}
-              <button className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-dashed border-white/15 text-stone-700 hover:border-white/25 hover:text-stone-500 transition-colors ml-3">
-                <Plus className="h-4 w-4" />
+              <button className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-dashed border-white/15 text-stone-700 hover:border-white/25 hover:text-stone-500 transition-colors ml-2.5">
+                <Plus className="h-3.5 w-3.5" />
               </button>
             </div>
           </div>
 
           {/* Live indicator */}
-          <div className="flex items-center gap-2">
+          <div className="mt-4 flex items-center gap-2">
             <span className="relative flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
             </span>
-            <span className="text-xs text-stone-600">Live Dashboard</span>
+            <span className="text-[11px] text-stone-600">Live Dashboard</span>
           </div>
         </motion.div>
 
@@ -329,27 +348,7 @@ export default function DashboardPage() {
           {/* Top: mini ring (weather icon) + occupancy + date */}
           <div className="flex items-start gap-3 px-5 pt-5 pb-4">
             {/* Mini ring gauge — like the sun/cloud weather icon */}
-            {(() => {
-              const pct = occ?.occupancyPct ?? 0
-              const sz = 64, sw = 7, r = (sz - sw) / 2
-              const circ = 2 * Math.PI * r
-              const col = pct > 80 ? '#f87171' : pct > 50 ? '#fbbf24' : '#34d399'
-              return (
-                <div className="relative flex-shrink-0" style={{ width: sz, height: sz }}>
-                  <svg width={sz} height={sz} className="-rotate-90">
-                    <circle cx={sz/2} cy={sz/2} r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth={sw} />
-                    <motion.circle cx={sz/2} cy={sz/2} r={r} fill="none" stroke={col} strokeWidth={sw}
-                      strokeLinecap="round" strokeDasharray={circ}
-                      initial={{ strokeDashoffset: circ }}
-                      animate={{ strokeDashoffset: circ - (pct / 100) * circ }}
-                      transition={{ duration: 1.2, ease: 'easeOut', delay: 0.25 }} />
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <BedDouble className="h-5 w-5" style={{ color: col }} />
-                  </div>
-                </div>
-              )
-            })()}
+            <MiniRing pct={occ?.occupancyPct ?? 0} />
 
             {/* Occupancy number */}
             <div className="flex-1">
@@ -495,7 +494,9 @@ export default function DashboardPage() {
                 <Sparkles className="h-4 w-4 text-sky-400" />
                 <Link href="/housekeeping" className="text-[10px] text-stone-600 hover:text-sky-400">ดู →</Link>
               </div>
-              <div className="text-4xl font-black text-stone-50">{dashboard?.pendingHousekeeping ?? 0}</div>
+              {isLoading ? <Skeleton className="h-9 w-12" /> : (
+                <div className="text-4xl font-black text-stone-50">{dashboard?.pendingHousekeeping ?? 0}</div>
+              )}
               <div className="text-xs text-stone-500 text-center">งานแม่บ้านค้าง</div>
             </div>
           </GlassCard>
@@ -505,7 +506,9 @@ export default function DashboardPage() {
                 <Wrench className="h-4 w-4 text-rose-400" />
                 <Link href="/maintenance" className="text-[10px] text-stone-600 hover:text-rose-400">ดู →</Link>
               </div>
-              <div className="text-4xl font-black text-stone-50">{occ?.outOfOrder ?? 0}</div>
+              {isLoading ? <Skeleton className="h-9 w-12" /> : (
+                <div className="text-4xl font-black text-stone-50">{occ?.outOfOrder ?? 0}</div>
+              )}
               <div className="text-xs text-stone-500 text-center">ห้อง OOO</div>
             </div>
           </GlassCard>
@@ -534,19 +537,20 @@ export default function DashboardPage() {
           <div className="px-4 pb-4 mt-2 space-y-2.5">
             {PAYMENT_METHODS.map(m => {
               const amt = rev?.byMethod?.[m.key] ?? 0
-              const pct = rev?.totalGross > 0 ? Math.round((amt / rev.totalGross) * 100) : 0
+              const pct = (rev?.totalGross ?? 0) > 0 ? Math.round((amt / rev.totalGross) * 100) : 0
               return (
                 <div key={m.key}>
                   <div className="flex justify-between text-[11px] mb-1">
                     <span className="text-stone-500">{m.label}</span>
                     <span className="text-stone-400 font-medium">{formatCurrency(amt)}</span>
                   </div>
-                  <div className="h-1.5 rounded-full bg-white/[0.06]">
+                  <div className="h-2 rounded-full bg-white/[0.08]">
                     <motion.div
-                      className={`h-full rounded-full ${m.color}/60`}
+                      key={`${m.key}-${pct}`}
+                      className={`h-full rounded-full ${m.color}`}
                       initial={{ width: 0 }}
                       animate={{ width: `${pct}%` }}
-                      transition={{ duration: 0.9, delay: 0.5, ease: 'easeOut' }}
+                      transition={{ duration: 0.9, delay: 0.4, ease: 'easeOut' }}
                     />
                   </div>
                 </div>
@@ -554,20 +558,23 @@ export default function DashboardPage() {
             })}
           </div>
 
-          {/* Progress bar equivalent — total vs target */}
-          <div className="border-t border-white/[0.06] px-4 py-3">
-            <div className="flex justify-between text-[11px] text-stone-600 mb-1.5">
-              <span>รวมทั้งหมด</span>
-              <span className="text-stone-400 font-medium">{formatCurrency(rev?.totalGross ?? 0)}</span>
+          {/* Total bar */}
+          {(rev?.totalGross ?? 0) > 0 && (
+            <div className="border-t border-white/[0.06] px-4 py-3">
+              <div className="flex justify-between text-[11px] text-stone-600 mb-1.5">
+                <span>รวมทั้งหมด</span>
+                <span className="text-stone-400 font-medium">{formatCurrency(rev?.totalGross ?? 0)}</span>
+              </div>
+              <div className="h-2 rounded-full bg-white/[0.08]">
+                <motion.div
+                  key={`total-${rev?.totalGross}`}
+                  className="h-full rounded-full bg-amber-400"
+                  initial={{ width: 0 }} animate={{ width: '100%' }}
+                  transition={{ duration: 1, delay: 0.6 }}
+                />
+              </div>
             </div>
-            <div className="h-1 rounded-full bg-white/[0.06]">
-              <motion.div
-                className="h-full rounded-full bg-amber-400/50"
-                initial={{ width: 0 }} animate={{ width: '100%' }}
-                transition={{ duration: 1, delay: 0.6 }}
-              />
-            </div>
-          </div>
+          )}
         </GlassCard>
 
 

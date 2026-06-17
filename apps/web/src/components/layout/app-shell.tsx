@@ -22,7 +22,7 @@ export function AppShell({ children, title, subtitle, headerActions }: AppShellP
         <AppHeader />
         <main className="flex-1 overflow-y-auto">
           <motion.div
-            className="min-h-full px-6 pt-5 pb-8"
+            className="min-h-full pt-8 pb-10 px-6 xl:px-0 xl:max-w-[1400px] xl:mx-auto 2xl:max-w-[1600px]"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, ease: 'easeOut' }}
