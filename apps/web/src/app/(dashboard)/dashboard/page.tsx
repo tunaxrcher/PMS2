@@ -167,16 +167,6 @@ export default function DashboardPage() {
     { key: 'ota',         label: 'OTA',         color: 'bg-rose-400'   },
   ]
 
-  const QUICK_ACTIONS = [
-    { icon: Plus,          label: 'จองใหม่',    href: '/bookings'                 },
-    { icon: DoorOpen,      label: 'เช็คอิน',    href: '/bookings?status=confirmed'},
-    { icon: DoorClosed,    label: 'เช็คเอาท์',  href: '/bookings?status=checked_in'},
-    { icon: Building2,     label: 'ผังห้อง',    href: '/room-map'                 },
-    { icon: CalendarRange, label: 'ปฏิทิน',     href: '/room-grid'                },
-    { icon: Sparkles,      label: 'แม่บ้าน',    href: '/housekeeping'             },
-    { icon: Receipt,       label: 'บิล',         href: '/folios'                   },
-    { icon: BarChart3,     label: 'รายงาน',     href: '/reports'                  },
-  ]
 
   return (
     <AppShell>
@@ -580,25 +570,6 @@ export default function DashboardPage() {
           </div>
         </GlassCard>
 
-        {/* ═══════════════════════════════════════════════ */}
-        {/* Quick Actions Bar (room selector-like)         */}
-        {/* ═══════════════════════════════════════════════ */}
-        <motion.div
-          className="col-span-12 flex justify-center pb-2"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-        >
-          <div className="flex items-center gap-0.5 rounded-full border border-white/[0.10] bg-black/30 backdrop-blur-xl px-2 py-2 shadow-[0_4px_20px_rgba(0,0,0,0.4)]">
-            {QUICK_ACTIONS.map(({ icon: Icon, label, href }) => (
-              <Link key={label} href={href}
-                className="group flex flex-col items-center gap-1 rounded-full px-4 py-2 text-stone-500 hover:bg-white/[0.07] hover:text-stone-200 transition-all duration-200">
-                <Icon className="h-4 w-4 group-hover:text-amber-300 transition-colors" />
-                <span className="text-[10px] font-medium whitespace-nowrap">{label}</span>
-              </Link>
-            ))}
-          </div>
-        </motion.div>
 
       </div>
     </AppShell>
