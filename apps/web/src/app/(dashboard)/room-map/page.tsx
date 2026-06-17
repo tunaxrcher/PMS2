@@ -10,6 +10,7 @@ import {
   ChevronLeft, ChevronRight, RefreshCw, Plus, DoorOpen, DoorClosed,
   Sparkles, Wrench, AlertTriangle, BedDouble, X, CheckCircle2,
 } from 'lucide-react'
+
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/app-shell'
 import { Button } from '@/components/ui/button'
@@ -49,72 +50,165 @@ interface ZoneGroup {
   rooms: RoomData[]
 }
 
-// ── Action Menu Portal ────────────────────────────────────
-function ActionMenuPortal({ room, anchor, onClose, onAction }: {
+// ── Game-style Action Menu ────────────────────────────────
+function ActionMenuPortal({ room, onClose, onAction }: {
   room: RoomData
   anchor: { x: number; y: number; width: number }
   onClose: () => void
   onAction: (room: RoomData, action: string) => void
 }) {
+  const [hoveredIdx, setHoveredIdx] = useState(0)
+  const cfg = STATUS_CFG[room.dateStatus] || STATUS_CFG.clean
   const isOOO = ['out_of_order', 'out_of_service'].includes(room.dateStatus)
 
   const actions = [
     ...(room.dateStatus === 'clean' || room.dateStatus === 'inspected' ? [
-      { id: 'book', icon: Plus, label: 'สร้างการจอง', color: 'text-amber-300' },
+      { id: 'book', label: 'สร้างการจอง' },
     ] : []),
     ...(room.dateStatus === 'reserved' ? [
-      { id: 'checkin', icon: DoorOpen, label: 'Check-in', color: 'text-emerald-300' },
+      { id: 'checkin', label: 'CHECK-IN' },
     ] : []),
     ...(room.dateStatus === 'occupied' ? [
-      { id: 'checkout', icon: DoorClosed, label: 'Check-out', color: 'text-amber-300' },
+      { id: 'checkout', label: 'CHECK-OUT' },
     ] : []),
     ...(room.activeBooking ? [
-      { id: 'view', icon: BedDouble, label: 'ดูการจอง', color: 'text-sky-300' },
+      { id: 'view', label: 'ดูการจอง' },
     ] : []),
     ...(!isOOO ? [
-      { id: 'housekeeping', icon: Sparkles, label: 'สร้างงานทำความสะอาด', color: 'text-violet-300' },
-      { id: 'ooo', icon: AlertTriangle, label: 'ตั้ง Out of Order', color: 'text-rose-300' },
+      { id: 'housekeeping', label: 'งานทำความสะอาด' },
+      { id: 'ooo', label: 'ตั้ง Out of Order' },
     ] : [
-      { id: 'clear-ooo', icon: CheckCircle2, label: 'เคลียร์ OOO', color: 'text-emerald-300' },
+      { id: 'clear-ooo', label: 'เคลียร์ OOO' },
     ]),
-    { id: 'maintenance', icon: Wrench, label: 'แจ้งซ่อม', color: 'text-orange-300' },
+    { id: 'maintenance', label: 'แจ้งซ่อม' },
+    { id: '__close', label: 'ยกเลิก' },
   ]
   const uniqueActions = actions.filter((a, i, arr) => arr.findIndex(b => b.id === a.id) === i)
 
-  // Position: below the card, left-aligned, clamp to viewport
-  const menuWidth = 208
-  let left = anchor.x
-  if (left + menuWidth > window.innerWidth - 8) left = window.innerWidth - menuWidth - 8
-  const top = anchor.y + 6
+  // Keyboard support
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowDown') setHoveredIdx(i => Math.min(i + 1, uniqueActions.length - 1))
+      if (e.key === 'ArrowUp') setHoveredIdx(i => Math.max(i - 1, 0))
+      if (e.key === 'Enter') {
+        const act = uniqueActions[hoveredIdx]
+        if (act.id === '__close') { onClose(); return }
+        onClose(); onAction(room, act.id)
+      }
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [hoveredIdx, uniqueActions, room, onClose, onAction])
 
   return createPortal(
     <>
-      {/* Backdrop */}
-      <div className="fixed inset-0 z-[9998]" onClick={onClose} />
-      {/* Menu */}
+      {/* Backdrop — blur ไม่ทึบ */}
       <motion.div
-        className="fixed z-[9999] w-52 rounded-2xl border border-white/15 bg-black/85 backdrop-blur-2xl p-1.5 shadow-2xl"
-        style={{ left, top }}
-        initial={{ opacity: 0, scale: 0.93, y: -6 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.93, y: -6 }}
-        transition={{ duration: 0.15 }}
+        className="fixed inset-0 z-[9998] bg-black/55 backdrop-blur-md"
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
+        onClick={onClose}
+      />
+
+      {/* Game menu */}
+      <motion.div
+        className="fixed left-1/2 top-1/2 z-[9999] w-full max-w-md -translate-x-1/2 -translate-y-1/2 px-4"
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 30 }}
+        transition={{ duration: 0.2 }}
+        onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-3 py-2 border-b border-white/10 mb-1">
-          <span className="text-xs font-semibold text-stone-200">ห้อง {room.roomNumber}</span>
-          <button onClick={onClose} className="text-stone-600 hover:text-stone-300 transition-colors">
-            <X className="h-3.5 w-3.5" />
-          </button>
-        </div>
-        {uniqueActions.map((act) => (
-          <button key={act.id}
-            onClick={() => { onClose(); onAction(room, act.id) }}
-            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs text-stone-300 hover:bg-white/[0.08] hover:text-stone-100 transition-colors text-left"
+        {/* Room title — glitch style */}
+        <div className="mb-10 text-center">
+          <motion.div
+            className="text-xs font-bold uppercase tracking-[0.4em] text-stone-600 mb-3"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.05 }}
           >
-            <act.icon className={cn('h-3.5 w-3.5 flex-shrink-0', act.color)} />
-            {act.label}
-          </button>
-        ))}
+            {room.roomType.name}
+          </motion.div>
+          <motion.h2
+            className="text-4xl font-black uppercase tracking-widest text-white"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.08 }}
+          >
+            ห้อง {room.roomNumber}
+          </motion.h2>
+          <motion.div
+            className={cn('mt-2 text-sm font-bold uppercase tracking-widest', cfg.badge.replace('bg-', 'text-').replace(' text-white', '').replace('/90', ''))}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.12 }}
+          >
+            — {cfg.label} —
+          </motion.div>
+          {room.activeBooking && (
+            <motion.div
+              className="mt-1.5 text-xs text-stone-500 tracking-wider"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}
+            >
+              {room.activeBooking.guest.firstName} {room.activeBooking.guest.lastName}
+            </motion.div>
+          )}
+        </div>
+
+        {/* Menu items */}
+        <div className="space-y-1">
+          {uniqueActions.map((act, i) => {
+            const isActive = hoveredIdx === i
+            const isClose = act.id === '__close'
+            return (
+              <motion.button
+                key={act.id}
+                onMouseEnter={() => setHoveredIdx(i)}
+                onClick={() => {
+                  if (act.id === '__close') { onClose(); return }
+                  onClose(); onAction(room, act.id)
+                }}
+                className="flex w-full items-center gap-4 px-2 py-2.5 text-left group"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.04 + 0.15, duration: 0.2 }}
+              >
+                {/* Cursor arrow */}
+                <motion.span
+                  className="w-6 flex-shrink-0 text-center text-lg font-black"
+                  animate={{
+                    opacity: isActive ? 1 : 0,
+                    color: isClose ? '#6b7280' : '#fbbf24',
+                  }}
+                  transition={{ duration: 0.1 }}
+                >
+                  ▶
+                </motion.span>
+
+                {/* Label */}
+                <motion.span
+                  className={cn(
+                    'text-lg font-bold uppercase tracking-widest transition-all duration-100',
+                    isClose
+                      ? isActive ? 'text-stone-400' : 'text-stone-700'
+                      : isActive ? 'text-white' : 'text-stone-600'
+                  )}
+                  animate={isActive && !isClose ? {
+                    textShadow: ['0 0 0px transparent', '0 0 12px rgba(255,220,100,0.6)', '0 0 8px rgba(255,220,100,0.4)'],
+                  } : { textShadow: '0 0 0px transparent' }}
+                  transition={{ duration: 0.2 }}
+                >
+                  {act.label}
+                </motion.span>
+              </motion.button>
+            )
+          })}
+        </div>
+
+        {/* Footer hint */}
+        <motion.div
+          className="mt-8 text-center text-[10px] text-stone-800 tracking-widest uppercase"
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
+        >
+          ↑ ↓ ARROW  •  ENTER SELECT  •  ESC CANCEL
+        </motion.div>
       </motion.div>
     </>,
     document.body
@@ -402,14 +496,14 @@ export default function RoomMapPage() {
             </SelectContent>
           </Select>
 
-          <div className="ml-auto flex items-center gap-2">
+          {/* <div className="ml-auto flex items-center gap-2">
             <button onClick={() => fetchMap(selectedDate)} className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/15 bg-white/[0.06] text-stone-400 hover:text-stone-100 transition-colors">
               <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
             </button>
             <Button size="sm" onClick={() => { setPrefillRoomId(undefined); setPrefillRoomTypeId(undefined); setCreateOpen(true) }}>
               <Plus className="h-4 w-4" /> สร้างการจอง
             </Button>
-          </div>
+          </div> */}
         </div>
 
         {/* Legend */}
@@ -421,7 +515,7 @@ export default function RoomMapPage() {
               {v.label}
             </button>
           ))}
-          <span className="ml-auto text-[10px] text-stone-700">คลิกที่ห้องเพื่อดู action</span>
+          {/* <span className="ml-auto text-[10px] text-stone-700">คลิกที่ห้องเพื่อดู action</span> */}
         </div>
 
         {/* Zone sections */}
