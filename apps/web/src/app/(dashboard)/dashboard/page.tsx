@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -33,6 +33,29 @@ interface HkTask {
     zone?: { name: string; imageUrl?: string | null } | null
     roomType: { name: string; imageUrl?: string | null }
   }
+}
+
+// ── Number count-up hook ───────────────────────────────────────
+function useCountUp(target: number, duration = 1000, delay = 400) {
+  const [value, setValue] = useState(0)
+  const rafRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    if (!target) { setValue(0); return }
+    let startTime: number | null = null
+    const step = (ts: number) => {
+      if (!startTime) startTime = ts + delay
+      const elapsed = Math.max(0, ts - startTime)
+      const progress = Math.min(elapsed / duration, 1)
+      const eased = 1 - Math.pow(1 - progress, 3)
+      setValue(Math.round(eased * target))
+      if (progress < 1) rafRef.current = requestAnimationFrame(step)
+    }
+    rafRef.current = requestAnimationFrame(step)
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) }
+  }, [target, duration, delay])
+
+  return value
 }
 
 // ── Constants (outside component to avoid recreation on every render) ──
@@ -100,8 +123,13 @@ function OccupancyGauge({ pct, occupied, available, ooo }: { pct: number; occupi
 }
 
 // ── Compact Booking Row ────────────────────────────────────────
-function BookingRow({ b, type }: { b: BookingItem; type: 'in' | 'out' }) {
+function BookingRow({ b, type, index = 0 }: { b: BookingItem; type: 'in' | 'out'; index?: number }) {
   return (
+    <motion.div
+      initial={{ opacity: 0, x: -12 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: 0.3 + index * 0.07, duration: 0.25 }}
+    >
     <Link href={`/bookings/${b.id}`}
       className="flex items-center gap-2.5 px-3 py-2 rounded-2xl hover:bg-white/[0.05] transition-colors group">
       <div className={cn('flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-xl text-[11px] font-bold',
@@ -114,6 +142,7 @@ function BookingRow({ b, type }: { b: BookingItem; type: 'in' | 'out' }) {
       </div>
       <StatusBadge status={b.status} size="sm" />
     </Link>
+    </motion.div>
   )
 }
 
@@ -174,6 +203,12 @@ export default function DashboardPage() {
   const arrList: BookingItem[] = arrivals?.bookings || []
   const depList: BookingItem[] = departures?.bookings || []
   const hkList: HkTask[] = (hkTasks as HkTask[]) || []
+
+  // Count-up animations — placed after data is available
+  const occPct    = useCountUp(occ?.occupancyPct ?? 0, 1200, 400)
+  const revAmount = useCountUp(rev?.totalNet ?? 0, 1400, 500)
+  const hkCount   = useCountUp(dashboard?.pendingHousekeeping ?? 0, 800, 450)
+  const oooCount  = useCountUp(occ?.outOfOrder ?? 0, 800, 500)
 
   // Rooms to cycle through in the center widget
   const liveRooms = hkList.filter(t => t.room.zone?.imageUrl || t.room.roomType?.imageUrl)
@@ -271,7 +306,8 @@ export default function DashboardPage() {
 
           {/* Top gradient + header overlay */}
           <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/60 to-transparent pointer-events-none rounded-t-3xl" />
-          <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 pt-3.5">
+          <motion.div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 pt-3.5"
+            initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.3 }}>
             <button className="flex items-center gap-2 rounded-xl bg-black/40 border border-white/15 backdrop-blur-md px-3 py-1.5 hover:bg-black/60 transition-colors">
               <MapPin className="h-3 w-3 text-stone-400" />
               <span className="text-xs font-medium text-stone-200">
@@ -279,18 +315,19 @@ export default function DashboardPage() {
               </span>
               {hkList.length > 1 && <ChevronDown className="h-3 w-3 text-stone-400" />}
             </button>
-            <div className="flex items-center gap-1.5 rounded-full bg-black/40 border border-white/10 backdrop-blur-md px-2.5 py-1.5">
+            <div className="flex items-center gap-1.5 rounded-full bg-black/40 border border-white/10 backdrop-blur-md px-2.5 py-1.5" >
               <span className="relative flex h-1.5 w-1.5">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 opacity-75" />
                 <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-rose-400" />
               </span>
               <span className="text-[11px] text-stone-300 font-medium">Live</span>
             </div>
-          </div>
+          </motion.div>
 
           {/* Bottom gradient + controls + room info overlay */}
           <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/75 to-transparent pointer-events-none rounded-b-3xl" />
-          <div className="absolute bottom-0 left-0 right-0 px-4 pb-4">
+          <motion.div className="absolute bottom-0 left-0 right-0 px-4 pb-4"
+            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25, duration: 0.3 }}>
             {/* Room info */}
             {activeRoom && (
               <div className="flex items-end justify-between mb-3">
@@ -340,7 +377,7 @@ export default function DashboardPage() {
                 </Link>
               </div>
             </div>
-          </div>
+          </motion.div>
         </GlassCard>
 
         {/* RIGHT — Stats (weather-like widget) */}
@@ -355,7 +392,7 @@ export default function DashboardPage() {
               {isLoading ? <Skeleton className="h-10 w-20 mb-1" /> : (
                 <motion.div className="text-5xl font-black text-stone-50 leading-none"
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-                  {occ?.occupancyPct ?? 0}%
+                  {occPct}%
                 </motion.div>
               )}
               <p className="text-xs text-stone-500 mt-1.5">Occupancy</p>
@@ -400,21 +437,23 @@ export default function DashboardPage() {
           {/* Divider */}
           <div className="h-px bg-white/[0.06] mx-5" />
 
-          {/* Bottom: 4 columns — forecast style */}
+          {/* Bottom: 4 columns — forecast style with stagger */}
           <div className="grid grid-cols-4 px-2 py-4">
             {[
               { label: 'เข้าพัก', val: occ?.occupied,                  icon: BedDouble, color: 'text-rose-400'    },
               { label: 'ว่าง',    val: occ?.available,                  icon: BedDouble, color: 'text-emerald-400' },
               { label: 'แม่บ้าน', val: dashboard?.pendingHousekeeping,  icon: Sparkles,  color: 'text-sky-400'     },
               { label: 'OOO',     val: occ?.outOfOrder,                 icon: Wrench,    color: 'text-stone-500'   },
-            ].map(s => (
-              <div key={s.label} className="flex flex-col items-center gap-1.5 text-center">
+            ].map((s, i) => (
+              <motion.div key={s.label} className="flex flex-col items-center gap-1.5 text-center"
+                initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 + i * 0.08, duration: 0.25 }}>
                 <span className="text-[11px] text-stone-600 font-medium">{s.label}</span>
                 <s.icon className={cn('h-5 w-5', s.color)} />
                 {isLoading ? <Skeleton className="h-4 w-5" /> : (
                   <span className={cn('text-sm font-bold', s.color)}>{s.val ?? 0}</span>
                 )}
-              </div>
+              </motion.div>
             ))}
           </div>
         </GlassCard>
@@ -437,7 +476,7 @@ export default function DashboardPage() {
           {isLoading ? (
             <div className="flex justify-center py-10"><Skeleton className="h-32 w-32 rounded-full" /></div>
           ) : (
-            <OccupancyGauge pct={occ?.occupancyPct ?? 0} occupied={occ?.occupied ?? 0} available={occ?.available ?? 0} ooo={occ?.outOfOrder ?? 0} />
+            <OccupancyGauge pct={occPct} occupied={occ?.occupied ?? 0} available={occ?.available ?? 0} ooo={occ?.outOfOrder ?? 0} />
           )}
         </GlassCard>
 
@@ -460,7 +499,7 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-center py-4 gap-2 text-stone-700">
                   <DoorOpen className="h-5 w-5" /><span className="text-xs">ไม่มีเช็คอินวันนี้</span>
                 </div>
-              ) : arrList.slice(0, 3).map(b => <BookingRow key={b.id} b={b} type="in" />)}
+              ) : arrList.slice(0, 3).map((b, i) => <BookingRow key={b.id} b={b} type="in" index={i} />)}
             </div>
           </GlassCard>
 
@@ -481,7 +520,7 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-center py-4 gap-2 text-stone-700">
                   <DoorClosed className="h-5 w-5" /><span className="text-xs">ไม่มีเช็คเอาท์วันนี้</span>
                 </div>
-              ) : depList.slice(0, 3).map(b => <BookingRow key={b.id} b={b} type="out" />)}
+              ) : depList.slice(0, 3).map((b, i) => <BookingRow key={b.id} b={b} type="out" index={i} />)}
             </div>
           </GlassCard>
         </div>
@@ -495,7 +534,7 @@ export default function DashboardPage() {
                 <Link href="/housekeeping" className="text-[10px] text-stone-600 hover:text-sky-400">ดู →</Link>
               </div>
               {isLoading ? <Skeleton className="h-9 w-12" /> : (
-                <div className="text-4xl font-black text-stone-50">{dashboard?.pendingHousekeeping ?? 0}</div>
+                <div className="text-4xl font-black text-stone-50">{hkCount}</div>
               )}
               <div className="text-xs text-stone-500 text-center">งานแม่บ้านค้าง</div>
             </div>
@@ -507,7 +546,7 @@ export default function DashboardPage() {
                 <Link href="/maintenance" className="text-[10px] text-stone-600 hover:text-rose-400">ดู →</Link>
               </div>
               {isLoading ? <Skeleton className="h-9 w-12" /> : (
-                <div className="text-4xl font-black text-stone-50">{occ?.outOfOrder ?? 0}</div>
+                <div className="text-4xl font-black text-stone-50">{oooCount}</div>
               )}
               <div className="text-xs text-stone-500 text-center">ห้อง OOO</div>
             </div>
@@ -528,7 +567,7 @@ export default function DashboardPage() {
             {isLoading ? <Skeleton className="h-8 w-32" /> : (
               <motion.div className="text-2xl font-black text-stone-50 leading-tight"
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>
-                {formatCurrency(rev?.totalNet ?? 0)}
+                {formatCurrency(revAmount)}
               </motion.div>
             )}
           </div>
