@@ -2,11 +2,9 @@
 
 import React from 'react'
 import { motion } from 'framer-motion'
+import { usePathname } from 'next/navigation'
 import { AppBackground } from './app-background'
-import { AppSidebar } from './app-sidebar'
 import { AppHeader } from './app-header'
-import { useUIStore } from '@/store/ui-store'
-import { cn } from '@/lib/utils'
 
 interface AppShellProps {
   children: React.ReactNode
@@ -16,31 +14,32 @@ interface AppShellProps {
 }
 
 export function AppShell({ children, title, subtitle, headerActions }: AppShellProps) {
-  const { sidebarCollapsed } = useUIStore()
+  const pathname = usePathname()
 
   return (
     <AppBackground>
-      <div className="flex h-screen overflow-hidden">
-        {/* Sidebar */}
-        <div className="flex-shrink-0 h-full z-20">
-          <AppSidebar />
-        </div>
-
-        {/* Main area */}
-        <div className="flex flex-1 min-w-0 flex-col overflow-hidden">
-          <AppHeader title={title} subtitle={subtitle} actions={headerActions} />
-          <main className="flex-1 overflow-y-auto">
-            <motion.div
-              className="h-full px-6 py-6"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, ease: 'easeOut' }}
-              key={typeof window !== 'undefined' ? window.location.pathname : 'page'}
-            >
-              {children}
-            </motion.div>
-          </main>
-        </div>
+      <div className="flex h-screen flex-col overflow-hidden">
+        <AppHeader />
+        <main className="flex-1 overflow-y-auto">
+          <motion.div
+            className="min-h-full px-6 pt-5 pb-8"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
+            key={pathname}
+          >
+            {(title || subtitle || headerActions) && (
+              <div className="mb-5 flex items-start justify-between gap-4">
+                <div>
+                  {title && <h1 className="text-xl font-semibold text-stone-100 leading-tight">{title}</h1>}
+                  {subtitle && <p className="text-xs text-stone-500 mt-0.5">{subtitle}</p>}
+                </div>
+                {headerActions && <div className="flex-shrink-0">{headerActions}</div>}
+              </div>
+            )}
+            {children}
+          </motion.div>
+        </main>
       </div>
     </AppBackground>
   )
