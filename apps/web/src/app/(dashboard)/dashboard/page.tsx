@@ -417,8 +417,8 @@ export default function DashboardPage() {
           {/* Middle: 2 stats (humidity + wind speed equivalent) */}
           <div className="grid grid-cols-2 divide-x divide-white/[0.06] px-0 py-1">
             {[
-              { icon: DoorOpen,  label: 'เช็คอิน',   val: dashboard?.arrivals,   color: 'text-emerald-400', bg: 'bg-emerald-400/10' },
-              { icon: DoorClosed, label: 'เช็คเอาท์', val: dashboard?.departures, color: 'text-amber-400',   bg: 'bg-amber-400/10'   },
+              { icon: DoorOpen,  label: 'เช็คอิน',   val: arrList.length, color: 'text-emerald-400', bg: 'bg-emerald-400/10' },
+              { icon: DoorClosed, label: 'เช็คเอาท์', val: depList.length, color: 'text-amber-400',   bg: 'bg-amber-400/10'   },
             ].map(s => (
               <div key={s.label} className="flex items-center gap-3 px-5 py-4">
                 <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl ${s.bg}`}>
