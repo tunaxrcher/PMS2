@@ -399,50 +399,53 @@ export default function RoomMapPage() {
               const availCount = group.rooms.filter(r => ['clean', 'inspected'].includes(r.dateStatus)).length
               return (
                 <motion.div key={group.zone.id}
-                  className="rounded-3xl border border-white/12 bg-black/20 backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.40)] overflow-visible"
+                  className="relative rounded-3xl border border-white/12 shadow-[0_20px_60px_rgba(0,0,0,0.50)] overflow-hidden"
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: gi * 0.08, duration: 0.35 }}
                 >
-                  {/* Zone header — with background image + blur overlay */}
-                  <div className="relative h-20 overflow-hidden rounded-t-3xl">
-                    {group.zone.imageUrl ? (
-                      <img
-                        src={group.zone.imageUrl}
-                        alt={group.zone.name}
-                        className="absolute inset-0 h-full w-full object-cover object-center"
-                        style={{ width: '100%', height: '100%' }}
-                      />
-                    ) : (
-                      <div className="absolute inset-0 bg-gradient-to-r from-stone-800 to-stone-900" />
-                    )}
-                    {/* Dark overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/55 to-black/30" />
-                    {/* Content */}
-                    <div className="absolute inset-0 flex items-center justify-between px-5 py-4">
+                  {/* Full-card zone background */}
+                  {group.zone.imageUrl ? (
+                    <img
+                      src={group.zone.imageUrl}
+                      alt={group.zone.name}
+                      className="absolute inset-0 h-full w-full object-cover object-center"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 bg-gradient-to-br from-stone-800 to-stone-950" />
+                  )}
+                  {/* Dark overlay — stronger at bottom so rooms are readable */}
+                  <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/70 to-black/85" />
+                  {/* Backdrop blur layer */}
+                  <div className="absolute inset-0 backdrop-blur-[1px]" />
+
+                  {/* Content (relative so it sits above bg) */}
+                  <div className="relative">
+                    {/* Zone header */}
+                    <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
                       <div className="flex items-center gap-3">
                         <BedDouble className="h-4 w-4 text-amber-400 flex-shrink-0" />
                         <span className="text-sm font-bold text-white tracking-wide">{group.zone.name}</span>
                         <span className="text-xs text-white/50">{group.rooms.length} ห้อง</span>
                       </div>
-                      <div className={cn('text-xs font-semibold px-2 py-1 rounded-lg backdrop-blur-sm', availCount > 0 ? 'text-emerald-300 bg-emerald-500/15 border border-emerald-400/20' : 'text-rose-300 bg-rose-500/15 border border-rose-400/20')}>
+                      <div className={cn('text-xs font-semibold px-2.5 py-1 rounded-lg border backdrop-blur-sm', availCount > 0 ? 'text-emerald-300 bg-emerald-500/15 border-emerald-400/25' : 'text-rose-300 bg-rose-500/15 border-rose-400/25')}>
                         {availCount}/{group.rooms.length} ว่าง
                       </div>
                     </div>
-                  </div>
 
-                  {/* Rooms grid */}
-                  <div className="p-4">
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                      {group.rooms.map((room, ri) => (
-                        <motion.div key={room.id}
-                          initial={{ opacity: 0, scale: 0.93 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{ delay: gi * 0.04 + ri * 0.04, duration: 0.22 }}
-                        >
-                          <RoomCard room={room} onAction={handleAction} />
-                        </motion.div>
-                      ))}
+                    {/* Rooms grid */}
+                    <div className="p-4">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                        {group.rooms.map((room, ri) => (
+                          <motion.div key={room.id}
+                            initial={{ opacity: 0, scale: 0.93 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ delay: gi * 0.04 + ri * 0.04, duration: 0.22 }}
+                          >
+                            <RoomCard room={room} onAction={handleAction} />
+                          </motion.div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </motion.div>
