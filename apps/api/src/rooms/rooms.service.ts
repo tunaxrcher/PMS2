@@ -134,7 +134,7 @@ export class RoomsService {
       include: {
         roomType: { select: { id: true, name: true, imageUrl: true, baseRate: true } },
         zone: { select: { id: true, name: true, imageUrl: true } },
-        images: { where: { isPrimary: true }, take: 1 },
+        images: { orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }] },
         bookingRooms: {
           where: {
             status: { notIn: ['cancelled'] },
@@ -189,6 +189,9 @@ export class RoomsService {
           guest: activeBooking.booking.guest,
         } : null,
         primaryImage: room.images[0]?.url ?? room.roomType.imageUrl ?? null,
+        allImages: room.images.length > 0
+          ? room.images.map(img => img.url)
+          : (room.roomType.imageUrl ? [room.roomType.imageUrl] : []),
       }
     })
 

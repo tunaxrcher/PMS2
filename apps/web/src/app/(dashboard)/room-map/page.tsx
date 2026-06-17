@@ -40,6 +40,7 @@ interface RoomData {
   roomType: { id: string; name: string; imageUrl?: string | null; baseRate: number | string }
   zone?: { id: string; name: string; imageUrl?: string | null } | null
   primaryImage?: string | null
+  allImages?: string[]
   activeBooking?: { id: string; bookingNumber: string; status: string; checkOutDate: string; guest: { firstName: string; lastName: string } } | null
 }
 
@@ -120,13 +121,31 @@ function ActionMenuPortal({ room, anchor, onClose, onAction }: {
   )
 }
 
-// ── Room Card ────────────────────────────────────────────
+// ── Room Card with Slideshow ─────────────────────────────
 function RoomCard({ room, onAction }: { room: RoomData; onAction: (room: RoomData, action: string) => void }) {
   const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number; width: number } | null>(null)
+  const [imgIndex, setImgIndex] = useState(0)
+  const [isHovered, setIsHovered] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
+  const slideTimer = useRef<ReturnType<typeof setInterval> | null>(null)
+
   const cfg = STATUS_CFG[room.dateStatus] || STATUS_CFG.clean
   const isOOO = ['out_of_order', 'out_of_service'].includes(room.dateStatus)
-  const bgImg = room.primaryImage || room.roomType.imageUrl
+  const images = room.allImages?.length ? room.allImages : (room.primaryImage ? [room.primaryImage] : [])
+  const hasMultiple = images.length > 1
+
+  // Auto-slide on hover
+  useEffect(() => {
+    if (isHovered && hasMultiple) {
+      slideTimer.current = setInterval(() => {
+        setImgIndex(i => (i + 1) % images.length)
+      }, 1800)
+    } else {
+      if (slideTimer.current) clearInterval(slideTimer.current)
+      if (!isHovered) setImgIndex(0)
+    }
+    return () => { if (slideTimer.current) clearInterval(slideTimer.current) }
+  }, [isHovered, hasMultiple, images.length])
 
   const handleClick = () => {
     if (!cardRef.current) return
@@ -139,25 +158,38 @@ function RoomCard({ room, onAction }: { room: RoomData; onAction: (room: RoomDat
       <motion.div
         ref={cardRef}
         onClick={handleClick}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
         className={cn(
-          'relative overflow-hidden rounded-2xl border-2 cursor-pointer transition-all duration-200 select-none',
+          'relative overflow-hidden rounded-2xl border-2 cursor-pointer select-none',
           cfg.border, cfg.glow,
           isOOO && 'grayscale opacity-55',
-          'hover:scale-[1.02]',
-          menuAnchor && 'scale-[1.02] ring-2 ring-white/20'
+          menuAnchor ? 'scale-[1.02] ring-2 ring-white/20' : 'hover:scale-[1.02]',
+          'transition-transform duration-200'
         )}
         style={{ aspectRatio: '4/3' }}
         whileTap={{ scale: 0.97 }}
       >
-        {/* Background */}
-        {bgImg ? (
-          <img src={bgImg} alt={room.roomNumber} className="absolute inset-0 h-full w-full object-cover" />
+        {/* Slideshow images */}
+        {images.length > 0 ? (
+          <AnimatePresence mode="crossfade">
+            <motion.img
+              key={imgIndex}
+              src={images[imgIndex]}
+              alt={room.roomNumber}
+              className="absolute inset-0 h-full w-full object-cover"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.5 }}
+            />
+          </AnimatePresence>
         ) : (
           <div className="absolute inset-0 bg-gradient-to-br from-stone-700 to-stone-900" />
         )}
 
         {/* Gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent" />
 
         {/* OOO icon */}
         {isOOO && (
@@ -170,6 +202,15 @@ function RoomCard({ room, onAction }: { room: RoomData; onAction: (room: RoomDat
         <span className={cn('absolute top-2 right-2 rounded-full px-2 py-0.5 text-[10px] font-bold', cfg.badge)}>
           {cfg.label}
         </span>
+
+        {/* Image dots indicator */}
+        {hasMultiple && isHovered && (
+          <div className="absolute top-2 left-2 flex gap-1">
+            {images.map((_, i) => (
+              <div key={i} className={cn('h-1.5 rounded-full transition-all duration-300', i === imgIndex ? 'w-3 bg-white' : 'w-1.5 bg-white/40')} />
+            ))}
+          </div>
+        )}
 
         {/* Bottom info */}
         <div className="absolute bottom-0 left-0 right-0 p-3">
