@@ -19,7 +19,6 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PmsDialog } from '@/components/ui/pms-dialog'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { roomsApi, bookingsApi, zonesApi, roomTypesApi } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { CreateBookingDialog } from '@/components/bookings/create-booking-dialog'
@@ -29,14 +28,14 @@ const ROW_H = 56
 const ROOM_COL_W = 180
 
 // Thai status labels
-const ROOM_STATUS_TH: Record<string, { label: string; bg: string; dot: string }> = {
-  clean:         { label: 'สะอาด',           bg: 'bg-emerald-400/10', dot: 'bg-emerald-400' },
-  dirty:         { label: 'รอทำความสะอาด',   bg: 'bg-amber-400/10',   dot: 'bg-amber-400' },
-  occupied:      { label: 'มีผู้เข้าพัก',    bg: 'bg-rose-400/10',    dot: 'bg-rose-400' },
-  cleaning:      { label: 'กำลังทำ',         bg: 'bg-sky-400/10',     dot: 'bg-sky-400' },
-  out_of_order:  { label: 'ห้องเสีย',        bg: 'bg-stone-500/15',   dot: 'bg-stone-500' },
-  out_of_service:{ label: 'ปิดบริการ',       bg: 'bg-stone-400/10',   dot: 'bg-stone-400' },
-  inspected:     { label: 'ตรวจแล้ว',        bg: 'bg-teal-400/10',    dot: 'bg-teal-400' },
+const ROOM_STATUS_TH: Record<string, { label: string; bg: string; dot: string; badge: string }> = {
+  clean:         { label: 'สะอาด',           bg: 'bg-emerald-400/10', dot: 'bg-emerald-400', badge: 'bg-emerald-400/20 border-emerald-300/30 text-emerald-200' },
+  dirty:         { label: 'รอทำความสะอาด',   bg: 'bg-amber-400/10',   dot: 'bg-amber-400',   badge: 'bg-amber-400/20 border-amber-300/30 text-amber-200' },
+  occupied:      { label: 'มีผู้เข้าพัก',    bg: 'bg-rose-400/10',    dot: 'bg-rose-400',    badge: 'bg-rose-400/20 border-rose-300/30 text-rose-200' },
+  cleaning:      { label: 'กำลังทำ',         bg: 'bg-sky-400/10',     dot: 'bg-sky-400',     badge: 'bg-sky-400/20 border-sky-300/30 text-sky-200' },
+  out_of_order:  { label: 'ห้องเสีย',        bg: 'bg-stone-500/15',   dot: 'bg-stone-500',   badge: 'bg-stone-500/20 border-stone-400/30 text-stone-300' },
+  out_of_service:{ label: 'ปิดบริการ',       bg: 'bg-stone-400/10',   dot: 'bg-stone-400',   badge: 'bg-stone-400/20 border-stone-300/30 text-stone-300' },
+  inspected:     { label: 'ตรวจแล้ว',        bg: 'bg-teal-400/10',    dot: 'bg-teal-400',    badge: 'bg-teal-400/20 border-teal-300/30 text-teal-200' },
 }
 
 const BOOKING_BLOCK_COLORS: Record<string, string> = {
@@ -121,8 +120,8 @@ export default function RoomGridPage() {
   const [days] = useState(30)
   const [zoneFilter, setZoneFilter] = useState('')
   const [rtFilter, setRtFilter] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
-  const [showFilters, setShowFilters] = useState(false)
+  const [statusFilters, setStatusFilters] = useState<string[]>([])
+  const [filterOpen, setFilterOpen] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [prefillDate, setPrefillDate] = useState<{ checkIn: string; checkOut: string } | undefined>()
   const [prefillRoomTypeId, setPrefillRoomTypeId] = useState<string | undefined>()
@@ -169,10 +168,18 @@ export default function RoomGridPage() {
     onError: () => toast.error('เกิดข้อผิดพลาด'),
   })
 
+  const toggleStatus = useCallback((key: string) => {
+    setStatusFilters(prev => prev.includes(key) ? prev.filter(s => s !== key) : [...prev, key])
+  }, [])
+
+  const clearAllFilters = useCallback(() => {
+    setZoneFilter(''); setRtFilter(''); setStatusFilters([])
+  }, [])
+
   const filteredRooms = (rooms || []).filter((r: Room) => {
     if (zoneFilter && r.zone?.id !== zoneFilter) return false
     if (rtFilter && r.roomType?.id !== rtFilter) return false
-    if (statusFilter && r.currentStatus !== statusFilter) return false
+    if (statusFilters.length > 0 && !statusFilters.includes(r.currentStatus)) return false
     return true
   })
 
@@ -231,7 +238,7 @@ export default function RoomGridPage() {
   const nextMonth = () => setStartDate(d => { const n = new Date(d); n.setMonth(n.getMonth() + 1); n.setDate(1); return n })
   const goToday = () => { const d = new Date(); d.setDate(1); setStartDate(d) }
 
-  const activeFilters = [zoneFilter, rtFilter, statusFilter].filter(Boolean).length
+  const activeFilters = (zoneFilter ? 1 : 0) + (rtFilter ? 1 : 0) + statusFilters.length
 
   return (
     <AppShell title="ปฏิทินห้องพัก" subtitle={`${format(startDate, 'MMMM yyyy', { locale: th })}`}>
@@ -262,54 +269,104 @@ export default function RoomGridPage() {
           </div>
         </div>
 
-        {/* Filter bar */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Legend */}
-          <div className="flex items-center gap-3 mr-2">
-            {Object.entries(ROOM_STATUS_TH).slice(0, 4).map(([key, val]) => (
-              <button key={key} onClick={() => setStatusFilter(statusFilter === key ? '' : key)}
-                className={cn('flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs transition-all border', statusFilter === key ? 'border-white/25 bg-white/[0.10] text-stone-200' : 'border-transparent text-stone-500 hover:text-stone-300')}>
-                <span className={cn('h-2 w-2 rounded-full flex-shrink-0', val.dot)} />
-                {val.label}
-              </button>
-            ))}
-          </div>
+        {/* ── Collapsible Filter Panel ── */}
+        <div className="rounded-2xl border border-white/10 bg-black/20 backdrop-blur-sm overflow-hidden">
+          {/* Toggle bar */}
+          <button
+            onClick={() => setFilterOpen(!filterOpen)}
+            className="flex w-full items-center justify-between px-4 py-3 hover:bg-white/[0.03] transition-colors"
+          >
+            <div className="flex items-center gap-2.5">
+              <Filter className="h-4 w-4 text-stone-500" />
+              <span className="text-sm font-medium text-stone-400">ตัวกรอง</span>
+              {activeFilters > 0 && (
+                <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-amber-400 px-1.5 text-[10px] font-bold text-stone-900">
+                  {activeFilters}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              {activeFilters > 0 && (
+                <button
+                  onClick={e => { e.stopPropagation(); clearAllFilters() }}
+                  className="text-xs text-stone-600 hover:text-rose-400 transition-colors"
+                >
+                  ล้างทั้งหมด ×
+                </button>
+              )}
+              <ChevronRight className={cn('h-4 w-4 text-stone-600 transition-transform duration-200', filterOpen && 'rotate-90')} />
+            </div>
+          </button>
 
-          <div className="ml-auto flex items-center gap-2">
-            <button onClick={() => setShowFilters(!showFilters)}
-              className={cn('flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs transition-colors', showFilters || activeFilters > 0 ? 'border-amber-300/30 bg-amber-400/10 text-amber-300' : 'border-white/15 bg-white/[0.06] text-stone-400 hover:text-stone-100')}>
-              <Filter className="h-3.5 w-3.5" />
-              ตัวกรอง
-              {activeFilters > 0 && <span className="rounded-full bg-amber-400 text-stone-900 text-[9px] font-bold px-1">{activeFilters}</span>}
-            </button>
-          </div>
+          {/* Expandable content */}
+          <AnimatePresence initial={false}>
+            {filterOpen && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.22, ease: 'easeInOut' }}
+                className="overflow-hidden"
+              >
+                <div className="border-t border-white/[0.06] divide-y divide-white/[0.06]">
+                  {/* Zone */}
+                  <div className="flex items-start gap-3 px-4 py-3">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-stone-600 w-12 flex-shrink-0 pt-1">โซน</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      <button onClick={() => setZoneFilter('')}
+                        className={cn('rounded-full px-3 py-1 text-xs font-medium border transition-all', zoneFilter === '' ? 'bg-amber-400/15 border-amber-300/30 text-amber-200' : 'border-white/10 text-stone-500 hover:border-white/20 hover:text-stone-300')}>
+                        ทั้งหมด
+                      </button>
+                      {(zones as Array<{ id: string; name: string }> || []).map(z => (
+                        <button key={z.id} onClick={() => setZoneFilter(zoneFilter === z.id ? '' : z.id)}
+                          className={cn('rounded-full px-3 py-1 text-xs font-medium border transition-all', zoneFilter === z.id ? 'bg-amber-400/15 border-amber-300/30 text-amber-200' : 'border-white/10 text-stone-500 hover:border-white/20 hover:text-stone-300')}>
+                          {z.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-          {/* Expanded filters */}
-          <AnimatePresence>
-            {showFilters && (
-              <motion.div className="flex w-full items-center gap-2 flex-wrap"
-                initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.2 }}>
-                <Select value={zoneFilter} onValueChange={setZoneFilter}>
-                  <SelectTrigger className="w-36 h-8 text-xs"><SelectValue placeholder="ทุกโซน" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">ทุกโซน</SelectItem>
-                    {(zones as Array<{ id: string; name: string }> || []).map(z => <SelectItem key={z.id} value={z.id}>{z.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <Select value={rtFilter} onValueChange={setRtFilter}>
-                  <SelectTrigger className="w-44 h-8 text-xs"><SelectValue placeholder="ทุกประเภทห้อง" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">ทุกประเภทห้อง</SelectItem>
-                    {(roomTypes as Array<{ id: string; name: string }> || []).map(rt => <SelectItem key={rt.id} value={rt.id}>{rt.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                {activeFilters > 0 && (
-                  <button onClick={() => { setZoneFilter(''); setRtFilter(''); setStatusFilter('') }}
-                    className="text-xs text-rose-400 hover:text-rose-300 transition-colors">
-                    ล้างตัวกรอง
-                  </button>
-                )}
+                  {/* Room Type */}
+                  <div className="flex items-start gap-3 px-4 py-3">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-stone-600 w-12 flex-shrink-0 pt-1">ประเภท</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      <button onClick={() => setRtFilter('')}
+                        className={cn('rounded-full px-3 py-1 text-xs font-medium border transition-all', rtFilter === '' ? 'bg-amber-400/15 border-amber-300/30 text-amber-200' : 'border-white/10 text-stone-500 hover:border-white/20 hover:text-stone-300')}>
+                        ทั้งหมด
+                      </button>
+                      {(roomTypes as Array<{ id: string; name: string }> || []).map(rt => (
+                        <button key={rt.id} onClick={() => setRtFilter(rtFilter === rt.id ? '' : rt.id)}
+                          className={cn('rounded-full px-3 py-1 text-xs font-medium border transition-all', rtFilter === rt.id ? 'bg-amber-400/15 border-amber-300/30 text-amber-200' : 'border-white/10 text-stone-500 hover:border-white/20 hover:text-stone-300')}>
+                          {rt.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Status multi-select */}
+                  <div className="flex items-start gap-3 px-4 py-3">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-stone-600 w-12 flex-shrink-0 pt-1">สถานะ</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {Object.entries(ROOM_STATUS_TH).map(([k, v]) => {
+                        const isSelected = statusFilters.includes(k)
+                        return (
+                          <button key={k} onClick={() => toggleStatus(k)}
+                            className={cn(
+                              'flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium border transition-all',
+                              isSelected ? `${v.badge} border-transparent` : 'border-white/10 text-stone-500 hover:border-white/20 hover:text-stone-300'
+                            )}>
+                            {isSelected ? (
+                              <span className="text-[9px] font-black">✓</span>
+                            ) : (
+                              <span className={cn('h-2 w-2 rounded-full flex-shrink-0', v.dot)} />
+                            )}
+                            {v.label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
