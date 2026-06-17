@@ -41,7 +41,7 @@ interface HkTask {
 function GlassCard({ children, className = '', delay = 0, ...props }: React.HTMLAttributes<HTMLDivElement> & { delay?: number }) {
   return (
     <motion.div
-      className={cn('rounded-3xl border border-white/12 bg-black/25 backdrop-blur-xl overflow-hidden', className)}
+      className={cn('rounded-3xl border border-white/[0.14] bg-white/[0.06] backdrop-blur-xl overflow-hidden', className)}
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay }}

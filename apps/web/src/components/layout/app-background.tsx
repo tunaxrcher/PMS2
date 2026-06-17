@@ -19,7 +19,7 @@ export function AppBackground({ children }: AppBackgroundProps) {
       />
 
       {/* Dark overlay for readability */}
-      <div className="absolute inset-0 bg-black/55" />
+      <div className="absolute inset-0 bg-black/40" />
 
       {/* Warm ambient glow - top center */}
       <div className="pointer-events-none absolute left-1/2 top-0 h-[480px] w-[600px] -translate-x-1/2 rounded-full bg-amber-300/12 blur-[80px]" />
