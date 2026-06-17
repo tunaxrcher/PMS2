@@ -13,8 +13,8 @@
     "db:seed": "cd apps/api && npx ts-node -r tsconfig-paths/register prisma/seed.ts",
     "db:studio": "pnpm --filter @serene-pms/api prisma:studio",
     "seed": "cd apps/api && npx ts-node -r tsconfig-paths/register prisma/seed.ts",
-    "deploy": "pnpm install && pnpm build:api && pnpm build:web && pm2 restart serene-api serene-web",
-    "deploy:migrate": "pnpm install && pnpm db:deploy && pnpm build:api && pnpm build:web && pm2 restart serene-api serene-web",
+    "deploy": "pnpm install && pnpm build:api && pnpm build:web && (pm2 restart ecosystem.config.js --update-env || pm2 start ecosystem.config.js)",
+    "deploy:migrate": "pnpm install && pnpm db:deploy && pnpm build:api && pnpm build:web && (pm2 restart ecosystem.config.js --update-env || pm2 start ecosystem.config.js)",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck"
   },
