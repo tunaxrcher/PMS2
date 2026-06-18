@@ -1,12 +1,14 @@
 'use client'
 
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, User, ChevronRight, ChevronLeft, CalendarRange, BedDouble, Tag, Package, ChevronDown } from 'lucide-react'
 import { toast } from 'sonner'
-import { differenceInDays, format, addDays } from 'date-fns'
+import { differenceInDays, format, addDays, startOfDay, isBefore } from 'date-fns'
 import { th } from 'date-fns/locale'
+import { DayPicker, type DateRange } from 'react-day-picker'
+import 'react-day-picker/style.css'
 import { PmsDialog } from '@/components/ui/pms-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -69,11 +71,45 @@ export function CreateBookingDialog({ open, onClose, onSuccess, prefillDate, pre
 
   const { data: sources } = useQuery({ queryKey: ['booking-sources'], queryFn: () => bookingsApi.sources().then(r => r.data) })
 
-  // Availability query — room types with count
+  // Calendar heatmap — fetch 60 days ahead when dialog opens
+  const calFrom = format(new Date(), 'yyyy-MM-dd')
+  const calTo = format(addDays(new Date(), 60), 'yyyy-MM-dd')
+  type CalDay = { date: string; totalAvail: number; status: 'available' | 'limited' | 'full' | 'past' }
+  const { data: calDays = [] } = useQuery<CalDay[]>({
+    queryKey: ['avail-calendar', calFrom, calTo],
+    queryFn: () => roomsApi.availabilityCalendar(calFrom, calTo).then(r => r.data),
+    enabled: open,
+    staleTime: 5 * 60_000,
+  })
+  const calMap = useMemo(() => {
+    const m = new Map<string, CalDay['status']>()
+    calDays.forEach(d => m.set(d.date, d.status))
+    return m
+  }, [calDays])
+
+  // Range selection state (synced with form)
+  const [range, setRange] = useState<DateRange | undefined>(
+    form.checkInDate && form.checkOutDate
+      ? { from: new Date(form.checkInDate), to: new Date(form.checkOutDate) }
+      : undefined
+  )
+  const handleRangeSelect = (r: DateRange | undefined) => {
+    setRange(r)
+    setForm(p => ({
+      ...p,
+      checkInDate: r?.from ? format(r.from, 'yyyy-MM-dd') : '',
+      checkOutDate: r?.to ? format(r.to, 'yyyy-MM-dd') : '',
+    }))
+    setStepErrors(p => ({ ...p, checkInDate: '', checkOutDate: '' }))
+  }
+
+  // Availability query — fetch as soon as dates are set (not waiting for step 2)
+  const datesReady = !!(form.checkInDate && form.checkOutDate &&
+    differenceInDays(new Date(form.checkOutDate), new Date(form.checkInDate)) > 0)
   const { data: availability, isLoading: availLoading } = useQuery({
     queryKey: ['room-availability', form.checkInDate, form.checkOutDate],
     queryFn: () => roomsApi.availability(form.checkInDate, form.checkOutDate).then(r => r.data),
-    enabled: !!(form.checkInDate && form.checkOutDate && step === 2),
+    enabled: datesReady && open,
     staleTime: 30_000,
   })
 
@@ -302,39 +338,124 @@ export function CreateBookingDialog({ open, onClose, onSuccess, prefillDate, pre
               {stepErrors.guest && <p className="mt-2 text-xs text-rose-400">⚠ {stepErrors.guest}</p>}
             </div>
 
-            {/* === DATE SECTION === */}
+            {/* === DATE SECTION — Calendar heatmap === */}
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
               <div className="flex items-center gap-2 mb-3">
                 <CalendarRange className="h-4 w-4 text-amber-400" />
-                <span className="text-sm font-semibold text-stone-200">วันที่เข้าพัก</span>
+                <span className="text-sm font-semibold text-stone-200">เลือกวันที่เข้าพัก</span>
                 {nights > 0 && (
                   <span className="ml-auto text-xs text-amber-300 font-medium bg-amber-400/10 border border-amber-300/20 rounded-lg px-2 py-0.5">
                     {nights} คืน
                   </span>
                 )}
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <Input label="Check-in *" type="date" value={form.checkInDate}
-                  onChange={e => {
-                    setForm(p => ({ ...p, checkInDate: e.target.value, checkOutDate: p.checkOutDate && new Date(p.checkOutDate) <= new Date(e.target.value) ? format(addDays(new Date(e.target.value), 1), 'yyyy-MM-dd') : p.checkOutDate }))
-                    setStepErrors(p => ({...p, checkInDate: '', checkOutDate: ''}))
+
+              {/* Legend */}
+              <div className="flex items-center gap-3 mb-3 text-[10px] text-stone-500">
+                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-400" />ว่าง</span>
+                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-400" />เหลือน้อย</span>
+                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-rose-500" />เต็ม</span>
+              </div>
+
+              {/* DayPicker with availability heatmap */}
+              <style>{`
+                .pms-cal { width: 100%; }
+                .pms-cal .rdp-root { --rdp-accent-color: #fbbf24; --rdp-accent-background-color: rgba(251,191,36,0.18); color: #e7e5e4; font-family: inherit; width: 100%; }
+                .pms-cal .rdp-months { width: 100%; }
+                .pms-cal .rdp-month { width: 100%; }
+                .pms-cal .rdp-month_grid { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 2px; }
+                .pms-cal .rdp-week { width: 100%; }
+                .pms-cal .rdp-weekday, .pms-cal .rdp-day { width: 14.28%; }
+                .pms-cal .rdp-month_caption { padding: 0 0 8px 0; }
+                .pms-cal .rdp-caption_label { font-size: 13px; font-weight: 600; color: #e7e5e4; }
+                .pms-cal .rdp-nav { gap: 4px; }
+                .pms-cal .rdp-nav button { background: rgba(255,255,255,0.06); border-radius: 8px; width: 26px; height: 26px; color: #a8a29e; }
+                .pms-cal .rdp-nav button:hover { background: rgba(255,255,255,0.12); color: #e7e5e4; }
+                .pms-cal .rdp-weekday { font-size: 11px; color: #78716c; font-weight: 500; }
+                .pms-cal .rdp-day_button { font-size: 13px; border-radius: 8px; width: 100%; height: 38px; position: relative; color: #d6d3d1; background: transparent; border: none; cursor: pointer; }
+                .pms-cal .rdp-day_button:hover:not(:disabled) { background: rgba(255,255,255,0.08); }
+                .pms-cal .rdp-disabled .rdp-day_button { opacity: 0.25; cursor: default; }
+                .pms-cal .rdp-outside .rdp-day_button { opacity: 0.3; }
+                .pms-cal .rdp-today .rdp-day_button { border: 1px solid rgba(251,191,36,0.35); color: #fbbf24; }
+                .pms-cal .rdp-range_start .rdp-day_button, .pms-cal .rdp-range_end .rdp-day_button { background: #fbbf24 !important; color: #1c1917 !important; font-weight: 700; border-radius: 8px !important; }
+                .pms-cal .rdp-range_middle .rdp-day_button { background: rgba(251,191,36,0.14); border-radius: 0; color: #fde68a; }
+                .pms-cal .rdp-selected:not(.rdp-range_middle) .rdp-day_button { background: rgba(251,191,36,0.18); color: #fde68a; }
+                .pms-cal .avail-dot { position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%); width: 3px; height: 3px; border-radius: 50%; }
+              `}</style>
+              <div className="pms-cal">
+                <DayPicker
+                  mode="range"
+                  selected={range}
+                  onSelect={handleRangeSelect}
+                  locale={th}
+                  disabled={[{ before: startOfDay(new Date()) }]}
+                  components={{
+                    DayButton: ({ day, modifiers, ...props }) => {
+                      const dateStr = format(day.date, 'yyyy-MM-dd')
+                      const status = calMap.get(dateStr)
+                      const dotColor = status === 'available' ? '#4ade80' : status === 'limited' ? '#fbbf24' : status === 'full' ? '#f87171' : undefined
+                      return (
+                        <button {...props}>
+                          {day.date.getDate()}
+                          {dotColor && !isBefore(day.date, startOfDay(new Date())) && (
+                            <span className="avail-dot" style={{ backgroundColor: dotColor }} />
+                          )}
+                        </button>
+                      )
+                    }
                   }}
-                  error={stepErrors.checkInDate}
-                />
-                <Input label="Check-out *" type="date" value={form.checkOutDate}
-                  min={form.checkInDate ? format(addDays(new Date(form.checkInDate), 1), 'yyyy-MM-dd') : undefined}
-                  onChange={e => { setForm(p => ({...p, checkOutDate: e.target.value})); setStepErrors(p => ({...p, checkOutDate: ''})) }}
-                  error={stepErrors.checkOutDate}
                 />
               </div>
-              {/* Night summary */}
+
+              {/* Selected range summary — single instance */}
               {nights > 0 && (
-                <div className="mt-3 rounded-xl bg-white/[0.03] border border-white/[0.07] px-3 py-2 flex items-center gap-3 text-xs text-stone-400">
-                  <span>เข้าพัก {format(new Date(form.checkInDate), 'd MMM', { locale: th })}</span>
-                  <div className="flex-1 border-t border-dashed border-white/15 relative">
-                    <span className="absolute left-1/2 -translate-x-1/2 -top-2.5 bg-black/30 px-1 text-amber-400 font-semibold">{nights} คืน</span>
+                <div className="mt-1 rounded-xl bg-amber-400/[0.08] border border-amber-300/20 px-3 py-2 flex items-center gap-3 text-xs">
+                  <span className="text-amber-200/80">เข้าพัก {format(new Date(form.checkInDate), 'd MMM', { locale: th })}</span>
+                  <div className="flex-1 border-t border-dashed border-amber-300/20 relative">
+                    <span className="absolute left-1/2 -translate-x-1/2 -top-2.5 bg-black/40 px-1.5 text-amber-300 font-bold">{nights} คืน</span>
                   </div>
-                  <span>ออก {format(new Date(form.checkOutDate), 'd MMM', { locale: th })}</span>
+                  <span className="text-amber-200/80">ออก {format(new Date(form.checkOutDate), 'd MMM', { locale: th })}</span>
+                </div>
+              )}
+              {stepErrors.checkInDate && <p className="mt-1 text-xs text-rose-400">⚠ {stepErrors.checkInDate}</p>}
+
+              {/* Availability hint — shows while user is still on step 1 */}
+              {datesReady && (
+                <div className="mt-2">
+                  {availLoading ? (
+                    <div className="flex items-center gap-2 rounded-xl bg-white/[0.03] px-3 py-2 text-xs text-stone-500">
+                      <div className="h-3 w-3 animate-spin rounded-full border border-stone-600 border-t-stone-400" />
+                      กำลังตรวจสอบห้องว่าง...
+                    </div>
+                  ) : (() => {
+                    const avail = availability as AvailRoom[] || []
+                    const totalAvail = avail.reduce((s, rt) => s + rt.available, 0)
+                    const availTypes = avail.filter(rt => rt.available > 0).length
+                    if (avail.length === 0) return null
+                    if (totalAvail === 0) return (
+                      <div className="flex items-center gap-2 rounded-xl bg-rose-400/10 border border-rose-400/20 px-3 py-2 text-xs text-rose-300">
+                        <span>⚠️</span>
+                        <span>ช่วงวันที่นี้ <strong>ไม่มีห้องว่าง</strong> — ทุกประเภทเต็มหมด</span>
+                      </div>
+                    )
+                    return (
+                      <div className="flex flex-wrap gap-1.5 mt-1">
+                        {avail.map(rt => (
+                          <span key={rt.roomTypeId} className={cn(
+                            'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium border',
+                            rt.available > 0
+                              ? 'bg-emerald-400/10 border-emerald-400/20 text-emerald-300'
+                              : 'bg-rose-400/10 border-rose-400/20 text-rose-400 line-through opacity-60'
+                          )}>
+                            {rt.roomTypeName}
+                            <span className={cn('font-bold', rt.available > 0 ? 'text-emerald-200' : 'text-rose-400')}>
+                              {rt.available > 0 ? `${rt.available} ว่าง` : 'เต็ม'}
+                            </span>
+                          </span>
+                        ))}
+                      </div>
+                    )
+                  })()}
                 </div>
               )}
             </div>

@@ -310,4 +310,76 @@ export class RoomsService {
     ])
     return { rooms, unassignedBookings }
   }
+
+  // Per-day availability heatmap for calendar display
+  // Returns { date, available, limited, full } for each day in range
+  async getAvailabilityCalendar(propertyId: string, from: string, to: string) {
+    const fromDate = new Date(from)
+    const toDate = new Date(to)
+
+    // Total rooms per type
+    const roomTypes = await this.prisma.roomType.findMany({
+      where: { propertyId, active: true },
+      select: { id: true },
+    })
+    const roomTypeTotals = new Map<string, number>()
+    await Promise.all(roomTypes.map(async (rt) => {
+      const count = await this.prisma.room.count({ where: { propertyId, roomTypeId: rt.id, active: true } })
+      roomTypeTotals.set(rt.id, count)
+    }))
+    const globalTotal = Array.from(roomTypeTotals.values()).reduce((s, n) => s + n, 0)
+
+    // All active bookings that overlap the calendar range
+    const bookingRooms = await this.prisma.bookingRoom.findMany({
+      where: {
+        status: { notIn: ['cancelled'] },
+        checkInDate: { lt: toDate },
+        checkOutDate: { gt: fromDate },
+        booking: { propertyId, status: { notIn: ['cancelled', 'no_show', 'checked_out'] } },
+      },
+      select: { roomTypeId: true, checkInDate: true, checkOutDate: true },
+    })
+
+    // Build per-day map
+    const days: { date: string; totalAvail: number; status: 'available' | 'limited' | 'full' | 'past' }[] = []
+    const today = new Date(); today.setHours(0, 0, 0, 0)
+    const cursor = new Date(fromDate)
+
+    while (cursor < toDate) {
+      const dayStr = cursor.toISOString().split('T')[0]
+      const dayStart = new Date(cursor)
+      const dayEnd = new Date(cursor); dayEnd.setDate(dayEnd.getDate() + 1)
+
+      if (cursor < today) {
+        days.push({ date: dayStr, totalAvail: 0, status: 'past' })
+      } else {
+        // Count bookings overlapping this single day per room type
+        const bookedByType = new Map<string, number>()
+        for (const br of bookingRooms) {
+          const brIn = new Date(br.checkInDate)
+          const brOut = new Date(br.checkOutDate)
+          if (brIn < dayEnd && brOut > dayStart) {
+            bookedByType.set(br.roomTypeId, (bookedByType.get(br.roomTypeId) || 0) + 1)
+          }
+        }
+
+        let totalAvail = 0
+        for (const [rtId, total] of roomTypeTotals.entries()) {
+          const booked = bookedByType.get(rtId) || 0
+          totalAvail += Math.max(0, total - booked)
+        }
+
+        const status: 'available' | 'limited' | 'full' =
+          totalAvail === 0 ? 'full' :
+          totalAvail <= Math.ceil(globalTotal * 0.3) ? 'limited' :
+          'available'
+
+        days.push({ date: dayStr, totalAvail, status })
+      }
+
+      cursor.setDate(cursor.getDate() + 1)
+    }
+
+    return days
+  }
 }

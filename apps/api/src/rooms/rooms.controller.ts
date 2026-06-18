@@ -30,6 +30,15 @@ export class RoomsController {
     return this.service.getRoomMap(user.propertyId!, d)
   }
 
+  @Get('availability-calendar')
+  getAvailabilityCalendar(
+    @CurrentUser() user: JwtPayload,
+    @Query('from') from: string,
+    @Query('to') to: string,
+  ) {
+    return this.service.getAvailabilityCalendar(user.propertyId!, from, to)
+  }
+
   @Get('availability')
   getAvailability(
     @CurrentUser() user: JwtPayload,
