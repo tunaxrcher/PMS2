@@ -346,7 +346,11 @@ export class RoomsService {
     const cursor = new Date(fromDate)
 
     while (cursor < toDate) {
-      const dayStr = cursor.toISOString().split('T')[0]
+      // Use local date components to avoid UTC timezone off-by-one
+      const y = cursor.getFullYear()
+      const m = String(cursor.getMonth() + 1).padStart(2, '0')
+      const d = String(cursor.getDate()).padStart(2, '0')
+      const dayStr = `${y}-${m}-${d}`
       const dayStart = new Date(cursor)
       const dayEnd = new Date(cursor); dayEnd.setDate(dayEnd.getDate() + 1)
 

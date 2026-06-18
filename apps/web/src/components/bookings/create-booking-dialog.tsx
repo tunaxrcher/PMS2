@@ -71,9 +71,11 @@ export function CreateBookingDialog({ open, onClose, onSuccess, prefillDate, pre
 
   const { data: sources } = useQuery({ queryKey: ['booking-sources'], queryFn: () => bookingsApi.sources().then(r => r.data) })
 
-  // Calendar heatmap — fetch 60 days ahead when dialog opens
-  const calFrom = format(new Date(), 'yyyy-MM-dd')
-  const calTo = format(addDays(new Date(), 60), 'yyyy-MM-dd')
+  // Calendar heatmap — stable date range (memoized so query key never changes mid-session)
+  const [calFrom, calTo] = useMemo(() => [
+    format(new Date(), 'yyyy-MM-dd'),
+    format(addDays(new Date(), 60), 'yyyy-MM-dd'),
+  ], [])
   type CalDay = { date: string; totalAvail: number; status: 'available' | 'limited' | 'full' | 'past' }
   const { data: calDays = [] } = useQuery<CalDay[]>({
     queryKey: ['avail-calendar', calFrom, calTo],
@@ -88,11 +90,16 @@ export function CreateBookingDialog({ open, onClose, onSuccess, prefillDate, pre
   }, [calDays])
 
   // Range selection state (synced with form)
-  const [range, setRange] = useState<DateRange | undefined>(
-    form.checkInDate && form.checkOutDate
-      ? { from: new Date(form.checkInDate), to: new Date(form.checkOutDate) }
-      : undefined
-  )
+  const [range, setRange] = useState<DateRange | undefined>(undefined)
+  // Sync range when prefill dates change or dialog reopens
+  React.useEffect(() => {
+    if (form.checkInDate && form.checkOutDate) {
+      setRange({ from: new Date(form.checkInDate), to: new Date(form.checkOutDate) })
+    } else {
+      setRange(undefined)
+    }
+  }, [form.checkInDate, form.checkOutDate])
+
   const handleRangeSelect = (r: DateRange | undefined) => {
     setRange(r)
     setForm(p => ({
