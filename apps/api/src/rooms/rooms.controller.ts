@@ -49,10 +49,10 @@ export class RoomsController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) { return this.service.findOne(id) }
+  findOne(@Param('id') id: string, @CurrentUser() user: JwtPayload) { return this.service.findOne(id, user.propertyId!) }
 
   @Get(':id/status-logs')
-  getStatusLogs(@Param('id') id: string) { return this.service.getStatusLogs(id) }
+  getStatusLogs(@Param('id') id: string, @CurrentUser() user: JwtPayload) { return this.service.getStatusLogs(id, user.propertyId!) }
 
   @Post()
   @UseGuards(PermissionsGuard)
@@ -64,29 +64,29 @@ export class RoomsController {
   @Patch(':id')
   @UseGuards(PermissionsGuard)
   @RequirePermissions(PERMISSIONS.ROOM_MANAGE)
-  update(@Param('id') id: string, @Body() body: Record<string, unknown>) {
-    return this.service.update(id, body as Parameters<RoomsService['update']>[1])
+  update(@Param('id') id: string, @Body() body: Record<string, unknown>, @CurrentUser() user: JwtPayload) {
+    return this.service.update(id, body as Parameters<RoomsService['update']>[1], user.propertyId!)
   }
 
   @Delete(':id')
   @UseGuards(PermissionsGuard)
   @RequirePermissions(PERMISSIONS.ROOM_MANAGE)
-  removeRoom(@Param('id') id: string) { return this.service.removeRoom(id) }
+  removeRoom(@Param('id') id: string, @CurrentUser() user: JwtPayload) { return this.service.removeRoom(id, user.propertyId!) }
 
   @Get(':id/images')
-  getRoomImages(@Param('id') id: string) { return this.service.getRoomImages(id) }
+  getRoomImages(@Param('id') id: string, @CurrentUser() user: JwtPayload) { return this.service.getRoomImages(id, user.propertyId!) }
 
   @Post(':id/images')
   @UseGuards(PermissionsGuard)
   @RequirePermissions(PERMISSIONS.ROOM_MANAGE)
-  addImage(@Param('id') id: string, @Body() body: { url: string; caption?: string; isPrimary?: boolean; sortOrder?: number }) {
-    return this.service.addRoomImage(id, body)
+  addImage(@Param('id') id: string, @Body() body: { url: string; caption?: string; isPrimary?: boolean; sortOrder?: number }, @CurrentUser() user: JwtPayload) {
+    return this.service.addRoomImage(id, body, user.propertyId!)
   }
 
   @Delete('images/:imageId')
   @UseGuards(PermissionsGuard)
   @RequirePermissions(PERMISSIONS.ROOM_MANAGE)
-  deleteImage(@Param('imageId') imageId: string) { return this.service.deleteRoomImage(imageId) }
+  deleteImage(@Param('imageId') imageId: string, @CurrentUser() user: JwtPayload) { return this.service.deleteRoomImage(imageId, user.propertyId!) }
 
   @Patch(':id/status')
   @UseGuards(PermissionsGuard)
@@ -96,6 +96,6 @@ export class RoomsController {
     @Body() body: { status: string; reason?: string },
     @CurrentUser() user: JwtPayload
   ) {
-    return this.service.updateStatus(id, body.status, user.sub, body.reason)
+    return this.service.updateStatus(id, body.status, user.sub, user.propertyId!, body.reason)
   }
 }

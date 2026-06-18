@@ -27,20 +27,20 @@ export class HousekeepingController {
   @HttpCode(200)
   @RequirePermissions(PERMISSIONS.HOUSEKEEPING_UPDATE_TASK)
   start(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
-    return this.service.startTask(id, user.sub)
+    return this.service.startTask(id, user.sub, user.propertyId!)
   }
 
   @Post('tasks/:id/complete')
   @HttpCode(200)
   @RequirePermissions(PERMISSIONS.HOUSEKEEPING_UPDATE_TASK)
   complete(@Param('id') id: string, @Body() body: { remark?: string }, @CurrentUser() user: JwtPayload) {
-    return this.service.completeTask(id, user.sub, body.remark)
+    return this.service.completeTask(id, user.sub, user.propertyId!, body.remark)
   }
 
   @Post('tasks/:id/cancel')
   @HttpCode(200)
   @RequirePermissions(PERMISSIONS.HOUSEKEEPING_UPDATE_TASK)
-  cancel(@Param('id') id: string) {
-    return this.service.cancelTask(id)
+  cancel(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    return this.service.cancelTask(id, user.propertyId!)
   }
 }

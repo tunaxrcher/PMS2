@@ -6,6 +6,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
+import { Prisma } from '@prisma/client'
 import { v4 as uuidv4 } from 'uuid'
 
 @Injectable()
@@ -64,9 +65,9 @@ export class BookingsService {
     return { bookings, total, page, limit }
   }
 
-  async findOne(id: string, propertyId?: string) {
+  async findOne(id: string, propertyId: string) {
     const booking = await this.prisma.booking.findFirst({
-      where: { id, ...(propertyId && { propertyId }) },
+      where: { id, propertyId },
       include: {
         guest: true,
         bookingSource: true,
@@ -113,12 +114,19 @@ export class BookingsService {
     const checkOut = new Date(data.checkOutDate)
     if (checkOut <= checkIn) throw new BadRequestException('วันออกต้องหลังวันเข้าพัก')
 
-    // Verify room type exists
+    // Verify room type exists and belongs to this property
     const roomType = await this.prisma.roomType.findUnique({ where: { id: data.roomTypeId } })
-    if (!roomType) throw new NotFoundException('ไม่พบประเภทห้อง')
+    if (!roomType || roomType.propertyId !== data.propertyId) throw new NotFoundException('ไม่พบประเภทห้อง')
+
+    // Verify existing guest belongs to this property
+    if (data.guestId) {
+      const guest = await this.prisma.guest.findUnique({ where: { id: data.guestId }, select: { propertyId: true } })
+      if (!guest || guest.propertyId !== data.propertyId) throw new NotFoundException('ไม่พบข้อมูลลูกค้า')
+    }
 
     return await this.prisma.$transaction(async (tx) => {
-      // Check availability using count of overlapping confirmed bookings
+      // Serializable isolation (set below) prevents the count-then-insert race
+      // that could otherwise overbook a room type under concurrent requests.
       const overlapping = await tx.bookingRoom.count({
         where: {
           roomTypeId: data.roomTypeId,
@@ -239,7 +247,7 @@ export class BookingsService {
       })
 
       return booking
-    })
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
   }
 
   async update(id: string, data: Partial<{
@@ -251,7 +259,7 @@ export class BookingsService {
     notes: string
     packageName: string
     packageNote: string
-  }>, updatedBy: string) {
+  }>, updatedBy: string, propertyId: string) {
     const booking = await this.prisma.booking.findUnique({
       where: { id },
       include: {
@@ -259,7 +267,7 @@ export class BookingsService {
         folios: { include: { items: { where: { isVoided: false, itemType: 'room_charge' } } } },
       },
     })
-    if (!booking) throw new NotFoundException('ไม่พบการจอง')
+    if (!booking || booking.propertyId !== propertyId) throw new NotFoundException('ไม่พบการจอง')
     if (['checked_out', 'cancelled'].includes(booking.status)) {
       throw new BadRequestException('ไม่สามารถแก้ไขการจองที่สิ้นสุดแล้ว')
     }
@@ -343,46 +351,48 @@ export class BookingsService {
       })
 
       return updated
-    })
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
   }
 
-  async assignRoom(bookingRoomId: string, roomId: string, assignedBy: string) {
-    const br = await this.prisma.bookingRoom.findUnique({
-      where: { id: bookingRoomId },
-      include: { booking: true },
-    })
-    if (!br) throw new NotFoundException('ไม่พบข้อมูลการจองห้อง')
-
-    const room = await this.prisma.room.findUnique({ where: { id: roomId } })
-    if (!room) throw new NotFoundException('ไม่พบห้อง')
-    if (room.propertyId !== br.booking.propertyId) throw new ForbiddenException('ห้องไม่ได้อยู่ใน property เดียวกัน')
-    if (room.roomTypeId !== br.roomTypeId) throw new BadRequestException('ประเภทห้องไม่ตรงกับการจอง')
-    if (room.currentStatus === 'out_of_order') throw new BadRequestException('ห้องนี้อยู่ระหว่างซ่อม')
-    if (['dirty', 'cleaning'].includes(room.currentStatus)) throw new BadRequestException(`ห้องนี้สถานะ ${room.currentStatus} ยังไม่พร้อม`)
-
-    // Check room not double-booked
-    const conflict = await this.prisma.bookingRoom.findFirst({
-      where: {
-        roomId,
-        id: { not: bookingRoomId },
-        status: { notIn: ['cancelled'] },
-        checkInDate: { lt: br.checkOutDate },
-        checkOutDate: { gt: br.checkInDate },
-        booking: { status: { notIn: ['cancelled', 'no_show', 'checked_out'] } },
-      },
-    })
-    if (conflict) throw new ConflictException('ห้องนี้ถูกจองในช่วงเวลาดังกล่าวแล้ว')
-
-    return this.prisma.bookingRoom.update({ where: { id: bookingRoomId }, data: { roomId } })
-  }
-
-  async moveRoom(bookingRoomId: string, newRoomId: string, movedBy: string) {
+  async assignRoom(bookingRoomId: string, roomId: string, assignedBy: string, propertyId: string) {
     return this.prisma.$transaction(async (tx) => {
       const br = await tx.bookingRoom.findUnique({
         where: { id: bookingRoomId },
         include: { booking: true },
       })
-      if (!br) throw new NotFoundException('ไม่พบข้อมูลการจองห้อง')
+      if (!br || br.booking.propertyId !== propertyId) throw new NotFoundException('ไม่พบข้อมูลการจองห้อง')
+
+      const room = await tx.room.findUnique({ where: { id: roomId } })
+      if (!room) throw new NotFoundException('ไม่พบห้อง')
+      if (room.propertyId !== br.booking.propertyId) throw new ForbiddenException('ห้องไม่ได้อยู่ใน property เดียวกัน')
+      if (room.roomTypeId !== br.roomTypeId) throw new BadRequestException('ประเภทห้องไม่ตรงกับการจอง')
+      if (room.currentStatus === 'out_of_order') throw new BadRequestException('ห้องนี้อยู่ระหว่างซ่อม')
+      if (['dirty', 'cleaning'].includes(room.currentStatus)) throw new BadRequestException(`ห้องนี้สถานะ ${room.currentStatus} ยังไม่พร้อม`)
+
+      // Check room not double-booked
+      const conflict = await tx.bookingRoom.findFirst({
+        where: {
+          roomId,
+          id: { not: bookingRoomId },
+          status: { notIn: ['cancelled'] },
+          checkInDate: { lt: br.checkOutDate },
+          checkOutDate: { gt: br.checkInDate },
+          booking: { status: { notIn: ['cancelled', 'no_show', 'checked_out'] } },
+        },
+      })
+      if (conflict) throw new ConflictException('ห้องนี้ถูกจองในช่วงเวลาดังกล่าวแล้ว')
+
+      return tx.bookingRoom.update({ where: { id: bookingRoomId }, data: { roomId } })
+    })
+  }
+
+  async moveRoom(bookingRoomId: string, newRoomId: string, movedBy: string, propertyId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const br = await tx.bookingRoom.findUnique({
+        where: { id: bookingRoomId },
+        include: { booking: true },
+      })
+      if (!br || br.booking.propertyId !== propertyId) throw new NotFoundException('ไม่พบข้อมูลการจองห้อง')
 
       const room = await tx.room.findUnique({ where: { id: newRoomId } })
       if (!room) throw new NotFoundException('ไม่พบห้อง')
@@ -420,13 +430,13 @@ export class BookingsService {
     })
   }
 
-  async checkIn(bookingId: string, checkedInBy: string) {
+  async checkIn(bookingId: string, checkedInBy: string, propertyId: string) {
     return this.prisma.$transaction(async (tx) => {
       const booking = await tx.booking.findUnique({
         where: { id: bookingId },
         include: { bookingRooms: { include: { room: true } }, guest: { select: { blacklistFlag: true } } },
       })
-      if (!booking) throw new NotFoundException('ไม่พบการจอง')
+      if (!booking || booking.propertyId !== propertyId) throw new NotFoundException('ไม่พบการจอง')
       if (booking.status === 'pending') {
         throw new BadRequestException('การจองนี้ยังรอการยืนยัน กรุณายืนยันการจองก่อน Check-in')
       }
@@ -483,7 +493,7 @@ export class BookingsService {
     })
   }
 
-  async checkOut(bookingId: string, checkedOutBy: string) {
+  async checkOut(bookingId: string, checkedOutBy: string, propertyId: string) {
     return this.prisma.$transaction(async (tx) => {
       const booking = await tx.booking.findUnique({
         where: { id: bookingId },
@@ -492,7 +502,7 @@ export class BookingsService {
           folios: { include: { items: { where: { isVoided: false } }, payments: { include: { refunds: true } }, deposits: true } },
         },
       })
-      if (!booking) throw new NotFoundException('ไม่พบการจอง')
+      if (!booking || booking.propertyId !== propertyId) throw new NotFoundException('ไม่พบการจอง')
       if (booking.status !== 'checked_in') {
         throw new BadRequestException('สถานะการจองต้องเป็น Checked In ก่อน Check-out')
       }
@@ -572,10 +582,10 @@ export class BookingsService {
     })
   }
 
-  async cancel(bookingId: string, data: { reason: string; refundAmount?: number; cancellationFee?: number }, cancelledBy: string) {
+  async cancel(bookingId: string, data: { reason: string; refundAmount?: number; cancellationFee?: number }, cancelledBy: string, propertyId: string) {
     return this.prisma.$transaction(async (tx) => {
       const booking = await tx.booking.findUnique({ where: { id: bookingId } })
-      if (!booking) throw new NotFoundException('ไม่พบการจอง')
+      if (!booking || booking.propertyId !== propertyId) throw new NotFoundException('ไม่พบการจอง')
       if (['checked_in', 'checked_out', 'cancelled'].includes(booking.status)) {
         throw new BadRequestException('ไม่สามารถยกเลิกการจองในสถานะนี้')
       }
@@ -625,9 +635,14 @@ export class BookingsService {
     })
   }
 
-  async adjustRate(bookingId: string, data: { bookingRoomId: string; newRate: number; reason: string; adjustmentType?: string }, adjustedBy: string) {
-    const bookingRoom = await this.prisma.bookingRoom.findUnique({ where: { id: data.bookingRoomId } })
-    if (!bookingRoom) throw new NotFoundException('ไม่พบข้อมูลห้องในการจอง')
+  async adjustRate(bookingId: string, data: { bookingRoomId: string; newRate: number; reason: string; adjustmentType?: string }, adjustedBy: string, propertyId: string) {
+    const bookingRoom = await this.prisma.bookingRoom.findUnique({
+      where: { id: data.bookingRoomId },
+      include: { booking: { select: { id: true, propertyId: true } } },
+    })
+    if (!bookingRoom || bookingRoom.booking.propertyId !== propertyId || bookingRoom.bookingId !== bookingId) {
+      throw new NotFoundException('ไม่พบข้อมูลห้องในการจอง')
+    }
 
     const oldPrice = Number(bookingRoom.rate)
 
@@ -680,27 +695,29 @@ export class BookingsService {
     })
   }
 
-  async confirmBooking(bookingId: string, confirmedBy: string) {
+  async confirmBooking(bookingId: string, confirmedBy: string, propertyId: string) {
     const booking = await this.prisma.booking.findUnique({ where: { id: bookingId } })
-    if (!booking) throw new NotFoundException('ไม่พบการจอง')
+    if (!booking || booking.propertyId !== propertyId) throw new NotFoundException('ไม่พบการจอง')
     if (booking.status !== 'pending') throw new BadRequestException('การจองนี้ไม่อยู่ในสถานะรอยืนยัน')
 
-    await this.prisma.booking.update({ where: { id: bookingId }, data: { status: 'confirmed' } })
-    await this.prisma.bookingStatusLog.create({
-      data: { bookingId, oldStatus: 'pending', newStatus: 'confirmed', changedBy: confirmedBy, remark: 'ยืนยันการจองด้วยตนเอง' },
+    return this.prisma.$transaction(async (tx) => {
+      await tx.booking.update({ where: { id: bookingId }, data: { status: 'confirmed' } })
+      await tx.bookingStatusLog.create({
+        data: { bookingId, oldStatus: 'pending', newStatus: 'confirmed', changedBy: confirmedBy, remark: 'ยืนยันการจองด้วยตนเอง' },
+      })
+      await tx.auditLog.create({
+        data: { propertyId: booking.propertyId, userId: confirmedBy, action: 'BOOKING_CONFIRM', entityType: 'booking', entityId: bookingId },
+      })
+      return { success: true }
     })
-    await this.prisma.auditLog.create({
-      data: { propertyId: booking.propertyId, userId: confirmedBy, action: 'BOOKING_CONFIRM', entityType: 'booking', entityId: bookingId },
-    })
-    return { success: true }
   }
 
-  async markNoShow(bookingId: string, data: { noShowFee?: number; remark?: string }, markedBy: string) {
+  async markNoShow(bookingId: string, data: { noShowFee?: number; remark?: string }, markedBy: string, propertyId: string) {
     const booking = await this.prisma.booking.findUnique({
       where: { id: bookingId },
       include: { bookingRooms: true, folios: { include: { items: true } } },
     })
-    if (!booking) throw new NotFoundException('ไม่พบการจอง')
+    if (!booking || booking.propertyId !== propertyId) throw new NotFoundException('ไม่พบการจอง')
     if (booking.status !== 'confirmed') throw new BadRequestException('สถานะต้องเป็น Confirmed')
 
     return this.prisma.$transaction(async (tx) => {
@@ -744,7 +761,9 @@ export class BookingsService {
     return this.prisma.bookingSource.create({ data: { ...data, sourceType: data.sourceType || 'direct' } })
   }
 
-  async updateBookingSource(id: string, data: Partial<{ name: string; sourceType: string; active: boolean }>) {
+  async updateBookingSource(id: string, data: Partial<{ name: string; sourceType: string; active: boolean }>, propertyId: string) {
+    const source = await this.prisma.bookingSource.findUnique({ where: { id } })
+    if (!source || source.propertyId !== propertyId) throw new NotFoundException('ไม่พบช่องทางการจอง')
     return this.prisma.bookingSource.update({ where: { id }, data })
   }
 }

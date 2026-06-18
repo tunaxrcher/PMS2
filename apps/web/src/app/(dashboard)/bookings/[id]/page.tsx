@@ -127,7 +127,43 @@ export default function BookingDetailPage() {
   if (isLoading) {
     return (
       <AppShell title="การจอง">
-        <div className="space-y-4">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-32 w-full rounded-2xl" />)}</div>
+        <div className="space-y-5">
+          {/* Status bar */}
+          <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-6 w-24 rounded-full" />
+              <Skeleton className="h-3.5 w-36" />
+            </div>
+            <div className="flex gap-2">
+              <Skeleton className="h-8 w-24 rounded-xl" />
+              <Skeleton className="h-8 w-20 rounded-xl" />
+            </div>
+          </div>
+          {/* 2-col content */}
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+            <div className="lg:col-span-2 space-y-4">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 space-y-3">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-3 w-3/4" />
+                <Skeleton className="h-3 w-2/3" />
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 space-y-3">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-16 w-full rounded-xl" />
+              </div>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 space-y-3">
+              <Skeleton className="h-4 w-24" />
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="flex justify-between">
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="h-3 w-16" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </AppShell>
     )
   }

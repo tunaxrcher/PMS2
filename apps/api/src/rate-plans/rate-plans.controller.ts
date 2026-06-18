@@ -24,8 +24,8 @@ export class RatePlansController {
   @Patch(':id')
   @UseGuards(PermissionsGuard)
   @RequirePermissions(PERMISSIONS.RATE_PLAN_MANAGE)
-  update(@Param('id') id: string, @Body() body: Parameters<RatePlansService['update']>[1]) {
-    return this.service.update(id, body)
+  update(@Param('id') id: string, @Body() body: Parameters<RatePlansService['update']>[1], @CurrentUser() user: JwtPayload) {
+    return this.service.update(id, body, user.propertyId!)
   }
 
   @Get('daily-rates')

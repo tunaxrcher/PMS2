@@ -5,11 +5,13 @@ import { PrismaService } from '../prisma/prisma.service'
 export class PropertiesService {
   constructor(private prisma: PrismaService) {}
 
-  async findAll() {
-    return this.prisma.property.findMany({ orderBy: { name: 'asc' } })
+  async findAll(propertyId: string) {
+    // A user only ever sees their own property
+    return this.prisma.property.findMany({ where: { id: propertyId }, orderBy: { name: 'asc' } })
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, propertyId: string) {
+    if (id !== propertyId) throw new NotFoundException('ไม่พบข้อมูลที่พัก')
     const prop = await this.prisma.property.findUnique({ where: { id } })
     if (!prop) throw new NotFoundException('ไม่พบข้อมูลที่พัก')
     return prop
@@ -27,7 +29,8 @@ export class PropertiesService {
     serviceChargeRate: number
     priceIncludeTax: boolean
     active: boolean
-  }>) {
+  }>, propertyId: string) {
+    if (id !== propertyId) throw new NotFoundException('ไม่พบข้อมูลที่พัก')
     return this.prisma.property.update({ where: { id }, data })
   }
 }

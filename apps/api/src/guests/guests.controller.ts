@@ -4,6 +4,7 @@ import { PermissionsGuard } from '../auth/guards/permissions.guard'
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator'
 import { CurrentUser, JwtPayload } from '../auth/decorators/current-user.decorator'
 import { GuestsService } from './guests.service'
+import { CreateGuestDto, UpdateGuestDto } from './dto/guest.dto'
 import { PERMISSIONS } from '../common/permissions'
 
 @UseGuards(JwtAuthGuard)
@@ -32,28 +33,30 @@ export class GuestsController {
   @Get(':id')
   @UseGuards(PermissionsGuard)
   @RequirePermissions(PERMISSIONS.GUEST_VIEW)
-  findOne(@Param('id') id: string, @Query('sensitive') sensitive?: string, @CurrentUser() user?: JwtPayload) {
-    return this.service.findOne(id, sensitive === 'true', user?.propertyId || undefined)
+  findOne(@Param('id') id: string, @CurrentUser() user: JwtPayload, @Query('sensitive') sensitive?: string) {
+    // Only expose PII if caller actually holds the sensitive-view permission
+    const canViewSensitive = sensitive === 'true' && user.permissions.includes(PERMISSIONS.GUEST_VIEW_SENSITIVE)
+    return this.service.findOne(id, canViewSensitive, user.propertyId!)
   }
 
   @Get(':id/bookings')
   @UseGuards(PermissionsGuard)
   @RequirePermissions(PERMISSIONS.GUEST_VIEW)
-  getBookingHistory(@Param('id') id: string) {
-    return this.service.getBookingHistory(id)
+  getBookingHistory(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    return this.service.getBookingHistory(id, user.propertyId!)
   }
 
   @Post()
   @UseGuards(PermissionsGuard)
   @RequirePermissions(PERMISSIONS.GUEST_CREATE)
-  create(@Body() body: Parameters<GuestsService['create']>[0], @CurrentUser() user: JwtPayload) {
+  create(@Body() body: CreateGuestDto, @CurrentUser() user: JwtPayload) {
     return this.service.create({ ...body, propertyId: user.propertyId! })
   }
 
   @Patch(':id')
   @UseGuards(PermissionsGuard)
   @RequirePermissions(PERMISSIONS.GUEST_UPDATE)
-  update(@Param('id') id: string, @Body() body: Parameters<GuestsService['update']>[1]) {
-    return this.service.update(id, body)
+  update(@Param('id') id: string, @Body() body: UpdateGuestDto, @CurrentUser() user: JwtPayload) {
+    return this.service.update(id, body, user.propertyId!)
   }
 }

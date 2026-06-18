@@ -80,7 +80,24 @@ export default function GuestsPage() {
 
         <GlassPanel dense padding="none">
           {isLoading ? (
-            <div className="p-5 space-y-3">{[...Array(6)].map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
+            <div className="divide-y divide-white/5">
+              {[...Array(8)].map((_, i) => (
+                <div key={i} className="flex items-center gap-4 px-4 py-3.5">
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <Skeleton className="h-3.5 w-40" />
+                  </div>
+                  <div className="flex-1 min-w-0 space-y-1.5">
+                    <Skeleton className="h-3 w-32" />
+                    <Skeleton className="h-3 w-24" />
+                  </div>
+                  <Skeleton className="h-3.5 w-16 flex-shrink-0" />
+                  <div className="flex gap-1.5 flex-shrink-0">
+                    <Skeleton className="h-7 w-7 rounded-lg" />
+                    <Skeleton className="h-7 w-12 rounded-lg" />
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : !data?.guests?.length ? (
             <EmptyState icon={Users} title="ไม่พบลูกค้า" description={search ? `ไม่พบลูกค้าที่ค้นหา "${search}"` : 'ยังไม่มีข้อมูลลูกค้า'} className="m-4" />
           ) : (

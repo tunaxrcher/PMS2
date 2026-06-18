@@ -19,7 +19,7 @@ export class MaintenanceController {
 
   @Get(':id')
   @RequirePermissions(PERMISSIONS.MAINTENANCE_VIEW)
-  findOne(@Param('id') id: string) { return this.service.findOne(id) }
+  findOne(@Param('id') id: string, @CurrentUser() user: JwtPayload) { return this.service.findOne(id, user.propertyId!) }
 
   @Post()
   @RequirePermissions(PERMISSIONS.MAINTENANCE_CREATE)
@@ -28,15 +28,15 @@ export class MaintenanceController {
   }
 
   @Patch(':id')
-  @RequirePermissions(PERMISSIONS.MAINTENANCE_VIEW)
-  update(@Param('id') id: string, @Body() body: { status?: string; priority?: string; issueDetail?: string }) {
-    return this.service.update(id, body)
+  @RequirePermissions(PERMISSIONS.MAINTENANCE_CREATE)
+  update(@Param('id') id: string, @Body() body: { status?: string; priority?: string; issueDetail?: string }, @CurrentUser() user: JwtPayload) {
+    return this.service.update(id, body, user.propertyId!)
   }
 
   @Post(':id/resolve')
   @HttpCode(200)
   @RequirePermissions(PERMISSIONS.MAINTENANCE_RESOLVE)
   resolve(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
-    return this.service.resolve(id, user.sub)
+    return this.service.resolve(id, user.sub, user.propertyId!)
   }
 }

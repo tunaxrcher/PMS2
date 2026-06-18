@@ -14,10 +14,14 @@ export class RatePlansService {
   }
 
   async create(data: { propertyId: string; roomTypeId: string; name: string; basePrice: number; mealPlan?: string; cancellationPolicy?: string }) {
+    const roomType = await this.prisma.roomType.findUnique({ where: { id: data.roomTypeId }, select: { propertyId: true } })
+    if (!roomType || roomType.propertyId !== data.propertyId) throw new NotFoundException('ไม่พบประเภทห้อง')
     return this.prisma.ratePlan.create({ data, include: { roomType: true } })
   }
 
-  async update(id: string, data: Partial<{ name: string; basePrice: number; mealPlan: string; cancellationPolicy: string; active: boolean }>) {
+  async update(id: string, data: Partial<{ name: string; basePrice: number; mealPlan: string; cancellationPolicy: string; active: boolean }>, propertyId: string) {
+    const plan = await this.prisma.ratePlan.findUnique({ where: { id }, select: { propertyId: true } })
+    if (!plan || plan.propertyId !== propertyId) throw new NotFoundException('ไม่พบ Rate Plan')
     return this.prisma.ratePlan.update({ where: { id }, data, include: { roomType: true } })
   }
 

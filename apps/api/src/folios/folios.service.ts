@@ -5,7 +5,36 @@ import { PrismaService } from '../prisma/prisma.service'
 export class FoliosService {
   constructor(private prisma: PrismaService) {}
 
-  async findOne(id: string) {
+  // ── Tenant-isolation helpers ──────────────────────────────────
+  // Resolve & verify a folio belongs to the caller's property.
+  private async assertFolioProperty(folioId: string, propertyId: string) {
+    const folio = await this.prisma.folio.findUnique({
+      where: { id: folioId },
+      include: { booking: { select: { propertyId: true } } },
+    })
+    if (!folio || folio.booking.propertyId !== propertyId) throw new NotFoundException('ไม่พบ Folio')
+    return folio
+  }
+
+  private async assertPaymentProperty(paymentId: string, propertyId: string) {
+    const payment = await this.prisma.payment.findUnique({
+      where: { id: paymentId },
+      include: { folio: { include: { booking: { select: { propertyId: true } } } }, refunds: true },
+    })
+    if (!payment || payment.folio.booking.propertyId !== propertyId) throw new NotFoundException('ไม่พบรายการชำระเงิน')
+    return payment
+  }
+
+  private async assertDepositProperty(depositId: string, propertyId: string) {
+    const deposit = await this.prisma.deposit.findUnique({
+      where: { id: depositId },
+      include: { booking: { select: { propertyId: true } } },
+    })
+    if (!deposit || deposit.booking.propertyId !== propertyId) throw new NotFoundException('ไม่พบมัดจำ')
+    return deposit
+  }
+
+  async findOne(id: string, propertyId: string) {
     const folio = await this.prisma.folio.findUnique({
       where: { id },
       include: {
@@ -15,7 +44,7 @@ export class FoliosService {
         booking: { include: { guest: true } },
       },
     })
-    if (!folio) throw new NotFoundException('ไม่พบ Folio')
+    if (!folio || folio.booking.propertyId !== propertyId) throw new NotFoundException('ไม่พบ Folio')
     return folio
   }
 
@@ -25,9 +54,8 @@ export class FoliosService {
     quantity: number
     unitPrice: number
     serviceDate: string
-  }, createdBy: string) {
-    const folio = await this.prisma.folio.findUnique({ where: { id: folioId } })
-    if (!folio) throw new NotFoundException('ไม่พบ Folio')
+  }, createdBy: string, propertyId: string) {
+    const folio = await this.assertFolioProperty(folioId, propertyId)
     if (folio.status !== 'open') throw new BadRequestException('Folio ถูกปิดแล้ว')
 
     return this.prisma.folioItem.create({
@@ -48,9 +76,8 @@ export class FoliosService {
     description: string
     amount: number
     serviceDate: string
-  }, createdBy: string) {
-    const folio = await this.prisma.folio.findUnique({ where: { id: folioId } })
-    if (!folio) throw new NotFoundException('ไม่พบ Folio')
+  }, createdBy: string, propertyId: string) {
+    const folio = await this.assertFolioProperty(folioId, propertyId)
     if (folio.status !== 'open') throw new BadRequestException('Folio ถูกปิดแล้ว')
 
     return this.prisma.folioItem.create({
@@ -67,9 +94,12 @@ export class FoliosService {
     })
   }
 
-  async voidItem(itemId: string, voidedBy: string) {
-    const item = await this.prisma.folioItem.findUnique({ where: { id: itemId } })
-    if (!item) throw new NotFoundException('ไม่พบรายการ')
+  async voidItem(itemId: string, voidedBy: string, propertyId: string) {
+    const item = await this.prisma.folioItem.findUnique({
+      where: { id: itemId },
+      include: { folio: { include: { booking: { select: { propertyId: true } } } } },
+    })
+    if (!item || item.folio.booking.propertyId !== propertyId) throw new NotFoundException('ไม่พบรายการ')
     if (item.isVoided) throw new BadRequestException('รายการนี้ถูก Void แล้ว')
 
     await this.prisma.auditLog.create({
@@ -83,9 +113,8 @@ export class FoliosService {
     paymentMethod: string
     amount: number
     referenceNo?: string
-  }, receivedBy: string) {
-    const folio = await this.prisma.folio.findUnique({ where: { id: folioId } })
-    if (!folio) throw new NotFoundException('ไม่พบ Folio')
+  }, receivedBy: string, propertyId: string) {
+    const folio = await this.assertFolioProperty(folioId, propertyId)
     if (folio.status !== 'open') throw new BadRequestException('Folio ถูกปิดแล้ว')
     if (data.amount <= 0) throw new BadRequestException('จำนวนเงินต้องมากกว่า 0')
 
@@ -113,9 +142,8 @@ export class FoliosService {
     return payment
   }
 
-  async voidPayment(paymentId: string, reason: string, voidedBy: string) {
-    const payment = await this.prisma.payment.findUnique({ where: { id: paymentId } })
-    if (!payment) throw new NotFoundException('ไม่พบรายการชำระเงิน')
+  async voidPayment(paymentId: string, reason: string, voidedBy: string, propertyId: string) {
+    const payment = await this.assertPaymentProperty(paymentId, propertyId)
     if (payment.status !== 'paid') throw new BadRequestException('ไม่สามารถ Void รายการนี้ได้')
 
     const updated = await this.prisma.payment.update({ where: { id: paymentId }, data: { status: 'voided' } })
@@ -133,9 +161,8 @@ export class FoliosService {
     return updated
   }
 
-  async refundPayment(paymentId: string, data: { amount: number; reason: string }, refundedBy: string) {
-    const payment = await this.prisma.payment.findUnique({ where: { id: paymentId }, include: { refunds: true } })
-    if (!payment) throw new NotFoundException('ไม่พบรายการชำระเงิน')
+  async refundPayment(paymentId: string, data: { amount: number; reason: string }, refundedBy: string, propertyId: string) {
+    const payment = await this.assertPaymentProperty(paymentId, propertyId)
     if (!['paid', 'partial_refunded'].includes(payment.status)) throw new BadRequestException('ไม่สามารถคืนเงินรายการนี้ได้')
 
     // Check cumulative refunds don't exceed payment amount
@@ -180,12 +207,12 @@ export class FoliosService {
     paymentMethod: string
     referenceNo?: string
     remark?: string
-  }, receivedBy: string) {
+  }, receivedBy: string, propertyId: string) {
     const bookingWithFolio = await this.prisma.booking.findUnique({
       where: { id: bookingId },
       include: { folios: true },
     })
-    if (!bookingWithFolio) throw new NotFoundException('ไม่พบการจอง')
+    if (!bookingWithFolio || bookingWithFolio.propertyId !== propertyId) throw new NotFoundException('ไม่พบการจอง')
 
     const folioId = bookingWithFolio.folios[0]?.id
 
@@ -215,30 +242,29 @@ export class FoliosService {
     return deposit
   }
 
-  async applyDeposit(depositId: string, appliedBy: string) {
-    const deposit = await this.prisma.deposit.findUnique({ where: { id: depositId } })
-    if (!deposit) throw new NotFoundException('ไม่พบมัดจำ')
+  async applyDeposit(depositId: string, appliedBy: string, propertyId: string) {
+    const deposit = await this.assertDepositProperty(depositId, propertyId)
     if (deposit.status !== 'held') throw new BadRequestException('มัดจำนี้ไม่สามารถนำมาใช้ได้')
     return this.prisma.deposit.update({ where: { id: depositId }, data: { status: 'applied' } })
   }
 
-  async refundDeposit(depositId: string, reason: string, refundedBy: string) {
-    const deposit = await this.prisma.deposit.findUnique({ where: { id: depositId } })
-    if (!deposit) throw new NotFoundException('ไม่พบมัดจำ')
+  async refundDeposit(depositId: string, reason: string, refundedBy: string, propertyId: string) {
+    const deposit = await this.assertDepositProperty(depositId, propertyId)
     if (deposit.status !== 'held') throw new BadRequestException('มัดจำนี้ไม่สามารถคืนได้')
     return this.prisma.deposit.update({ where: { id: depositId }, data: { status: 'refunded' } })
   }
 
-  async closeFolio(folioId: string, closedBy: string) {
+  async closeFolio(folioId: string, closedBy: string, propertyId: string) {
     const folio = await this.prisma.folio.findUnique({
       where: { id: folioId },
       include: {
         items: { where: { isVoided: false } },
         payments: { include: { refunds: true } },
         deposits: true,
+        booking: { select: { propertyId: true } },
       },
     })
-    if (!folio) throw new NotFoundException('ไม่พบ Folio')
+    if (!folio || folio.booking.propertyId !== propertyId) throw new NotFoundException('ไม่พบ Folio')
     if (folio.status !== 'open') throw new BadRequestException('Folio ถูกปิดแล้ว')
 
     const totalCharges = folio.items.reduce((sum, i) => sum + Number(i.totalAmount), 0)
@@ -273,17 +299,17 @@ export class FoliosService {
     })
   }
 
-  async getSummary(folioId: string) {
+  async getSummary(folioId: string, propertyId: string) {
     const folio = await this.prisma.folio.findUnique({
       where: { id: folioId },
       include: {
         items: { where: { isVoided: false } },
         payments: { include: { refunds: true } },
         deposits: true,
-        booking: { select: { id: true } },
+        booking: { select: { id: true, propertyId: true } },
       },
     })
-    if (!folio) throw new NotFoundException('ไม่พบ Folio')
+    if (!folio || folio.booking.propertyId !== propertyId) throw new NotFoundException('ไม่พบ Folio')
 
     const totalCharges = folio.items.reduce((sum, i) => sum + Number(i.totalAmount), 0)
 

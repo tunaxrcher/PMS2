@@ -23,12 +23,12 @@ export class UsersService {
     return users.map((u) => this.sanitize(u))
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, propertyId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id },
       include: { userRoles: { include: { role: true } } },
     })
-    if (!user) throw new NotFoundException('ไม่พบผู้ใช้งาน')
+    if (!user || user.propertyId !== propertyId) throw new NotFoundException('ไม่พบผู้ใช้งาน')
     return this.sanitize(user)
   }
 
@@ -71,10 +71,11 @@ export class UsersService {
       lastName?: string
       active?: boolean
       roleName?: string
-    }
+    },
+    propertyId: string,
   ) {
     const user = await this.prisma.user.findUnique({ where: { id } })
-    if (!user) throw new NotFoundException('ไม่พบผู้ใช้งาน')
+    if (!user || user.propertyId !== propertyId) throw new NotFoundException('ไม่พบผู้ใช้งาน')
 
     if (data.roleName) {
       const role = await this.prisma.role.findUnique({ where: { name: data.roleName } })
@@ -96,9 +97,9 @@ export class UsersService {
     return this.sanitize(updated)
   }
 
-  async resetPin(id: string) {
+  async resetPin(id: string, propertyId: string) {
     const user = await this.prisma.user.findUnique({ where: { id } })
-    if (!user) throw new NotFoundException('ไม่พบผู้ใช้งาน')
+    if (!user || user.propertyId !== propertyId) throw new NotFoundException('ไม่พบผู้ใช้งาน')
     const pinHash = await bcrypt.hash('000000', 10)
     await this.prisma.user.update({
       where: { id },

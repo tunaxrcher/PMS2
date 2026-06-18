@@ -17,9 +17,15 @@ export class MaintenanceService {
     })
   }
 
-  async findOne(id: string) {
-    const ticket = await this.prisma.maintenanceTicket.findUnique({
-      where: { id },
+  private async assertTicketProperty(id: string, propertyId: string) {
+    const ticket = await this.prisma.maintenanceTicket.findUnique({ where: { id } })
+    if (!ticket || ticket.propertyId !== propertyId) throw new NotFoundException('ไม่พบใบแจ้งซ่อม')
+    return ticket
+  }
+
+  async findOne(id: string, propertyId: string) {
+    const ticket = await this.prisma.maintenanceTicket.findFirst({
+      where: { id, propertyId },
       include: { room: { include: { roomType: true, zone: true } } },
     })
     if (!ticket) throw new NotFoundException('ไม่พบใบแจ้งซ่อม')
@@ -34,44 +40,45 @@ export class MaintenanceService {
     priority?: string
     reportedBy: string
   }) {
-    const ticket = await this.prisma.maintenanceTicket.create({ data, include: { room: true } })
-
-    // Set room to out_of_order if it's a room issue
-    if (data.roomId && ['high', 'urgent'].includes(data.priority || '')) {
-      await this.prisma.room.update({
-        where: { id: data.roomId },
-        data: { currentStatus: 'out_of_order' },
-      })
+    if (data.roomId) {
+      const room = await this.prisma.room.findUnique({ where: { id: data.roomId }, select: { propertyId: true } })
+      if (!room || room.propertyId !== data.propertyId) throw new NotFoundException('ไม่พบห้อง')
     }
-
-    return ticket
+    return this.prisma.$transaction(async (tx) => {
+      const ticket = await tx.maintenanceTicket.create({ data, include: { room: true } })
+      // Set room to out_of_order if it's a high/urgent room issue
+      if (data.roomId && ['high', 'urgent'].includes(data.priority || '')) {
+        await tx.room.update({ where: { id: data.roomId }, data: { currentStatus: 'out_of_order' } })
+      }
+      return ticket
+    })
   }
 
-  async update(id: string, data: Partial<{ issueTitle: string; issueDetail: string; priority: string; status: string }>) {
-    const ticket = await this.prisma.maintenanceTicket.findUnique({ where: { id } })
-    if (!ticket) throw new NotFoundException('ไม่พบใบแจ้งซ่อม')
+  async update(id: string, data: Partial<{ issueTitle: string; issueDetail: string; priority: string; status: string }>, propertyId: string) {
+    await this.assertTicketProperty(id, propertyId)
     return this.prisma.maintenanceTicket.update({ where: { id }, data })
   }
 
-  async resolve(id: string, resolvedBy: string) {
-    const ticket = await this.prisma.maintenanceTicket.findUnique({ where: { id } })
-    if (!ticket) throw new NotFoundException('ไม่พบใบแจ้งซ่อม')
+  async resolve(id: string, resolvedBy: string, propertyId: string) {
+    const ticket = await this.assertTicketProperty(id, propertyId)
 
-    const resolved = await this.prisma.maintenanceTicket.update({
-      where: { id },
-      data: { status: 'resolved', resolvedBy, resolvedAt: new Date() },
-    })
-
-    // Clear OOO if room was set by this ticket and no other open tickets
-    if (ticket.roomId) {
-      const openTickets = await this.prisma.maintenanceTicket.count({
-        where: { roomId: ticket.roomId, status: { in: ['open', 'in_progress'] } },
+    return this.prisma.$transaction(async (tx) => {
+      const resolved = await tx.maintenanceTicket.update({
+        where: { id },
+        data: { status: 'resolved', resolvedBy, resolvedAt: new Date() },
       })
-      if (openTickets === 0) {
-        await this.prisma.room.update({ where: { id: ticket.roomId }, data: { currentStatus: 'clean' } })
-      }
-    }
 
-    return resolved
+      // Clear OOO if room was set by this ticket and no other open tickets
+      if (ticket.roomId) {
+        const openTickets = await tx.maintenanceTicket.count({
+          where: { roomId: ticket.roomId, status: { in: ['open', 'in_progress'] } },
+        })
+        if (openTickets === 0) {
+          await tx.room.update({ where: { id: ticket.roomId }, data: { currentStatus: 'clean' } })
+        }
+      }
+
+      return resolved
+    })
   }
 }

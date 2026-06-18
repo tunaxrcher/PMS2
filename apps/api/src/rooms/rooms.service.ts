@@ -22,12 +22,18 @@ export class RoomsService {
     })
   }
 
-  async findOne(id: string) {
+  private async assertRoomProperty(id: string, propertyId: string) {
+    const room = await this.prisma.room.findUnique({ where: { id } })
+    if (!room || room.propertyId !== propertyId) throw new NotFoundException('ไม่พบห้อง')
+    return room
+  }
+
+  async findOne(id: string, propertyId: string) {
     const room = await this.prisma.room.findUnique({
       where: { id },
       include: { roomType: true, zone: true },
     })
-    if (!room) throw new NotFoundException('ไม่พบห้อง')
+    if (!room || room.propertyId !== propertyId) throw new NotFoundException('ไม่พบห้อง')
     return room
   }
 
@@ -41,6 +47,12 @@ export class RoomsService {
     buildingName?: string
     maxOccupancy: number
   }) {
+    const roomType = await this.prisma.roomType.findUnique({ where: { id: data.roomTypeId }, select: { propertyId: true } })
+    if (!roomType || roomType.propertyId !== data.propertyId) throw new NotFoundException('ไม่พบประเภทห้อง')
+    if (data.zoneId) {
+      const zone = await this.prisma.zone.findUnique({ where: { id: data.zoneId }, select: { propertyId: true } })
+      if (!zone || zone.propertyId !== data.propertyId) throw new NotFoundException('ไม่พบโซน')
+    }
     return this.prisma.room.create({
       data,
       include: { roomType: true, zone: true },
@@ -56,15 +68,13 @@ export class RoomsService {
     buildingName: string
     maxOccupancy: number
     active: boolean
-  }>) {
-    const room = await this.prisma.room.findUnique({ where: { id } })
-    if (!room) throw new NotFoundException('ไม่พบห้อง')
+  }>, propertyId: string) {
+    await this.assertRoomProperty(id, propertyId)
     return this.prisma.room.update({ where: { id }, data, include: { roomType: true, zone: true } })
   }
 
-  async updateStatus(id: string, status: string, changedBy: string, reason?: string) {
-    const room = await this.prisma.room.findUnique({ where: { id } })
-    if (!room) throw new NotFoundException('ไม่พบห้อง')
+  async updateStatus(id: string, status: string, changedBy: string, propertyId: string, reason?: string) {
+    const room = await this.assertRoomProperty(id, propertyId)
 
     const validStatuses = ['clean', 'dirty', 'occupied', 'cleaning', 'inspected', 'out_of_order', 'out_of_service']
     if (!validStatuses.includes(status)) throw new BadRequestException('สถานะไม่ถูกต้อง')
@@ -85,7 +95,8 @@ export class RoomsService {
     return this.prisma.room.findUnique({ where: { id }, include: { roomType: true, zone: true } })
   }
 
-  async getStatusLogs(roomId: string) {
+  async getStatusLogs(roomId: string, propertyId: string) {
+    await this.assertRoomProperty(roomId, propertyId)
     return this.prisma.roomStatusLog.findMany({
       where: { roomId },
       orderBy: { createdAt: 'desc' },
@@ -93,30 +104,30 @@ export class RoomsService {
     })
   }
 
-  async removeRoom(id: string) {
-    const room = await this.prisma.room.findUnique({ where: { id } })
-    if (!room) throw new NotFoundException('ไม่พบห้อง')
-    const hasBookings = await this.prisma.bookingRoom.count({
-      where: { roomId: id, booking: { status: { in: ['confirmed', 'checked_in'] } } },
-    })
-    if (hasBookings > 0) {
-      return this.prisma.room.update({ where: { id }, data: { active: false } })
-    }
+  async removeRoom(id: string, propertyId: string) {
+    await this.assertRoomProperty(id, propertyId)
     return this.prisma.room.update({ where: { id }, data: { active: false } })
   }
 
-  async addRoomImage(roomId: string, data: { url: string; caption?: string; isPrimary?: boolean; sortOrder?: number }) {
+  async addRoomImage(roomId: string, data: { url: string; caption?: string; isPrimary?: boolean; sortOrder?: number }, propertyId: string) {
+    await this.assertRoomProperty(roomId, propertyId)
     if (data.isPrimary) {
       await this.prisma.roomImage.updateMany({ where: { roomId }, data: { isPrimary: false } })
     }
     return this.prisma.roomImage.create({ data: { roomId, ...data } })
   }
 
-  async deleteRoomImage(imageId: string) {
+  async deleteRoomImage(imageId: string, propertyId: string) {
+    const image = await this.prisma.roomImage.findUnique({
+      where: { id: imageId },
+      include: { room: { select: { propertyId: true } } },
+    })
+    if (!image || image.room.propertyId !== propertyId) throw new NotFoundException('ไม่พบรูปภาพ')
     return this.prisma.roomImage.delete({ where: { id: imageId } })
   }
 
-  async getRoomImages(roomId: string) {
+  async getRoomImages(roomId: string, propertyId: string) {
+    await this.assertRoomProperty(roomId, propertyId)
     return this.prisma.roomImage.findMany({ where: { roomId }, orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }] })
   }
 

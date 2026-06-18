@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -67,14 +67,14 @@ const PAYMENT_METHODS = [
 ]
 
 // ── Glass card ─────────────────────────────────────────────────
-function GlassCard({ children, className = '', delay = 0, ...props }: React.HTMLAttributes<HTMLDivElement> & { delay?: number }) {
+function GlassCard({ children, className = '', delay = 0, style }: React.HTMLAttributes<HTMLDivElement> & { delay?: number }) {
   return (
     <motion.div
       className={cn('rounded-3xl border border-white/[0.14] bg-white/[0.06] backdrop-blur-xl overflow-hidden', className)}
+      style={style}
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay }}
-      {...(props as object)}
     >
       {children}
     </motion.div>
@@ -82,7 +82,11 @@ function GlassCard({ children, className = '', delay = 0, ...props }: React.HTML
 }
 
 // ── Circular Gauge ────────────────────────────────────────────
-function OccupancyGauge({ pct, occupied, available, ooo }: { pct: number; occupied: number; available: number; ooo: number }) {
+// pct = final value for smooth circle animation
+// displayPct = countUp animated value for the number text
+function OccupancyGauge({ pct, displayPct, occupied, available, ooo }: {
+  pct: number; displayPct: number; occupied: number; available: number; ooo: number
+}) {
   const size = 130, stroke = 10, r = (size - stroke) / 2
   const circ = 2 * Math.PI * r
   const color = pct > 80 ? '#f87171' : pct > 50 ? '#fbbf24' : '#34d399'
@@ -100,7 +104,7 @@ function OccupancyGauge({ pct, occupied, available, ooo }: { pct: number; occupi
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-3xl font-black text-stone-50">{pct}%</span>
+          <span className="text-3xl font-black text-stone-50">{displayPct}%</span>
           <span className="text-[0.625rem] text-stone-600 mt-0.5">Occupancy</span>
         </div>
       </div>
@@ -130,18 +134,18 @@ function BookingRow({ b, type, index = 0 }: { b: BookingItem; type: 'in' | 'out'
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: 0.3 + index * 0.07, duration: 0.25 }}
     >
-    <Link href={`/bookings/${b.id}`}
-      className="flex items-center gap-2.5 px-3 py-2 rounded-2xl hover:bg-white/[0.05] transition-colors group">
-      <div className={cn('flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-xl text-[0.6875rem] font-bold',
-        type === 'in' ? 'bg-emerald-400/15 text-emerald-300' : 'bg-amber-400/15 text-amber-300')}>
-        {b.guest.firstName[0]}{b.guest.lastName[0]}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="text-xs font-medium text-stone-200 truncate">{b.guest.firstName} {b.guest.lastName}</div>
-        <div className="text-[0.625rem] text-stone-600 truncate">{b.bookingRooms[0]?.room?.roomNumber || b.bookingRooms[0]?.roomType?.name}</div>
-      </div>
-      <StatusBadge status={b.status} size="sm" />
-    </Link>
+      <Link href={`/bookings/${b.id}`}
+        className="flex items-center gap-2.5 px-3 py-2 rounded-2xl hover:bg-white/[0.05] transition-colors group">
+        <div className={cn('flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-xl text-[0.6875rem] font-bold',
+          type === 'in' ? 'bg-emerald-400/15 text-emerald-300' : 'bg-amber-400/15 text-amber-300')}>
+          {b.guest.firstName[0]}{b.guest.lastName[0]}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-xs font-medium text-stone-200 truncate">{b.guest.firstName} {b.guest.lastName}</div>
+          <div className="text-[0.625rem] text-stone-600 truncate">{b.bookingRooms[0]?.room?.roomNumber || b.bookingRooms[0]?.roomType?.name}</div>
+        </div>
+        <StatusBadge status={b.status} size="sm" />
+      </Link>
     </motion.div>
   )
 }
@@ -171,7 +175,7 @@ function MiniRing({ pct }: { pct: number }) {
 // ── Dashboard ─────────────────────────────────────────────────
 export default function DashboardPage() {
   const { user } = useAuth()
-  const today = format(new Date(), 'yyyy-MM-dd')
+  const today = useMemo(() => format(new Date(), 'yyyy-MM-dd'), [])
   const [roomIdx, setRoomIdx] = useState(0)
 
   const { data: dashboard, isLoading } = useQuery({
@@ -476,7 +480,13 @@ export default function DashboardPage() {
           {isLoading ? (
             <div className="flex justify-center py-10"><Skeleton className="h-32 w-32 rounded-full" /></div>
           ) : (
-            <OccupancyGauge pct={occPct} occupied={occ?.occupied ?? 0} available={occ?.available ?? 0} ooo={occ?.outOfOrder ?? 0} />
+            <OccupancyGauge
+              pct={occ?.occupancyPct ?? 0}
+              displayPct={occPct}
+              occupied={occ?.occupied ?? 0}
+              available={occ?.available ?? 0}
+              ooo={occ?.outOfOrder ?? 0}
+            />
           )}
         </GlassCard>
 

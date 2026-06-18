@@ -19,8 +19,8 @@ export class UsersController {
 
   @Get(':id')
   @RequirePermissions(PERMISSIONS.USER_MANAGE)
-  findOne(@Param('id') id: string) {
-    return this.usersService.findOne(id)
+  findOne(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    return this.usersService.findOne(id, user.propertyId!)
   }
 
   @Post()
@@ -31,13 +31,13 @@ export class UsersController {
 
   @Patch(':id')
   @RequirePermissions(PERMISSIONS.USER_MANAGE)
-  update(@Param('id') id: string, @Body() body: { firstName?: string; lastName?: string; active?: boolean; roleName?: string }) {
-    return this.usersService.update(id, body)
+  update(@Param('id') id: string, @Body() body: { firstName?: string; lastName?: string; active?: boolean; roleName?: string }, @CurrentUser() user: JwtPayload) {
+    return this.usersService.update(id, body, user.propertyId!)
   }
 
   @Post(':id/reset-pin')
   @RequirePermissions(PERMISSIONS.USER_MANAGE)
-  resetPin(@Param('id') id: string) {
-    return this.usersService.resetPin(id)
+  resetPin(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    return this.usersService.resetPin(id, user.propertyId!)
   }
 }

@@ -348,16 +348,16 @@ export default function RoomMapPage() {
   const [oooReason, setOooReason] = useState('')
   const [hkConfirm, setHkConfirm] = useState<{ roomId: string; roomNumber: string } | null>(null)
 
-  // Direct fetch — avoids TanStack Query caching issues with gcTime
-  const fetchMap = useCallback(async (date: string) => {
-    setIsLoading(true)
+  // silent=true → background refresh ไม่แสดง loading skeleton
+  const fetchMap = useCallback(async (date: string, silent = false) => {
+    if (!silent) setIsLoading(true)
     try {
       const res = await roomsApi.map(date)
       setMapData(res.data || [])
     } catch {
-      toast.error('โหลดข้อมูลห้องไม่สำเร็จ')
+      if (!silent) toast.error('โหลดข้อมูลห้องไม่สำเร็จ')
     } finally {
-      setIsLoading(false)
+      if (!silent) setIsLoading(false)
     }
   }, [])
 
@@ -365,9 +365,9 @@ export default function RoomMapPage() {
     fetchMap(selectedDate)
   }, [selectedDate, fetchMap])
 
-  // Auto-refresh every 30s
+  // Auto-refresh ทุก 3 นาที แบบ silent — ไม่มี loading flash
   useEffect(() => {
-    const interval = setInterval(() => fetchMap(selectedDate), 30_000)
+    const interval = setInterval(() => fetchMap(selectedDate, true), 3 * 60_000)
     return () => clearInterval(interval)
   }, [selectedDate, fetchMap])
 

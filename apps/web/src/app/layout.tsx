@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Kanit } from 'next/font/google'
 import './globals.css'
 import { Providers } from '@/lib/providers'
+import { ChunkErrorHandler } from '@/components/chunk-error-handler'
 
 const kanit = Kanit({
   subsets: ['thai', 'latin'],
@@ -24,6 +25,7 @@ export default function RootLayout({
     <html lang="th" suppressHydrationWarning>
       <body className={`${kanit.variable} font-kanit antialiased`}>
         <Providers>
+          <ChunkErrorHandler />
           {children}
         </Providers>
       </body>

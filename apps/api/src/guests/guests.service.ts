@@ -35,10 +35,8 @@ export class GuestsService {
     return { guests: guests.map((g) => this.maskSensitive(g)), total, page, limit }
   }
 
-  async findOne(id: string, viewSensitive = false, propertyId?: string) {
-    const guest = propertyId
-      ? await this.prisma.guest.findFirst({ where: { id, propertyId } })
-      : await this.prisma.guest.findUnique({ where: { id } })
+  async findOne(id: string, viewSensitive = false, propertyId: string) {
+    const guest = await this.prisma.guest.findFirst({ where: { id, propertyId } })
     if (!guest) throw new NotFoundException('ไม่พบข้อมูลลูกค้า')
     return viewSensitive ? guest : this.maskSensitive(guest)
   }
@@ -74,9 +72,9 @@ export class GuestsService {
     address: string
     remark: string
     blacklistFlag: boolean
-  }>) {
+  }>, propertyId: string) {
     const guest = await this.prisma.guest.findUnique({ where: { id } })
-    if (!guest) throw new NotFoundException('ไม่พบข้อมูลลูกค้า')
+    if (!guest || guest.propertyId !== propertyId) throw new NotFoundException('ไม่พบข้อมูลลูกค้า')
     return this.prisma.guest.update({
       where: { id },
       data: {
@@ -86,9 +84,11 @@ export class GuestsService {
     })
   }
 
-  async getBookingHistory(guestId: string) {
+  async getBookingHistory(guestId: string, propertyId: string) {
+    const guest = await this.prisma.guest.findUnique({ where: { id: guestId }, select: { propertyId: true } })
+    if (!guest || guest.propertyId !== propertyId) throw new NotFoundException('ไม่พบข้อมูลลูกค้า')
     return this.prisma.booking.findMany({
-      where: { guestId },
+      where: { guestId, propertyId },
       include: {
         bookingRooms: { include: { roomType: true, room: true } },
         bookingSource: true,

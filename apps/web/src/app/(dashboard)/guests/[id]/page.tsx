@@ -88,7 +88,36 @@ export default function GuestProfilePage() {
   if (isLoading) {
     return (
       <AppShell title="โปรไฟล์ลูกค้า">
-        <div className="space-y-4">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-32 w-full rounded-2xl" />)}</div>
+        <div className="space-y-5">
+          {/* Profile header card */}
+          <div className="rounded-3xl border border-white/15 bg-white/[0.04] p-6">
+            <div className="flex items-start gap-5">
+              <Skeleton className="h-20 w-20 flex-shrink-0 rounded-2xl" />
+              <div className="flex-1 min-w-0 space-y-3">
+                <Skeleton className="h-6 w-48" />
+                <div className="flex gap-2">
+                  <Skeleton className="h-5 w-24 rounded-full" />
+                  <Skeleton className="h-5 w-20 rounded-full" />
+                </div>
+                <div className="flex gap-6">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-4 w-40" />
+                </div>
+              </div>
+            </div>
+          </div>
+          {/* Stat / history cards */}
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+            {[...Array(2)].map((_, i) => (
+              <div key={i} className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 space-y-3">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-3 w-5/6" />
+                <Skeleton className="h-3 w-2/3" />
+              </div>
+            ))}
+          </div>
+        </div>
       </AppShell>
     )
   }
