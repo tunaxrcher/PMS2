@@ -15,8 +15,9 @@ async function bootstrap() {
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
-      forbidNonWhitelisted: true,
       transform: true,
+      // forbidNonWhitelisted removed — many endpoints use inline types (not DTO classes)
+      // whitelist: true still strips extra fields from proper DTO classes
     })
   )
 

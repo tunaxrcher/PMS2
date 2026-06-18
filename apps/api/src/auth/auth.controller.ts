@@ -1,22 +1,13 @@
 import { Body, Controller, Get, HttpCode, Post, Req, UseGuards } from '@nestjs/common'
+import { IsString } from 'class-validator'
 import { AuthService } from './auth.service'
 import { JwtAuthGuard } from './guards/jwt-auth.guard'
 import { CurrentUser, JwtPayload } from './decorators/current-user.decorator'
+import { LoginDto, ChangePinDto } from './dto/auth.dto'
 import { Request } from 'express'
 
 class VerifyPhoneDto {
-  phone: string
-}
-
-class LoginDto {
-  phone: string
-  pin: string
-}
-
-class ChangePinDto {
-  currentPin: string
-  newPin: string
-  confirmPin: string
+  @IsString() phone!: string
 }
 
 @Controller('auth')

@@ -516,26 +516,26 @@ export default function RoomsSettingsPage() {
                   <div className="flex-1 h-px bg-white/[0.06]" />
                   <span className="text-[9px] text-stone-700">{floorMap.get(floor)!.length} ห้อง</span>
                 </div>
-                {/* Room tiles */}
-                <div className="grid grid-cols-3 gap-1.5">
+                {/* Room tiles — 2 cols for wider tiles */}
+                <div className="grid grid-cols-2 gap-1.5">
                   {floorMap.get(floor)!.map(room => (
                     <div key={room.id} className="group relative">
-                      <div className={cn(
-                        'relative rounded-xl border p-2 cursor-pointer transition-all',
-                        'border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.07] hover:border-white/15'
-                      )}>
+                      <div
+                        className="relative rounded-xl border p-2.5 cursor-pointer transition-all border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.07] hover:border-white/15"
+                        title={`ห้อง ${room.roomNumber} — ${room.roomType.name}${room.zone ? ` · ${room.zone.name}` : ''}`}
+                      >
                         {/* Status dot */}
-                        <div className={cn('absolute top-1.5 right-1.5 h-2 w-2 rounded-full', STATUS_DOT[room.currentStatus] || 'bg-stone-600')} />
+                        <div className={cn('absolute top-2 right-2 h-2 w-2 rounded-full', STATUS_DOT[room.currentStatus] || 'bg-stone-600')} />
                         {/* Room number */}
-                        <div className="text-sm font-black font-mono text-amber-300 leading-none">{room.roomNumber}</div>
-                        {/* Room type */}
+                        <div className="text-sm font-black font-mono text-amber-300 leading-none pr-4">{room.roomNumber}</div>
+                        {/* Room type — tooltip shows full name */}
                         <div className="text-[9px] text-stone-400 mt-1 truncate leading-tight">{room.roomType.name}</div>
-                        {/* Zone name */}
-                        {room.zone && (
+                        {/* Zone name — hidden when zone is already selected (avoids redundancy) */}
+                        {room.zone && !selectedZoneId && (
                           <div className="text-[9px] text-stone-600 truncate leading-tight">{room.zone.name}</div>
                         )}
                         {/* Hover actions */}
-                        <div className="absolute inset-0 flex items-center justify-center gap-1 bg-black/60 opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 rounded-xl transition-opacity">
+                        <div className="absolute inset-0 flex items-center justify-center gap-1.5 bg-black/65 opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 rounded-xl transition-opacity">
                           <button
                             onClick={e => openRoomEdit(room, e)}
                             className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/15 text-stone-200 hover:bg-white/25 transition-colors"
