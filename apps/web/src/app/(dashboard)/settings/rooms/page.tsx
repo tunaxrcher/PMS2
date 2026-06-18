@@ -492,25 +492,70 @@ export default function RoomsSettingsPage() {
             </div>
           )}
 
-          {filteredRooms.map(room => (
-            <ActionRow
-              key={room.id}
-              onEdit={e => openRoomEdit(room, e)}
-              onDelete={e => { e.stopPropagation(); setDeleteTarget({ id: room.id, name: `ห้อง ${room.roomNumber}`, type: 'room' }) }}
-            >
-              <div className="flex items-center gap-2.5">
-                <div className={cn('h-2 w-2 rounded-full flex-shrink-0', STATUS_DOT[room.currentStatus] || 'bg-stone-600')} />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono font-medium text-amber-300">{room.roomNumber}</span>
-                    {room.roomName && <span className="text-[10px] text-stone-500 truncate">{room.roomName}</span>}
-                  </div>
-                  <div className="text-[10px] text-stone-600 truncate">{room.roomType.name}{room.zone ? ` · ${room.zone.name}` : ''}</div>
+          {/* Floor cross-section grid — group by floorNo */}
+          {filteredRooms.length > 0 && (() => {
+            const floorMap = new Map<string, Room[]>()
+            filteredRooms.forEach(r => {
+              const floor = r.floorNo || 'ไม่ระบุชั้น'
+              if (!floorMap.has(floor)) floorMap.set(floor, [])
+              floorMap.get(floor)!.push(r)
+            })
+            // Sort floors: numeric first, then non-numeric
+            const sortedFloors = Array.from(floorMap.keys()).sort((a, b) => {
+              const na = Number(a), nb = Number(b)
+              if (!isNaN(na) && !isNaN(nb)) return na - nb
+              return a.localeCompare(b, 'th')
+            })
+            return sortedFloors.map(floor => (
+              <div key={floor} className="mb-3">
+                {/* Floor label */}
+                <div className="flex items-center gap-2 px-1 mb-1.5">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-stone-600">
+                    {floor === 'ไม่ระบุชั้น' ? floor : `ชั้น ${floor}`}
+                  </span>
+                  <div className="flex-1 h-px bg-white/[0.06]" />
+                  <span className="text-[9px] text-stone-700">{floorMap.get(floor)!.length} ห้อง</span>
                 </div>
-                <StatusBadge status={room.currentStatus} size="sm" />
+                {/* Room tiles */}
+                <div className="grid grid-cols-3 gap-1.5">
+                  {floorMap.get(floor)!.map(room => (
+                    <div key={room.id} className="group relative">
+                      <div className={cn(
+                        'relative rounded-xl border p-2 cursor-pointer transition-all',
+                        'border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.07] hover:border-white/15'
+                      )}>
+                        {/* Status dot */}
+                        <div className={cn('absolute top-1.5 right-1.5 h-2 w-2 rounded-full', STATUS_DOT[room.currentStatus] || 'bg-stone-600')} />
+                        {/* Room number */}
+                        <div className="text-sm font-black font-mono text-amber-300 leading-none">{room.roomNumber}</div>
+                        {/* Room type */}
+                        <div className="text-[9px] text-stone-400 mt-1 truncate leading-tight">{room.roomType.name}</div>
+                        {/* Zone name */}
+                        {room.zone && (
+                          <div className="text-[9px] text-stone-600 truncate leading-tight">{room.zone.name}</div>
+                        )}
+                        {/* Hover actions */}
+                        <div className="absolute inset-0 flex items-center justify-center gap-1 bg-black/60 opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 rounded-xl transition-opacity">
+                          <button
+                            onClick={e => openRoomEdit(room, e)}
+                            className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/15 text-stone-200 hover:bg-white/25 transition-colors"
+                          >
+                            <Edit2 className="h-3 w-3" />
+                          </button>
+                          <button
+                            onClick={e => { e.stopPropagation(); setDeleteTarget({ id: room.id, name: `ห้อง ${room.roomNumber}`, type: 'room' }) }}
+                            className="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-500/20 text-rose-300 hover:bg-rose-500/35 transition-colors"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </ActionRow>
-          ))}
+            ))
+          })()}
         </Column>
       </div>
 
