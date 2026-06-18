@@ -83,8 +83,9 @@ function ActionRow({ isSelected, onClick, onEdit, onDelete, children }: {
 }
 
 // ── Column wrapper ─────────────────────────────────────────────
-function Column({ title, icon: Icon, count, onAdd, addLabel, children, loading, className = '' }: {
+function Column({ title, icon: Icon, count, onAdd, addLabel, onAddBulk, children, loading, className = '' }: {
   title: string; icon: React.ElementType; count?: number; onAdd: () => void; addLabel: string
+  onAddBulk?: () => void
   children: React.ReactNode; loading?: boolean; className?: string
 }) {
   return (
@@ -105,14 +106,22 @@ function Column({ title, icon: Icon, count, onAdd, addLabel, children, loading, 
         ) : children}
       </div>
 
-      {/* Add button — pinned at bottom */}
-      <div className="border-t border-white/[0.06] p-2">
+      {/* Add button(s) — pinned at bottom */}
+      <div className="border-t border-white/[0.06] p-2 space-y-1.5">
         <button
           onClick={onAdd}
           className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-white/15 py-2 text-xs text-stone-500 hover:border-amber-300/30 hover:text-amber-300 transition-colors"
         >
           <Plus className="h-3.5 w-3.5" /> {addLabel}
         </button>
+        {onAddBulk && (
+          <button
+            onClick={onAddBulk}
+            className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-sky-400/20 py-2 text-xs text-stone-600 hover:border-sky-400/40 hover:text-sky-400 transition-colors"
+          >
+            <Plus className="h-3.5 w-3.5" /> เพิ่มห้อง (แบบกลุ่ม)
+          </button>
+        )}
       </div>
     </div>
   )
@@ -178,7 +187,7 @@ export default function RoomsSettingsPage() {
   const [mobileCol, setMobileCol] = useState(0)
 
   // ── Dialog state ──
-  type DialogMode = 'zone' | 'roomType' | 'room' | null
+  type DialogMode = 'zone' | 'roomType' | 'room' | 'bulk' | null
   const [dialogMode, setDialogMode] = useState<DialogMode>(null)
   const [editTarget, setEditTarget] = useState<Zone | RoomType | Room | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string; type: 'zone' | 'roomType' | 'room' } | null>(null)
@@ -189,6 +198,14 @@ export default function RoomsSettingsPage() {
   const [roomForm, setRoomForm] = useState({ roomTypeId: '', zoneId: '', roomNumber: '', roomName: '', floorNo: '', maxOccupancy: '4' })
   const [roomStep, setRoomStep] = useState(1)
   const [imgUploading, setImgUploading] = useState(false)
+
+  // ── Bulk create state ──
+  interface BulkRow { roomNumber: string; roomName: string; floorNo: string }
+  const [bulkForm, setBulkForm] = useState({ roomTypeId: '', zoneId: '', floorNo: '1', from: '', to: '', namePattern: '' })
+  const [bulkRows, setBulkRows] = useState<BulkRow[]>([])
+  const [bulkStep, setBulkStep] = useState(1)
+  const [bulkCreating, setBulkCreating] = useState(false)
+  const [bulkProgress, setBulkProgress] = useState(0)
 
   // ── Queries ──
   const { data: zonesData = [], isLoading: zonesLoading } = useQuery<Zone[]>({ queryKey: ['zones-flat'], queryFn: () => zonesApi.flat().then(r => r.data) })
@@ -331,6 +348,59 @@ export default function RoomsSettingsPage() {
     const target = editTarget as Room | null
     if (target) roomMutations.update.mutate({ id: target.id, d: payload })
     else roomMutations.create.mutate(payload)
+  }
+
+  // ── Bulk create helpers ──
+  const generateBulkPreview = () => {
+    const from = parseInt(bulkForm.from)
+    const to = parseInt(bulkForm.to)
+    if (isNaN(from) || isNaN(to) || from > to) { toast.error('กรุณาระบุช่วงหมายเลขห้องที่ถูกต้อง'); return }
+    if (to - from + 1 > 100) { toast.error('สร้างได้สูงสุด 100 ห้องต่อครั้ง'); return }
+    const rows: BulkRow[] = []
+    for (let n = from; n <= to; n++) {
+      const num = String(n)
+      const name = bulkForm.namePattern
+        ? bulkForm.namePattern.replace('{num}', num).replace('{n}', num)
+        : ''
+      rows.push({ roomNumber: num, roomName: name, floorNo: bulkForm.floorNo })
+    }
+    setBulkRows(rows)
+    setBulkStep(2)
+  }
+
+  const submitBulk = async () => {
+    if (!bulkForm.roomTypeId) { toast.error('กรุณาเลือกประเภทห้อง'); return }
+    if (bulkRows.length === 0) return
+    setBulkCreating(true)
+    setBulkProgress(0)
+    let success = 0
+    for (let i = 0; i < bulkRows.length; i++) {
+      const row = bulkRows[i]
+      if (!row.roomNumber.trim()) continue
+      try {
+        await roomsApi.create({
+          roomTypeId: bulkForm.roomTypeId,
+          zoneId: bulkForm.zoneId || undefined,
+          roomNumber: row.roomNumber.trim(),
+          roomName: row.roomName.trim() || undefined,
+          floorNo: row.floorNo.trim() || undefined,
+          maxOccupancy: 4,
+        })
+        success++
+      } catch { /* skip duplicates */ }
+      setBulkProgress(Math.round(((i + 1) / bulkRows.length) * 100))
+    }
+    setBulkCreating(false)
+    qc.invalidateQueries({ queryKey: ['rooms'] })
+    closeDialog()
+    toast.success(`สร้างห้องพักสำเร็จ ${success} ห้อง`)
+  }
+
+  const openBulkCreate = () => {
+    setBulkForm({ roomTypeId: selectedRoomTypeId || '', zoneId: selectedZoneId || '', floorNo: '1', from: '', to: '', namePattern: '' })
+    setBulkRows([])
+    setBulkStep(1)
+    setDialogMode('bulk')
   }
 
   // ── Delete confirm ──
@@ -480,7 +550,8 @@ export default function RoomsSettingsPage() {
           icon={BedDouble}
           count={filteredRooms.length}
           onAdd={openRoomCreate}
-          addLabel="เพิ่มห้องพัก"
+          addLabel="เพิ่มห้อง"
+          onAddBulk={openBulkCreate}
           loading={roomsLoading}
           className={cn(colHeight, mobileCol !== 2 && 'hidden lg:flex')}
         >
@@ -820,6 +891,126 @@ export default function RoomsSettingsPage() {
                 className="flex-1"
               >
                 {editingRoomId ? 'บันทึก' : '+ เพิ่มห้องพัก'}
+              </Button>
+            </div>
+          </div>
+        )}
+      </PmsDialog>
+
+      {/* ── Bulk Create Dialog ── */}
+      <PmsDialog
+        open={dialogMode === 'bulk'}
+        onClose={closeDialog}
+        title="เพิ่มห้องพักหลายห้อง"
+        description={bulkStep === 1 ? 'กำหนดช่วงหมายเลขและประเภทห้อง' : `ตรวจสอบและแก้ไขก่อนสร้าง ${bulkRows.length} ห้อง`}
+        size="xl"
+      >
+        {/* Step indicator */}
+        <div className="flex items-center gap-3 mb-5">
+          {[{ n: 1, label: 'ตั้งค่า' }, { n: 2, label: 'ตรวจสอบ & สร้าง' }].map(({ n, label }, i) => (
+            <React.Fragment key={n}>
+              <div className={cn('flex items-center gap-2 text-xs font-medium', bulkStep === n ? 'text-amber-300' : n < bulkStep ? 'text-stone-400' : 'text-stone-700')}>
+                <span className={cn('flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold border', bulkStep === n ? 'bg-amber-400 border-amber-400 text-stone-900' : n < bulkStep ? 'bg-emerald-500 border-emerald-500 text-white' : 'bg-transparent border-stone-700 text-stone-600')}>
+                  {n < bulkStep ? '✓' : n}
+                </span>
+                {label}
+              </div>
+              {i === 0 && <div className={cn('flex-1 h-px', bulkStep > 1 ? 'bg-emerald-500/40' : 'bg-white/10')} />}
+            </React.Fragment>
+          ))}
+        </div>
+
+        {/* Step 1 */}
+        {bulkStep === 1 && (
+          <div className="space-y-4">
+            {/* Room type */}
+            <div>
+              <p className="text-xs font-semibold text-stone-400 mb-2">ประเภทห้อง <span className="text-rose-400">*</span></p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {roomTypes.map(rt => (
+                  <button key={rt.id} onClick={() => setBulkForm(p => ({...p, roomTypeId: rt.id}))}
+                    className={cn('flex items-center gap-2 rounded-xl border px-3 py-2 text-left transition-all', bulkForm.roomTypeId === rt.id ? 'border-amber-400/60 bg-amber-400/10 text-amber-200' : 'border-white/10 text-stone-400 hover:border-white/20')}>
+                    {rt.imageUrl && <img src={rt.imageUrl} alt="" className="h-7 w-10 rounded-lg object-cover flex-shrink-0" />}
+                    <div className="min-w-0"><div className="text-xs font-medium truncate">{rt.name}</div><div className="text-[10px] text-stone-600">{formatCurrency(Number(rt.baseRate))}</div></div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Zone */}
+            <div>
+              <p className="text-xs font-semibold text-stone-400 mb-2">โซน <span className="text-stone-600 font-normal">(ไม่บังคับ)</span></p>
+              <div className="flex flex-wrap gap-2">
+                <button onClick={() => setBulkForm(p => ({...p, zoneId: ''}))} className={cn('rounded-full px-3 py-1 text-xs border transition-all', !bulkForm.zoneId ? 'bg-amber-400/15 border-amber-300/30 text-amber-200' : 'border-white/10 text-stone-500 hover:border-white/20')}>ไม่ระบุ</button>
+                {zones.map(z => (
+                  <button key={z.id} onClick={() => setBulkForm(p => ({...p, zoneId: z.id}))} className={cn('rounded-full px-3 py-1 text-xs border transition-all', bulkForm.zoneId === z.id ? 'bg-amber-400/15 border-amber-300/30 text-amber-200' : 'border-white/10 text-stone-500 hover:border-white/20')}>{z.name}</button>
+                ))}
+              </div>
+            </div>
+
+            {/* Range + floor */}
+            <div className="grid grid-cols-3 gap-3">
+              <Input label="หมายเลขเริ่ม *" type="number" value={bulkForm.from} onChange={e => setBulkForm(p => ({...p, from: e.target.value}))} placeholder="101" />
+              <Input label="หมายเลขสิ้นสุด *" type="number" value={bulkForm.to} onChange={e => setBulkForm(p => ({...p, to: e.target.value}))} placeholder="120" />
+              <Input label="ชั้น" value={bulkForm.floorNo} onChange={e => setBulkForm(p => ({...p, floorNo: e.target.value}))} placeholder="1" />
+            </div>
+
+            {/* Name pattern */}
+            <Input
+              label="รูปแบบชื่อห้อง (ไม่บังคับ)"
+              value={bulkForm.namePattern}
+              onChange={e => setBulkForm(p => ({...p, namePattern: e.target.value}))}
+              placeholder="เช่น Garden View {num} → Garden View 101, Garden View 102..."
+            />
+            {bulkForm.namePattern && bulkForm.from && (
+              <p className="text-[11px] text-stone-500 -mt-2">
+                ตัวอย่าง: {bulkForm.namePattern.replace('{num}', bulkForm.from).replace('{n}', bulkForm.from)}
+              </p>
+            )}
+
+            <Button onClick={generateBulkPreview} className="w-full" disabled={!bulkForm.roomTypeId}>
+              ดูตัวอย่าง →
+            </Button>
+          </div>
+        )}
+
+        {/* Step 2 — Editable table */}
+        {bulkStep === 2 && (
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-white/[0.08] overflow-hidden">
+              <div className="grid grid-cols-3 gap-0 border-b border-white/[0.07] bg-white/[0.03] px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-stone-600">
+                <span>หมายเลขห้อง</span><span>ชื่อห้อง</span><span>ชั้น</span>
+              </div>
+              <div className="max-h-60 overflow-y-auto divide-y divide-white/[0.04]">
+                {bulkRows.map((row, i) => (
+                  <div key={i} className="grid grid-cols-3 gap-2 px-2 py-1.5 items-center">
+                    <input value={row.roomNumber} onChange={e => setBulkRows(r => r.map((x, j) => j === i ? {...x, roomNumber: e.target.value} : x))}
+                      className="rounded-lg bg-white/[0.04] border border-white/10 px-2 py-1 text-xs text-amber-300 font-mono focus:outline-none focus:border-amber-300/40 w-full" />
+                    <input value={row.roomName} onChange={e => setBulkRows(r => r.map((x, j) => j === i ? {...x, roomName: e.target.value} : x))}
+                      placeholder="(ไม่บังคับ)"
+                      className="rounded-lg bg-white/[0.04] border border-white/10 px-2 py-1 text-xs text-stone-300 focus:outline-none focus:border-white/20 w-full" />
+                    <input value={row.floorNo} onChange={e => setBulkRows(r => r.map((x, j) => j === i ? {...x, floorNo: e.target.value} : x))}
+                      className="rounded-lg bg-white/[0.04] border border-white/10 px-2 py-1 text-xs text-stone-300 focus:outline-none focus:border-white/20 w-full" />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {bulkCreating && (
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-xs text-stone-500">
+                  <span>กำลังสร้างห้องพัก...</span><span>{bulkProgress}%</span>
+                </div>
+                <div className="h-2 rounded-full bg-white/[0.06]">
+                  <div className="h-full rounded-full bg-amber-400 transition-all duration-300" style={{ width: `${bulkProgress}%` }} />
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <Button variant="secondary" onClick={() => setBulkStep(1)} disabled={bulkCreating} className="flex-1">← กลับ</Button>
+              <Button onClick={submitBulk} loading={bulkCreating} className="flex-1">
+                สร้าง {bulkRows.filter(r => r.roomNumber.trim()).length} ห้อง
               </Button>
             </div>
           </div>
