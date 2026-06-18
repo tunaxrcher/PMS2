@@ -231,13 +231,13 @@ export default function DashboardPage() {
       <div className="grid grid-cols-12 gap-3.5">
 
         {/* ═══════════════════════════════════════════════ */}
-        {/* ROW 1  — 4.5 : 3.75 : 3.75 custom grid       */}
+        {/* ROW 1  — mobile: stack, desktop: 4.3:3.85:3.85  */}
         {/* ═══════════════════════════════════════════════ */}
-        <div className="col-span-12 grid grid-cols-[4.3fr_3.85fr_3.85fr] gap-3.5 items-stretch">
+        <div className="col-span-12 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[4.3fr_3.85fr_3.85fr] gap-3.5 items-stretch">
 
-        {/* LEFT — no card, floating text (like reference) */}
+        {/* LEFT — hidden on mobile (no card = looks odd on small screens) */}
         <motion.div
-          className="flex flex-col justify-between py-1 px-1"
+          className="hidden md:flex flex-col justify-between py-1 px-1 xl:flex"
           style={{ minHeight: '100%' }}
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
@@ -284,7 +284,7 @@ export default function DashboardPage() {
         </motion.div>
 
         {/* CENTER — Room image widget (camera-like, header+footer overlaid on image) */}
-        <GlassCard className="relative min-h-[260px]" delay={0.05}>
+        <GlassCard className="relative min-h-[200px] md:min-h-[260px]" delay={0.05}>
           {/* Room image — fills entire card */}
           <AnimatePresence mode="wait">
             {roomImage ? (
@@ -468,8 +468,8 @@ export default function DashboardPage() {
         {/* ROW 2                                          */}
         {/* ═══════════════════════════════════════════════ */}
 
-        {/* Occupancy Gauge — col 3 (AC-like) */}
-        <GlassCard className="col-span-6 xl:col-span-3" delay={0.15}>
+        {/* Occupancy Gauge */}
+        <GlassCard className="col-span-12 sm:col-span-6 xl:col-span-3" delay={0.15}>
           <div className="flex items-center justify-between px-4 pt-4 pb-0">
             <div>
               <p className="text-sm font-semibold text-stone-200">สถานะห้อง</p>
@@ -491,7 +491,7 @@ export default function DashboardPage() {
         </GlassCard>
 
         {/* Arrivals + Departures stacked — col 4 (TV + LED-like) */}
-        <div className="col-span-12 md:col-span-6 xl:col-span-4 flex flex-col gap-3">
+        <div className="col-span-12 sm:col-span-6 xl:col-span-4 flex flex-col gap-3">
           {/* Arrivals (taller) */}
           <GlassCard delay={0.2}>
             <div className="flex items-center justify-between px-4 pt-4 pb-1">
@@ -536,7 +536,7 @@ export default function DashboardPage() {
         </div>
 
         {/* HK + OOO mini stacked — col 2 (Alexa + WiFi-like) */}
-        <div className="col-span-6 md:col-span-3 xl:col-span-2 flex flex-col gap-3">
+        <div className="col-span-6 sm:col-span-3 xl:col-span-2 flex flex-col gap-3">
           <GlassCard delay={0.28} className="flex-1">
             <div className="flex flex-col items-center justify-center h-full py-4 px-3 gap-1">
               <p className="text-xs text-stone-400 w-full text-center">งานแม่บ้านค้าง</p>
@@ -560,7 +560,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Revenue — col 3 (Music player-like, tall) */}
-        <GlassCard className="col-span-6 md:col-span-3 xl:col-span-3" delay={0.32}>
+        <GlassCard className="col-span-6 sm:col-span-3 xl:col-span-3" delay={0.32}>
           {/* Artist/song style — title inline */}
           <div className="flex items-center justify-between px-4 pt-4 pb-0">
             <div>

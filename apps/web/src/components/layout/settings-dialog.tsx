@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import * as DialogPrimitive from '@radix-ui/react-dialog'
 import Image from 'next/image'
-import { X, Building2, BedDouble, Users, Tag, Ticket, Key } from 'lucide-react'
+import { X, Building2, BedDouble, Users, Tag, Ticket } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 
 interface SettingsDialogProps {
@@ -22,17 +22,16 @@ const settingsGroups = [
     ],
   },
   {
-    title: 'ราคาและการจอง',
+    title: 'ราคาและการจอง ๖',
     items: [
-      { href: '/settings/rate-plans', icon: Tag, label: 'Rate Plans', desc: 'แผนราคาและนโยบาย' },
-      { href: '/settings/booking-sources', icon: Ticket, label: 'ช่องทางการจอง', desc: 'Walk-in, OTA, Direct' },
+      { href: '/settings/rate-plans', icon: Tag, label: 'Rate Plans (In development)', desc: 'แผนราคาและนโยบาย' },
+      { href: '/settings/booking-sources', icon: Ticket, label: 'ช่องทางการจอง (In development)', desc: 'Walk-in, OTA, Direct' },
     ],
   },
   {
     title: 'บัญชีผู้ใช้',
     items: [
       { href: '/settings/users', icon: Users, label: 'ผู้ใช้งาน', desc: 'จัดการบัญชีพนักงาน', adminOnly: true },
-      { href: '/settings/change-pin', icon: Key, label: 'เปลี่ยน PIN', desc: 'อัปเดต PIN ของคุณ' },
     ],
   },
 ]

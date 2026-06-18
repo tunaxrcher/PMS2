@@ -33,8 +33,8 @@ const NAV_ITEMS = [
   { href: '/guests',       icon: Users,           label: 'ลูกค้า'   },
   { href: '/housekeeping', icon: Sparkles,        label: 'แม่บ้าน'  },
   { href: '/maintenance',  icon: Wrench,          label: 'แจ้งซ่อม' },
-  { href: '/folios',       icon: Receipt,         label: 'บิล'       },
-  { href: '/reports',      icon: BarChart3,       label: 'รายงาน'   },
+  { href: '/folios',       icon: Receipt,         label: 'บิล',      comingSoon: true },
+  { href: '/reports',      icon: BarChart3,       label: 'รายงาน',   comingSoon: true },
 ]
 
 // ── Search Modal ────────────────────────────────────────
@@ -434,11 +434,14 @@ export function AppHeader() {
           <nav className="flex items-center gap-0.5 overflow-x-auto rounded-2xl border border-white/[0.12] bg-black/35 backdrop-blur-sm px-1.5 py-1.5 shadow-[0_4px_20px_rgba(0,0,0,0.45)] scrollbar-none">
             {NAV_ITEMS.map(item => {
               const isSettings = item.href === '/settings'
-              const isActive = !isSettings && (pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href)))
+              const isComingSoon = (item as { comingSoon?: boolean }).comingSoon
+              const isActive = !isSettings && !isComingSoon && (pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href)))
               const itemClass = cn(
-                'group flex flex-col items-center gap-1 rounded-xl px-4 py-2 transition-all duration-200 flex-shrink-0 border',
+                'group relative flex flex-col items-center gap-1 rounded-xl px-4 py-2 transition-all duration-200 flex-shrink-0 border',
                 isActive
                   ? 'bg-amber-400/15 border-amber-300/25 shadow-[0_0_14px_rgba(251,191,36,0.15)]'
+                  : isComingSoon
+                  ? 'border-transparent opacity-40 grayscale cursor-pointer'
                   : 'border-transparent text-stone-500 hover:bg-white/[0.06] hover:text-stone-300'
               )
               const itemContent = (
@@ -447,6 +450,11 @@ export function AppHeader() {
                   <span className={cn('text-xs font-medium leading-none whitespace-nowrap', isActive ? 'text-amber-200' : 'group-hover:text-stone-300')}>
                     {item.label}
                   </span>
+                  {isComingSoon && (
+                    <span className="absolute -top-0.5 -right-0.5 rounded-full bg-stone-600 px-1 text-[8px] font-bold text-stone-400 leading-tight">
+                      เร็วๆนี้
+                    </span>
+                  )}
                 </>
               )
               return isSettings ? (
