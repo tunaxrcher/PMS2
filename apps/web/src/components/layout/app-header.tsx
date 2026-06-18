@@ -441,8 +441,8 @@ export function AppHeader() {
                 isActive
                   ? 'bg-amber-400/15 border-amber-300/25 shadow-[0_0_14px_rgba(251,191,36,0.15)]'
                   : isComingSoon
-                  ? 'border-transparent opacity-40 grayscale cursor-pointer'
-                  : 'border-transparent text-stone-500 hover:bg-white/[0.06] hover:text-stone-300'
+                  ? 'border-transparent opacity-20 grayscale cursor-pointer'
+                  : 'border-transparent text-stone-500 hover:bg-white/[0.06] hover:text-stone-300 '
               )
               const itemContent = (
                 <>
@@ -450,11 +450,6 @@ export function AppHeader() {
                   <span className={cn('text-xs font-medium leading-none whitespace-nowrap', isActive ? 'text-amber-200' : 'group-hover:text-stone-300')}>
                     {item.label}
                   </span>
-                  {isComingSoon && (
-                    <span className="absolute -top-0.5 -right-0.5 rounded-full bg-stone-600 px-1 text-[8px] font-bold text-stone-400 leading-tight">
-                      เร็วๆนี้
-                    </span>
-                  )}
                 </>
               )
               return isSettings ? (
