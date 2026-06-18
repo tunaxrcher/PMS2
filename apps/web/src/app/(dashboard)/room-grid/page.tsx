@@ -446,10 +446,15 @@ export default function RoomGridPage() {
                 {isLoading ? (
                   <div className="p-4 space-y-2">{[...Array(8)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
                 ) : filteredRooms.length === 0 ? (
-                  <div className="flex items-center justify-center py-20">
+                  <div className="flex flex-col items-center justify-center gap-3 py-24">
+                    <BedDouble className="h-12 w-12 text-stone-600" />
                     <div className="text-center">
-                      <BedDouble className="h-10 w-10 text-stone-700 mx-auto mb-3" />
-                      <p className="text-stone-500 text-sm">ไม่มีห้องพักตามเงื่อนไข</p>
+                      <p className="text-sm font-semibold text-stone-300">
+                        {!rooms?.length ? 'ยังไม่มีห้องพักในระบบ' : 'ไม่มีห้องพักตามเงื่อนไข'}
+                      </p>
+                      <p className="mt-1 text-xs text-stone-600">
+                        {!rooms?.length ? 'กรุณาเพิ่มห้องพักใน ตั้งค่า → ห้องพัก' : 'ลองล้างตัวกรองหรือเปลี่ยนเดือน'}
+                      </p>
                     </div>
                   </div>
                 ) : (

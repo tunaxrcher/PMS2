@@ -25,6 +25,7 @@ model Property {
   vatRate             Decimal     @default(7.00) @map("vat_rate") @db.Decimal(5, 2)
   serviceChargeRate   Decimal     @default(0.00) @map("service_charge_rate") @db.Decimal(5, 2)
   priceIncludeTax     Boolean     @default(true) @map("price_include_tax")
+  backgroundImageUrl  String?     @map("background_image_url") @db.VarChar(500)
   active              Boolean     @default(true)
   createdAt           DateTime    @default(now()) @map("created_at")
   updatedAt           DateTime    @updatedAt @map("updated_at")

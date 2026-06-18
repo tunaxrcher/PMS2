@@ -167,3 +167,8 @@ export const auditLogsApi = {
   list: (params?: Record<string, unknown>) => api.get('/audit-logs', { params }),
   getActions: () => api.get('/audit-logs/actions'),
 }
+
+export const uploadApi = {
+  uploadImage: (formData: FormData) =>
+    api.post('/upload/room-image', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+}

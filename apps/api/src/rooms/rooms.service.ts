@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common'
+import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
 
 @Injectable()
@@ -53,6 +53,22 @@ export class RoomsService {
       const zone = await this.prisma.zone.findUnique({ where: { id: data.zoneId }, select: { propertyId: true } })
       if (!zone || zone.propertyId !== data.propertyId) throw new NotFoundException('ไม่พบโซน')
     }
+
+    // If a soft-deleted room with the same number exists, reactivate it instead
+    const existing = await this.prisma.room.findFirst({
+      where: { propertyId: data.propertyId, roomNumber: data.roomNumber },
+    })
+    if (existing) {
+      if (!existing.active) {
+        return this.prisma.room.update({
+          where: { id: existing.id },
+          data: { ...data, active: true },
+          include: { roomType: true, zone: true },
+        })
+      }
+      throw new ConflictException(`มีหมายเลขห้อง ${data.roomNumber} อยู่แล้ว`)
+    }
+
     return this.prisma.room.create({
       data,
       include: { roomType: true, zone: true },

@@ -590,9 +590,18 @@ export default function RoomMapPage() {
             {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-72 w-full rounded-3xl" />)}
           </div>
         ) : filteredGroups.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 py-16 text-stone-500">
-            <BedDouble className="h-12 w-12 opacity-30" />
-            <p className="text-sm">ไม่พบห้องพักตามเงื่อนไข</p>
+          <div className="flex flex-col items-center gap-4 py-20 rounded-3xl border border-white/[0.08] bg-white/[0.03]">
+            <BedDouble className="h-14 w-14 text-stone-600" />
+            <div className="text-center">
+              <p className="text-base font-semibold text-stone-300">
+                {mapData.length === 0 ? 'ยังไม่มีห้องพักในระบบ' : 'ไม่พบห้องพักตามเงื่อนไข'}
+              </p>
+              <p className="mt-1 text-sm text-stone-600">
+                {mapData.length === 0
+                  ? 'กรุณาเพิ่มห้องพักใน ตั้งค่า → ห้องพัก'
+                  : 'ลองเปลี่ยนตัวกรองหรือเลือกวันที่อื่น'}
+              </p>
+            </div>
           </div>
         ) : (
           <div className="space-y-5">

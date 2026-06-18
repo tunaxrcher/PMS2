@@ -2,7 +2,7 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { Building2, MapPin, BedDouble, Layers, Users, Tag, Calendar, Ticket } from 'lucide-react'
+import { Building2, BedDouble, Users, Tag, Ticket } from 'lucide-react'
 import { AppShell } from '@/components/layout/app-shell'
 import { GlassPanel } from '@/components/ui/glass-panel'
 import { useAuth } from '@/hooks/use-auth'
@@ -11,10 +11,8 @@ const settingsGroups = [
   {
     title: 'ที่พัก',
     items: [
-      { href: '/settings/property', icon: Building2, label: 'ข้อมูลที่พัก', desc: 'ตั้งค่าข้อมูลพื้นฐานของที่พัก' },
-      { href: '/settings/zones', icon: MapPin, label: 'โซน', desc: 'จัดการพื้นที่และโซนของที่พัก' },
-      { href: '/settings/room-types', icon: Layers, label: 'ประเภทห้อง', desc: 'กำหนดประเภทและราคาห้องพัก' },
-      { href: '/settings/rooms', icon: BedDouble, label: 'ห้องพัก', desc: 'จัดการห้องพักทั้งหมด' },
+      { href: '/settings/property', icon: Building2, label: 'ข้อมูลที่พัก', desc: 'ตั้งค่าข้อมูลพื้นฐานและภาพพื้นหลัง' },
+      { href: '/settings/rooms', icon: BedDouble, label: 'จัดการห้องพัก', desc: 'โซน · ประเภทห้อง · ห้องพัก ในหน้าเดียว' },
     ],
   },
   {

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import * as DialogPrimitive from '@radix-ui/react-dialog'
 import Image from 'next/image'
-import { X, Building2, MapPin, Layers, BedDouble, Users, Tag, Ticket, Key } from 'lucide-react'
+import { X, Building2, BedDouble, Users, Tag, Ticket, Key } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 
 interface SettingsDialogProps {
@@ -18,9 +18,7 @@ const settingsGroups = [
     title: 'ที่พัก',
     items: [
       { href: '/settings/property', icon: Building2, label: 'ข้อมูลที่พัก', desc: 'ชื่อ, ที่อยู่, เวลา, ภาษี' },
-      { href: '/settings/zones', icon: MapPin, label: 'โซน', desc: 'จัดการพื้นที่และโซน' },
-      { href: '/settings/room-types', icon: Layers, label: 'ประเภทห้อง', desc: 'ประเภทและราคาห้องพัก' },
-      { href: '/settings/rooms', icon: BedDouble, label: 'ห้องพัก', desc: 'จัดการห้องพักทั้งหมด' },
+      { href: '/settings/rooms', icon: BedDouble, label: 'จัดการห้องพัก', desc: 'โซน · ประเภท · ห้องพัก' },
     ],
   },
   {

@@ -1,21 +1,35 @@
 'use client'
 
 import React from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useAuth } from '@/hooks/use-auth'
+import { propertiesApi } from '@/lib/api'
+
+const DEFAULT_BG = '/images/resort-lounge-bg.jpg'
 
 interface AppBackgroundProps {
   children: React.ReactNode
 }
 
 export function AppBackground({ children }: AppBackgroundProps) {
+  const { user } = useAuth()
+
+  // Fetch property to get the custom background image (stale 10 min — rarely changes)
+  const { data: property } = useQuery({
+    queryKey: ['property', user?.propertyId],
+    queryFn: () => propertiesApi.get(user!.propertyId!).then(r => r.data),
+    enabled: !!user?.propertyId,
+    staleTime: 10 * 60_000,
+  })
+
+  const bgUrl = property?.backgroundImageUrl || DEFAULT_BG
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#120d09] text-stone-100">
-      {/* Luxury resort background image */}
+      {/* Background image — custom or default resort lounge */}
       <div
-        className="absolute inset-0 scale-105 bg-cover bg-center opacity-60"
-        style={{
-          backgroundImage: "url('/images/resort-lounge-bg.jpg')",
-          filter: 'blur(1px)',
-        }}
+        className="absolute inset-0 scale-105 bg-cover bg-center opacity-60 transition-all duration-1000"
+        style={{ backgroundImage: `url('${bgUrl}')`, filter: 'blur(1px)' }}
       />
 
       {/* Dark overlay for readability */}

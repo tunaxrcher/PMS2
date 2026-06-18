@@ -29,6 +29,7 @@ export class PropertiesService {
     serviceChargeRate: number
     priceIncludeTax: boolean
     active: boolean
+    backgroundImageUrl: string | null
   }>, propertyId: string) {
     if (id !== propertyId) throw new NotFoundException('ไม่พบข้อมูลที่พัก')
     return this.prisma.property.update({ where: { id }, data })

@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE `properties` ADD COLUMN `background_image_url` VARCHAR(500) NULL;
