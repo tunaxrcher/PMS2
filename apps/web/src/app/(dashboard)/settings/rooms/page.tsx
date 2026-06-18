@@ -428,20 +428,23 @@ export default function RoomsSettingsPage() {
   return (
     <AppShell title="จัดการห้องพัก" subtitle="โซน · ประเภทห้อง · ห้องพัก">
 
-      {/* Mobile breadcrumb nav */}
-      <div className="flex items-center gap-2 mb-3 lg:hidden text-xs text-stone-500">
-        {mobileCol > 0 && (
-          <button onClick={() => setMobileCol(c => c - 1)} className="flex items-center gap-1 text-amber-400 hover:text-amber-300">
-            <ChevronLeft className="h-3.5 w-3.5" /> กลับ
+      {/* Mobile tab bar */}
+      <div className="flex lg:hidden rounded-2xl border border-white/[0.10] bg-black/20 p-1 mb-3 gap-1">
+        {[
+          { col: 0, icon: MapPin, label: 'โซน' },
+          { col: 1, icon: Layers, label: 'ประเภท' },
+          { col: 2, icon: BedDouble, label: 'ห้องพัก' },
+        ].map(({ col, icon: Icon, label }) => (
+          <button key={col} onClick={() => setMobileCol(col)}
+            className={cn('flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-xs font-medium transition-all',
+              mobileCol === col ? 'bg-amber-400/15 text-amber-200 border border-amber-300/20' : 'text-stone-500 hover:text-stone-300')}>
+            <Icon className="h-3.5 w-3.5" /> {label}
           </button>
-        )}
-        <span className={cn(mobileCol === 0 ? 'text-stone-200 font-medium' : '')}>โซน</span>
-        {mobileCol >= 1 && <><ChevronRight className="h-3 w-3" /><span className={cn(mobileCol === 1 ? 'text-stone-200 font-medium' : '')}>ประเภทห้อง</span></>}
-        {mobileCol >= 2 && <><ChevronRight className="h-3 w-3" /><span className="text-stone-200 font-medium">ห้องพัก</span></>}
+        ))}
       </div>
 
       {/* Desktop: 3 columns | Mobile: 1 column at a time */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5">
+      <div className="grid grid-cols-1 lg:grid-cols-[3fr_3fr_6fr] gap-3.5">
 
         {/* ── Column 1: Zones ── */}
         <Column
@@ -592,8 +595,8 @@ export default function RoomsSettingsPage() {
                   <div className="flex-1 h-px bg-white/[0.06]" />
                   <span className="text-[9px] text-stone-700">{floorMap.get(floor)!.length} ห้อง</span>
                 </div>
-                {/* Room tiles — 2 cols for wider tiles */}
-                <div className="grid grid-cols-2 gap-1.5">
+                {/* Room tiles — 3 cols (sweet spot for readability) */}
+                <div className="grid grid-cols-3 gap-1.5">
                   {floorMap.get(floor)!.map(room => (
                     <div key={room.id} className="group relative">
                       <div
