@@ -107,19 +107,24 @@ function Column({ title, icon: Icon, count, onAdd, addLabel, onAddBulk, children
       </div>
 
       {/* Add button(s) — pinned at bottom */}
-      <div className="border-t border-white/[0.06] p-2 space-y-1.5">
-        <button
-          onClick={onAdd}
-          className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-white/15 py-2 text-xs text-stone-500 hover:border-amber-300/30 hover:text-amber-300 transition-colors"
-        >
-          <Plus className="h-3.5 w-3.5" /> {addLabel}
-        </button>
-        {onAddBulk && (
-          <button
-            onClick={onAddBulk}
-            className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-sky-400/20 py-2 text-xs text-stone-600 hover:border-sky-400/40 hover:text-sky-400 transition-colors"
-          >
-            <Plus className="h-3.5 w-3.5" /> เพิ่มห้อง (แบบกลุ่ม)
+      <div className="border-t border-white/[0.06] p-2">
+        {onAddBulk ? (
+          <div className="grid grid-cols-2 gap-1.5">
+            <button onClick={onAdd}
+              className="flex flex-col items-center gap-1 rounded-xl border border-dashed border-white/15 py-2.5 text-xs text-stone-500 hover:border-amber-300/30 hover:text-amber-300 transition-colors">
+              <Plus className="h-3.5 w-3.5" />
+              <span>ห้องเดียว</span>
+            </button>
+            <button onClick={onAddBulk}
+              className="flex flex-col items-center gap-1 rounded-xl border border-dashed border-sky-400/20 py-2.5 text-xs text-stone-500 hover:border-sky-400/40 hover:text-sky-400 transition-colors">
+              <span className="text-base leading-none">⚡</span>
+              <span>สร้างเป็นชุด</span>
+            </button>
+          </div>
+        ) : (
+          <button onClick={onAdd}
+            className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-white/15 py-2 text-xs text-stone-500 hover:border-amber-300/30 hover:text-amber-300 transition-colors">
+            <Plus className="h-3.5 w-3.5" /> {addLabel}
           </button>
         )}
       </div>
@@ -923,53 +928,63 @@ export default function RoomsSettingsPage() {
         {/* Step 1 */}
         {bulkStep === 1 && (
           <div className="space-y-4">
-            {/* Room type */}
-            <div>
-              <p className="text-xs font-semibold text-stone-400 mb-2">ประเภทห้อง <span className="text-rose-400">*</span></p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {roomTypes.map(rt => (
-                  <button key={rt.id} onClick={() => setBulkForm(p => ({...p, roomTypeId: rt.id}))}
-                    className={cn('flex items-center gap-2 rounded-xl border px-3 py-2 text-left transition-all', bulkForm.roomTypeId === rt.id ? 'border-amber-400/60 bg-amber-400/10 text-amber-200' : 'border-white/10 text-stone-400 hover:border-white/20')}>
-                    {rt.imageUrl && <img src={rt.imageUrl} alt="" className="h-7 w-10 rounded-lg object-cover flex-shrink-0" />}
-                    <div className="min-w-0"><div className="text-xs font-medium truncate">{rt.name}</div><div className="text-[10px] text-stone-600">{formatCurrency(Number(rt.baseRate))}</div></div>
-                  </button>
-                ))}
+            {/* Type + Zone — compact 2-row section */}
+            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-3 space-y-3">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-600 mb-2">ประเภทห้อง <span className="text-rose-400 normal-case">*</span></p>
+                <div className="flex flex-wrap gap-1.5">
+                  {roomTypes.map(rt => (
+                    <button key={rt.id} onClick={() => setBulkForm(p => ({...p, roomTypeId: rt.id}))}
+                      className={cn('flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs border transition-all', bulkForm.roomTypeId === rt.id ? 'border-amber-400/60 bg-amber-400/15 text-amber-200' : 'border-white/10 text-stone-500 hover:border-white/20 hover:text-stone-300')}>
+                      {rt.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="h-px bg-white/[0.06]" />
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-600 mb-2">โซน <span className="font-normal normal-case text-stone-700">(ไม่บังคับ)</span></p>
+                <div className="flex flex-wrap gap-1.5">
+                  <button onClick={() => setBulkForm(p => ({...p, zoneId: ''}))} className={cn('rounded-full px-3 py-1.5 text-xs border transition-all', !bulkForm.zoneId ? 'bg-amber-400/15 border-amber-300/30 text-amber-200' : 'border-white/10 text-stone-500 hover:border-white/20')}>ไม่ระบุ</button>
+                  {zones.map(z => (
+                    <button key={z.id} onClick={() => setBulkForm(p => ({...p, zoneId: z.id}))} className={cn('rounded-full px-3 py-1.5 text-xs border transition-all', bulkForm.zoneId === z.id ? 'bg-amber-400/15 border-amber-300/30 text-amber-200' : 'border-white/10 text-stone-500 hover:border-white/20')}>{z.name}</button>
+                  ))}
+                </div>
               </div>
             </div>
 
-            {/* Zone */}
-            <div>
-              <p className="text-xs font-semibold text-stone-400 mb-2">โซน <span className="text-stone-600 font-normal">(ไม่บังคับ)</span></p>
-              <div className="flex flex-wrap gap-2">
-                <button onClick={() => setBulkForm(p => ({...p, zoneId: ''}))} className={cn('rounded-full px-3 py-1 text-xs border transition-all', !bulkForm.zoneId ? 'bg-amber-400/15 border-amber-300/30 text-amber-200' : 'border-white/10 text-stone-500 hover:border-white/20')}>ไม่ระบุ</button>
-                {zones.map(z => (
-                  <button key={z.id} onClick={() => setBulkForm(p => ({...p, zoneId: z.id}))} className={cn('rounded-full px-3 py-1 text-xs border transition-all', bulkForm.zoneId === z.id ? 'bg-amber-400/15 border-amber-300/30 text-amber-200' : 'border-white/10 text-stone-500 hover:border-white/20')}>{z.name}</button>
-                ))}
-              </div>
-            </div>
-
-            {/* Range + floor */}
+            {/* Range + floor + name pattern */}
             <div className="grid grid-cols-3 gap-3">
-              <Input label="หมายเลขเริ่ม *" type="number" value={bulkForm.from} onChange={e => setBulkForm(p => ({...p, from: e.target.value}))} placeholder="101" />
-              <Input label="หมายเลขสิ้นสุด *" type="number" value={bulkForm.to} onChange={e => setBulkForm(p => ({...p, to: e.target.value}))} placeholder="120" />
+              <Input label="เริ่มจาก *" type="number" value={bulkForm.from} onChange={e => setBulkForm(p => ({...p, from: e.target.value}))} placeholder="101" />
+              <Input label="ถึง *" type="number" value={bulkForm.to} onChange={e => setBulkForm(p => ({...p, to: e.target.value}))} placeholder="120" />
               <Input label="ชั้น" value={bulkForm.floorNo} onChange={e => setBulkForm(p => ({...p, floorNo: e.target.value}))} placeholder="1" />
             </div>
 
-            {/* Name pattern */}
-            <Input
-              label="รูปแบบชื่อห้อง (ไม่บังคับ)"
-              value={bulkForm.namePattern}
-              onChange={e => setBulkForm(p => ({...p, namePattern: e.target.value}))}
-              placeholder="เช่น Garden View {num} → Garden View 101, Garden View 102..."
-            />
-            {bulkForm.namePattern && bulkForm.from && (
-              <p className="text-[11px] text-stone-500 -mt-2">
-                ตัวอย่าง: {bulkForm.namePattern.replace('{num}', bulkForm.from).replace('{n}', bulkForm.from)}
-              </p>
+            <div>
+              <Input
+                label="รูปแบบชื่อห้อง (ไม่บังคับ)"
+                value={bulkForm.namePattern}
+                onChange={e => setBulkForm(p => ({...p, namePattern: e.target.value}))}
+                placeholder='เช่น Garden View {num}'
+              />
+              {bulkForm.namePattern && bulkForm.from ? (
+                <p className="text-[11px] text-stone-500 mt-1">
+                  ตัวอย่าง → <span className="text-stone-300">{bulkForm.namePattern.replace('{num}', bulkForm.from).replace('{n}', bulkForm.from)}</span>
+                </p>
+              ) : (
+                <p className="text-[11px] text-stone-700 mt-1">ใช้ {'{num}'} แทนเลขห้อง เช่น "วิวสวน {'{num}'}"</p>
+              )}
+            </div>
+
+            {bulkForm.from && bulkForm.to && !isNaN(+bulkForm.from) && !isNaN(+bulkForm.to) && +bulkForm.to >= +bulkForm.from && (
+              <div className="text-xs text-stone-500 text-center">
+                จะสร้าง <span className="text-amber-300 font-semibold">{+bulkForm.to - +bulkForm.from + 1} ห้อง</span>
+                {' '}({bulkForm.from}–{bulkForm.to})
+              </div>
             )}
 
             <Button onClick={generateBulkPreview} className="w-full" disabled={!bulkForm.roomTypeId}>
-              ดูตัวอย่าง →
+              ดูตัวอย่างและแก้ไข →
             </Button>
           </div>
         )}
