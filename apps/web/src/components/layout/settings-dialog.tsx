@@ -91,7 +91,7 @@ export function SettingsDialog({ open, onClose }: SettingsDialogProps) {
               <div className="space-y-5">
                 {settingsGroups.map(group => (
                   <div key={group.title}>
-                    <p className="mb-2 px-1 text-[0.625rem] font-semibold uppercase tracking-widest text-stone-600">
+                    <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-stone-600">
                       {group.title}
                     </p>
                     <div className="grid grid-cols-2 gap-2">

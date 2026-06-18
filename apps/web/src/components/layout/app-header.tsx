@@ -78,7 +78,7 @@ function SearchModal({ open, onClose }: { open: boolean; onClose: () => void }) 
             placeholder="ค้นหาลูกค้า, การจอง, เลขห้อง..."
             className="flex-1 bg-transparent text-stone-100 placeholder:text-stone-600 outline-none text-sm" />
           {query && <button onClick={() => setQuery('')} className="text-stone-600 hover:text-stone-400"><X className="h-4 w-4" /></button>}
-          <kbd className="hidden sm:block text-[0.625rem] text-stone-700 border border-white/10 rounded px-1.5 py-0.5">ESC</kbd>
+          <kbd className="hidden sm:block text-xs text-stone-700 border border-white/10 rounded px-1.5 py-0.5">ESC</kbd>
         </div>
 
         {query.length >= 2 && (
@@ -86,7 +86,7 @@ function SearchModal({ open, onClose }: { open: boolean; onClose: () => void }) 
             initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.15 }}>
             {(bookings?.bookings?.length > 0) && (
               <div>
-                <div className="flex items-center gap-2 px-4 py-2 text-[0.625rem] font-semibold uppercase tracking-wider text-stone-600 border-b border-white/5">
+                <div className="flex items-center gap-2 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-stone-600 border-b border-white/5">
                   <BookOpen className="h-3 w-3" /> การจอง
                 </div>
                 {(bookings.bookings as Array<{ id: string; bookingNumber: string; guest: { firstName: string; lastName: string }; checkInDate: string }>).map(b => (
@@ -101,7 +101,7 @@ function SearchModal({ open, onClose }: { open: boolean; onClose: () => void }) 
             )}
             {(guests as unknown[])?.length > 0 && (
               <div>
-                <div className="flex items-center gap-2 px-4 py-2 text-[0.625rem] font-semibold uppercase tracking-wider text-stone-600 border-b border-white/5">
+                <div className="flex items-center gap-2 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-stone-600 border-b border-white/5">
                   <Users className="h-3 w-3" /> ลูกค้า
                 </div>
                 {(guests as Array<{ id: string; firstName: string; lastName: string; phone?: string | null }>).slice(0, 4).map(g => (
@@ -337,7 +337,7 @@ export function AppHeader() {
             </div>
             <div className="leading-tight">
               <div className="text-sm font-semibold text-stone-100">Serene PMS</div>
-              <div className="text-[0.625rem] text-stone-500">{user?.property?.name || '...'}</div>
+              <div className="text-xs text-stone-500">{user?.property?.name || '...'}</div>
             </div>
           </div>
 
@@ -360,7 +360,7 @@ export function AppHeader() {
                 <button className="relative flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-stone-400 hover:bg-white/[0.10] hover:text-stone-200 transition-colors">
                   <Bell className="h-4 w-4" />
                   {notifications.length > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-400 text-[0.625rem] font-bold text-stone-900">
+                    <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-400 text-xs font-bold text-stone-900">
                       {notifications.length}
                     </span>
                   )}
@@ -371,7 +371,7 @@ export function AppHeader() {
                   className="z-[200] w-80 rounded-2xl border border-white/15 bg-black/80 backdrop-blur-2xl shadow-2xl p-2 text-stone-100">
                   <div className="px-3 py-2 border-b border-white/10 mb-1 flex items-center justify-between">
                     <span className="text-sm font-semibold">การแจ้งเตือน</span>
-                    <span className="text-[0.625rem] text-stone-600">ข้อมูลวันนี้</span>
+                    <span className="text-xs text-stone-600">ข้อมูลวันนี้</span>
                   </div>
                   {notifications.length === 0 ? (
                     <div className="flex flex-col items-center gap-2 py-6">
@@ -399,7 +399,7 @@ export function AppHeader() {
             <DropdownMenu.Root>
               <DropdownMenu.Trigger asChild>
                 <button className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.05] pl-1 pr-2.5 py-1 hover:bg-white/[0.10] transition-colors outline-none">
-                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-400/20 text-[0.625rem] font-bold text-amber-300">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-400/20 text-xs font-bold text-amber-300">
                     {user?.firstName?.[0]}{user?.lastName?.[0]}
                   </div>
                   <span className="hidden sm:block text-stone-300 text-xs max-w-[80px] truncate">{user?.firstName}</span>
@@ -412,7 +412,7 @@ export function AppHeader() {
                   <div className="px-3 py-2 border-b border-white/10 mb-1">
                     <div className="text-sm font-medium text-stone-200">{user?.firstName} {user?.lastName}</div>
                     <div className="text-[0.6875rem] text-stone-500">{user?.phone}</div>
-                    <div className="text-[0.625rem] text-amber-500/70 mt-0.5">{roleLabel}</div>
+                    <div className="text-xs text-amber-500/70 mt-0.5">{roleLabel}</div>
                   </div>
                   <DropdownMenu.Item onSelect={() => setChangePinOpen(true)}
                     className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-stone-400 hover:bg-white/[0.08] hover:text-stone-100 transition-colors outline-none cursor-pointer">

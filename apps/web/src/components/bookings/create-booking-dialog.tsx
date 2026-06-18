@@ -538,13 +538,13 @@ export function CreateBookingDialog({ open, onClose, onSuccess, prefillDate, pre
                           {/* Selected checkmark */}
                           {isSelected && (
                             <div className="absolute top-2 right-2 h-5 w-5 rounded-full bg-amber-400 flex items-center justify-center">
-                              <span className="text-[0.625rem] font-bold text-stone-900">✓</span>
+                              <span className="text-xs font-bold text-stone-900">✓</span>
                             </div>
                           )}
 
                           {/* Availability badge */}
                           <div className={cn(
-                            'absolute bottom-1.5 right-1.5 rounded-full px-2 py-0.5 text-[0.625rem] font-bold',
+                            'absolute bottom-1.5 right-1.5 rounded-full px-2 py-0.5 text-xs font-bold',
                             isAvail ? 'bg-emerald-500/90 text-white' : 'bg-rose-500/90 text-white'
                           )}>
                             {isAvail ? `${rt.available} ห้องว่าง` : 'เต็มแล้ว'}
@@ -555,7 +555,7 @@ export function CreateBookingDialog({ open, onClose, onSuccess, prefillDate, pre
                         <div className={cn('p-2.5', isSelected ? 'bg-amber-400/[0.08]' : 'bg-black/20')}>
                           <div className="text-xs font-semibold text-stone-200 truncate">{rt.roomTypeName}</div>
                           <div className="text-[0.6875rem] text-amber-300 font-medium mt-0.5">{formatCurrency(Number(rt.baseRate))}<span className="text-stone-600">/คืน</span></div>
-                          <div className="text-[0.625rem] text-stone-600 mt-0.5">{rt.total} ห้องทั้งหมด • {rt.booked} จอง</div>
+                          <div className="text-xs text-stone-600 mt-0.5">{rt.total} ห้องทั้งหมด • {rt.booked} จอง</div>
                         </div>
                       </button>
                     )
@@ -657,7 +657,7 @@ export function CreateBookingDialog({ open, onClose, onSuccess, prefillDate, pre
                 <div className="flex items-center gap-2">
                   <Package className="h-4 w-4 text-stone-500" />
                   <span className="text-stone-400">Package (ไม่บังคับ)</span>
-                  {form.packageName && <span className="text-[0.625rem] text-amber-400 bg-amber-400/10 border border-amber-300/20 rounded px-1.5 py-0.5">{form.packageName}</span>}
+                  {form.packageName && <span className="text-xs text-amber-400 bg-amber-400/10 border border-amber-300/20 rounded px-1.5 py-0.5">{form.packageName}</span>}
                 </div>
                 <ChevronDown className={`h-4 w-4 text-stone-600 transition-transform ${showPackage ? 'rotate-180' : ''}`} />
               </button>

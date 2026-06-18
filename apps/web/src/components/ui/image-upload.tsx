@@ -129,8 +129,8 @@ export function ImageUpload({
             <div className="text-xs text-center">
               <span className="text-amber-400 font-medium">คลิกเพื่ออัปโหลด</span> หรือลากไฟล์มาวาง
             </div>
-            {placeholder && <span className="text-[0.625rem] text-stone-600">{placeholder}</span>}
-            <span className="text-[0.625rem]">JPEG, PNG, WebP สูงสุด 10MB</span>
+            {placeholder && <span className="text-xs text-stone-600">{placeholder}</span>}
+            <span className="text-xs">JPEG, PNG, WebP สูงสุด 10MB</span>
           </div>
         )}
       </div>
@@ -192,7 +192,7 @@ export function MultiImageUpload({ images, onAdd, onRemove, onSetPrimary, label,
             <img src={img.url} alt="" className="h-full w-full object-cover" />
             <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
               <button onClick={() => onSetPrimary(i)}
-                className={cn('rounded-lg px-2 py-1 text-[0.625rem] font-medium transition-colors', img.isPrimary ? 'bg-amber-400 text-stone-900' : 'bg-white/20 text-white hover:bg-amber-400/80 hover:text-stone-900')}>
+                className={cn('rounded-lg px-2 py-1 text-xs font-medium transition-colors', img.isPrimary ? 'bg-amber-400 text-stone-900' : 'bg-white/20 text-white hover:bg-amber-400/80 hover:text-stone-900')}>
                 {img.isPrimary ? '★ หลัก' : 'ตั้งหลัก'}
               </button>
               <button onClick={() => onRemove(i)} className="rounded-lg bg-rose-500/80 p-1 hover:bg-rose-400">
@@ -200,7 +200,7 @@ export function MultiImageUpload({ images, onAdd, onRemove, onSetPrimary, label,
               </button>
             </div>
             {img.isPrimary && (
-              <div className="absolute top-1 left-1 rounded-full bg-amber-400 px-1.5 py-0.5 text-[0.625rem] font-bold text-stone-900">หลัก</div>
+              <div className="absolute top-1 left-1 rounded-full bg-amber-400 px-1.5 py-0.5 text-xs font-bold text-stone-900">หลัก</div>
             )}
           </div>
         ))}

@@ -155,7 +155,7 @@ export function FolioPanel({ folioId, bookingStatus }: { folioId: string; bookin
                     {isOpen && (
                       <button
                         onClick={() => setVoidItemConfirm(item.id)}
-                        className="opacity-0 group-hover:opacity-100 text-[0.625rem] text-rose-400 border border-rose-400/30 rounded px-1.5 py-0.5 hover:bg-rose-400/10 transition-all"
+                        className="opacity-0 group-hover:opacity-100 text-xs text-rose-400 border border-rose-400/30 rounded px-1.5 py-0.5 hover:bg-rose-400/10 transition-all"
                         title="Void รายการ"
                       >
                         Void

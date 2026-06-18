@@ -202,7 +202,7 @@ function ActionMenuPortal({ room, onClose, onAction }: {
 
         {/* Footer hint */}
         <motion.div
-          className="mt-8 text-center text-[0.625rem] text-stone-800 tracking-widest uppercase"
+          className="mt-8 text-center text-xs text-stone-800 tracking-widest uppercase"
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
         >
           ↑ ↓ ARROW  •  ENTER SELECT  •  ESC CANCEL
@@ -291,7 +291,7 @@ function RoomCard({ room, onAction }: { room: RoomData; onAction: (room: RoomDat
         )}
 
         {/* Status badge */}
-        <span className={cn('absolute top-2 right-2 rounded-full px-2 py-0.5 text-[0.625rem] font-bold', cfg.badge)}>
+        <span className={cn('absolute top-2 right-2 rounded-full px-2 py-0.5 text-xs font-bold', cfg.badge)}>
           {cfg.label}
         </span>
 
@@ -308,12 +308,12 @@ function RoomCard({ room, onAction }: { room: RoomData; onAction: (room: RoomDat
         <div className="absolute bottom-0 left-0 right-0 p-3">
           <div className="text-sm font-bold text-white leading-tight">{room.roomNumber}</div>
           {room.activeBooking && (
-            <div className="text-[0.625rem] text-white/75 mt-0.5 truncate">
+            <div className="text-xs text-white/75 mt-0.5 truncate">
               {room.activeBooking.guest.firstName} {room.activeBooking.guest.lastName}
               <span className="text-white/45 ml-1">→ {formatDate(room.activeBooking.checkOutDate, 'dd/MM')}</span>
             </div>
           )}
-          <div className="text-[0.625rem] text-white/40 mt-0.5">{room.roomType.name}</div>
+          <div className="text-xs text-white/40 mt-0.5">{room.roomType.name}</div>
         </div>
       </motion.div>
 
@@ -492,7 +492,7 @@ export default function RoomMapPage() {
               <Filter className="h-4 w-4 text-stone-500" />
               <span className="text-sm font-medium text-stone-400">ตัวกรอง</span>
               {activeFilterCount > 0 && (
-                <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-amber-400 px-1.5 text-[0.625rem] font-bold text-stone-900">
+                <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-amber-400 px-1.5 text-xs font-bold text-stone-900">
                   {activeFilterCount}
                 </span>
               )}
@@ -523,7 +523,7 @@ export default function RoomMapPage() {
                 <div className="border-t border-white/[0.06] divide-y divide-white/[0.06]">
                   {/* Zone */}
                   <div className="flex items-start gap-3 px-4 py-3">
-                    <span className="text-[0.625rem] font-semibold uppercase tracking-wider text-stone-600 w-12 flex-shrink-0 pt-1">โซน</span>
+                    <span className="text-xs font-semibold uppercase tracking-wider text-stone-600 w-12 flex-shrink-0 pt-1">โซน</span>
                     <div className="flex flex-wrap gap-1.5">
                       <button onClick={() => setZoneFilter('')}
                         className={cn('rounded-full px-3 py-1 text-xs font-medium border transition-all', zoneFilter === '' ? 'bg-amber-400/15 border-amber-300/30 text-amber-200' : 'border-white/10 text-stone-500 hover:border-white/20 hover:text-stone-300')}>
@@ -540,7 +540,7 @@ export default function RoomMapPage() {
 
                   {/* Room Type */}
                   <div className="flex items-start gap-3 px-4 py-3">
-                    <span className="text-[0.625rem] font-semibold uppercase tracking-wider text-stone-600 w-12 flex-shrink-0 pt-1">ประเภท</span>
+                    <span className="text-xs font-semibold uppercase tracking-wider text-stone-600 w-12 flex-shrink-0 pt-1">ประเภท</span>
                     <div className="flex flex-wrap gap-1.5">
                       <button onClick={() => setTypeFilter('')}
                         className={cn('rounded-full px-3 py-1 text-xs font-medium border transition-all', typeFilter === '' ? 'bg-amber-400/15 border-amber-300/30 text-amber-200' : 'border-white/10 text-stone-500 hover:border-white/20 hover:text-stone-300')}>
@@ -557,7 +557,7 @@ export default function RoomMapPage() {
 
                   {/* Status multi-select */}
                   <div className="flex items-start gap-3 px-4 py-3">
-                    <span className="text-[0.625rem] font-semibold uppercase tracking-wider text-stone-600 w-12 flex-shrink-0 pt-1">สถานะ</span>
+                    <span className="text-xs font-semibold uppercase tracking-wider text-stone-600 w-12 flex-shrink-0 pt-1">สถานะ</span>
                     <div className="flex flex-wrap gap-1.5">
                       {Object.entries(STATUS_CFG).map(([k, v]) => {
                         const isSelected = statusFilters.includes(k)
@@ -568,7 +568,7 @@ export default function RoomMapPage() {
                               isSelected ? `${v.badge} border-transparent` : 'border-white/10 text-stone-500 hover:border-white/20 hover:text-stone-300'
                             )}>
                             {isSelected ? (
-                              <span className="text-[0.625rem] font-black">✓</span>
+                              <span className="text-xs font-black">✓</span>
                             ) : (
                               <span className={cn('h-2 w-2 rounded-full flex-shrink-0', v.dot)} />
                             )}
