@@ -82,7 +82,9 @@ export class ReportsService {
 
     // Available = total minus OOO, occupied, and reserved (booked but not checked in)
     const available = Math.max(0, totalRooms - outOfOrder - occupied - reserved)
-    const occupancyPct = totalRooms > 0 ? Math.round((occupied / totalRooms) * 100) : 0
+    // Occupancy = sold rooms (checked-in + reserved) / total — consistent with the 7-day forecast
+    const sold = occupied + reserved
+    const occupancyPct = totalRooms > 0 ? Math.round((sold / totalRooms) * 100) : 0
 
     return { date, totalRooms, occupied, reserved, confirmed: reserved, outOfOrder, available, occupancyPct }
   }

@@ -82,16 +82,17 @@ function GlassCard({ children, className = '', delay = 0, style }: React.HTMLAtt
 }
 
 // ── Room composition donut (multi-segment) ───────────────────
-// Shows occupied / available / OOO as proportional arcs; center = total rooms.
-function OccupancyGauge({ displayTotal, occupied, available, ooo }: {
-  displayTotal: number; occupied: number; available: number; ooo: number
+// Shows occupied / reserved / available / OOO as proportional arcs; center = total rooms.
+function OccupancyGauge({ displayTotal, occupied, reserved, available, ooo }: {
+  displayTotal: number; occupied: number; reserved: number; available: number; ooo: number
 }) {
   const size = 130, stroke = 12, r = (size - stroke) / 2
   const circ = 2 * Math.PI * r
-  const total = occupied + available + ooo || 1
+  const total = occupied + reserved + available + ooo || 1
 
   const segments = [
     { value: occupied,  color: '#f87171' },
+    { value: reserved,  color: '#38bdf8' },
     { value: available, color: '#34d399' },
     { value: ooo,       color: '#78716c' },
   ]
@@ -126,10 +127,14 @@ function OccupancyGauge({ displayTotal, occupied, available, ooo }: {
           <span className="text-xs text-stone-600 mt-0.5">ห้องทั้งหมด</span>
         </div>
       </div>
-      <div className="mt-3 w-full grid grid-cols-3 gap-1.5 text-center">
+      <div className="mt-3 w-full grid grid-cols-4 gap-1.5 text-center">
         <div className="rounded-2xl bg-rose-500/10 py-2">
           <div className="font-bold text-rose-300 text-base">{occupied}</div>
           <div className="text-stone-600 text-xs mt-0.5">เข้าพัก</div>
+        </div>
+        <div className="rounded-2xl bg-sky-500/10 py-2">
+          <div className="font-bold text-sky-300 text-base">{reserved}</div>
+          <div className="text-stone-600 text-xs mt-0.5">จองแล้ว</div>
         </div>
         <div className="rounded-2xl bg-emerald-500/10 py-2">
           <div className="font-bold text-emerald-300 text-base">{available}</div>
@@ -536,6 +541,7 @@ export default function DashboardPage() {
             <OccupancyGauge
               displayTotal={occ?.totalRooms ?? 0}
               occupied={occ?.occupied ?? 0}
+              reserved={occ?.reserved ?? 0}
               available={occ?.available ?? 0}
               ooo={occ?.outOfOrder ?? 0}
             />
