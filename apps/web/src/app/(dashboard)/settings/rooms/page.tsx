@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useMemo } from 'react'
+import * as Tooltip from '@radix-ui/react-tooltip'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Plus, MapPin, Layers, BedDouble, Edit2, Trash2,
@@ -83,12 +84,70 @@ function ActionRow({ isSelected, onClick, onEdit, onDelete, children }: {
   )
 }
 
+// ── Room tile tooltip ──────────────────────────────────────────
+function RoomTileTooltip({ room, children }: { room: Room; children: React.ReactNode }) {
+  const s = ROOM_STATUS[room.currentStatus]
+  return (
+    <Tooltip.Provider delayDuration={300} skipDelayDuration={100}>
+      <Tooltip.Root>
+        <Tooltip.Trigger asChild>{children}</Tooltip.Trigger>
+        <Tooltip.Portal>
+          <Tooltip.Content
+            side="top"
+            align="center"
+            sideOffset={8}
+            className="z-50 w-52 rounded-2xl border border-white/[0.12] bg-[#1c1612]/95 p-3.5 shadow-2xl backdrop-blur-xl animate-in fade-in-0 zoom-in-95"
+          >
+            {/* Header: room number + name */}
+            <div className="mb-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xl font-black font-mono text-stone-100 leading-none">{room.roomNumber}</span>
+                {s && (
+                  <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold', s.badgeSolid)}>
+                    {s.label}
+                  </span>
+                )}
+              </div>
+              {room.roomName && (
+                <div className="text-xs text-stone-400 mt-1 truncate">{room.roomName}</div>
+              )}
+            </div>
+            {/* Details */}
+            <div className="space-y-1.5 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-stone-500">ประเภท</span>
+                <span className="text-stone-300 font-medium truncate max-w-[120px]">{room.roomType.name}</span>
+              </div>
+              {room.zone && (
+                <div className="flex items-center justify-between">
+                  <span className="text-stone-500">โซน</span>
+                  <span className="text-stone-300 font-medium truncate max-w-[120px]">{room.zone.name}</span>
+                </div>
+              )}
+              {room.floorNo && (
+                <div className="flex items-center justify-between">
+                  <span className="text-stone-500">ชั้น</span>
+                  <span className="text-stone-300 font-medium">{room.floorNo}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between">
+                <span className="text-stone-500">ความจุสูงสุด</span>
+                <span className="text-stone-300 font-medium">{room.maxOccupancy} คน</span>
+              </div>
+            </div>
+            <Tooltip.Arrow className="fill-[#1c1612]" />
+          </Tooltip.Content>
+        </Tooltip.Portal>
+      </Tooltip.Root>
+    </Tooltip.Provider>
+  )
+}
+
 // ── Column wrapper ─────────────────────────────────────────────
-function Column({ title, icon: Icon, count, onAdd, addLabel, onAddBulk, children, loading, className = '', headerExtra }: {
+function Column({ title, icon: Icon, count, onAdd, addLabel, onAddBulk, children, loading, className = '' }: {
   title: string; icon: React.ElementType; count?: number; onAdd: () => void; addLabel: string
   onAddBulk?: () => void
   children: React.ReactNode; loading?: boolean; className?: string
-  headerExtra?: React.ReactNode
 }) {
   return (
     <div className={cn('flex flex-col rounded-2xl border border-white/[0.10] bg-black/20 backdrop-blur-sm overflow-hidden', className)}>
@@ -103,13 +162,12 @@ function Column({ title, icon: Icon, count, onAdd, addLabel, onAddBulk, children
             <span className="ml-0.5 rounded-full bg-white/[0.08] px-2 py-0.5 text-[11px] font-medium text-stone-400">{count}</span>
           )}
         </div>
-        {headerExtra && <div className="mt-2.5">{headerExtra}</div>}
       </div>
 
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
         {loading ? (
-          <div className="space-y-1.5 p-1">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-9 w-full rounded-xl" />)}</div>
+          <div className="space-y-1.5 p-1">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-24 w-full rounded-2xl" />)}</div>
         ) : children}
       </div>
 
@@ -694,6 +752,7 @@ export default function RoomsSettingsPage() {
                     }
                     return (
                       <div key={room.id} className="group relative">
+                        <RoomTileTooltip room={room}>
                         <div className={cn(
                           'relative rounded-2xl border cursor-pointer transition-all duration-150 hover:shadow-[0_4px_20px_rgba(0,0,0,0.45)] hover:scale-[1.03]',
                           tileBg[room.currentStatus] || 'bg-white/[0.04] border-white/[0.10] hover:bg-white/[0.07]',
@@ -734,6 +793,7 @@ export default function RoomsSettingsPage() {
                             </button>
                           </div>
                         </div>
+                        </RoomTileTooltip>
                       </div>
                     )
                   })}
