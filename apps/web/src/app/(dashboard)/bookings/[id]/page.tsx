@@ -59,6 +59,9 @@ export default function BookingDetailPage() {
     qc.invalidateQueries({ queryKey: ['room-map'] })
     qc.invalidateQueries({ queryKey: ['dashboard'] })
     qc.invalidateQueries({ queryKey: ['occupancy-forecast'] })
+    // Check-out auto-creates a housekeeping task → refresh HK views & dashboard count.
+    qc.invalidateQueries({ queryKey: ['housekeeping'] })
+    qc.invalidateQueries({ queryKey: ['hk-pending'] })
   }, [qc, id])
 
   const checkInMutation = useMutation({

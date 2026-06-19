@@ -351,13 +351,16 @@ export default function RoomMapPage() {
     if (isError) toast.error('โหลดข้อมูลห้องไม่สำเร็จ')
   }, [isError])
 
-  // Any room/booking change here also affects the grid, bookings list & dashboard.
+  // Any room/booking change here also affects the grid, bookings list, dashboard,
+  // and (when creating a cleaning task / setting OOO) the housekeeping views.
   const invalidateRelated = () => {
     qc.invalidateQueries({ queryKey: ['room-map'] })
     qc.invalidateQueries({ queryKey: ['room-grid'] })
     qc.invalidateQueries({ queryKey: ['bookings'] })
     qc.invalidateQueries({ queryKey: ['dashboard'] })
     qc.invalidateQueries({ queryKey: ['occupancy-forecast'] })
+    qc.invalidateQueries({ queryKey: ['housekeeping'] })
+    qc.invalidateQueries({ queryKey: ['hk-pending'] })
   }
 
   const { data: zones } = useQuery({ queryKey: ['zones-flat'], queryFn: () => zonesApi.flat().then(r => r.data) })
