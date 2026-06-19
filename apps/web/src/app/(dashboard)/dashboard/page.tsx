@@ -36,20 +36,32 @@ interface HkTask {
 }
 
 // ── Number count-up hook ───────────────────────────────────────
+// Animates from the *previous* value to the new target, so a refetch that
+// nudges the number (e.g. 1000 → 1050) eases smoothly instead of resetting to 0.
 function useCountUp(target: number, duration = 1000, delay = 400) {
   const [value, setValue] = useState(0)
   const rafRef = useRef<number | null>(null)
+  const fromRef = useRef(0)
 
   useEffect(() => {
-    if (!target) { setValue(0); return }
+    const from = fromRef.current
+    if (from === target) return
+    // First reveal (0 → target) keeps the configured delay; later updates ease immediately.
+    const startDelay = from === 0 ? delay : 0
     let startTime: number | null = null
     const step = (ts: number) => {
-      if (!startTime) startTime = ts + delay
+      if (!startTime) startTime = ts + startDelay
       const elapsed = Math.max(0, ts - startTime)
       const progress = Math.min(elapsed / duration, 1)
       const eased = 1 - Math.pow(1 - progress, 3)
-      setValue(Math.round(eased * target))
-      if (progress < 1) rafRef.current = requestAnimationFrame(step)
+      const next = Math.round(from + (target - from) * eased)
+      setValue(next)
+      fromRef.current = next
+      if (progress < 1) {
+        rafRef.current = requestAnimationFrame(step)
+      } else {
+        fromRef.current = target
+      }
     }
     rafRef.current = requestAnimationFrame(step)
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) }
