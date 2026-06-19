@@ -164,10 +164,12 @@ export class RoomsService {
         images: { orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }] },
         bookingRooms: {
           where: {
-            status: { notIn: ['cancelled'] },
+            status: { notIn: ['cancelled', 'no_show', 'checked_out'] },
             checkInDate: { lte: targetDate },
             checkOutDate: { gt: targetDate },
-            booking: { propertyId, status: { notIn: ['cancelled', 'no_show'] } },
+            // Exclude checked_out too — a guest who already left no longer occupies
+            // or reserves the room (it just needs cleaning). Matches getGrid/getAvailability.
+            booking: { propertyId, status: { notIn: ['cancelled', 'no_show', 'checked_out'] } },
           },
           include: {
             booking: {
@@ -182,8 +184,12 @@ export class RoomsService {
       orderBy: [{ zone: { sortOrder: 'asc' } }, { roomNumber: 'asc' }],
     })
 
-    const today = new Date(); today.setHours(0, 0, 0, 0)
-    const isTargetToday = targetDate.getTime() === today.getTime()
+    // Compare on local date strings, NOT timestamps: new Date('YYYY-MM-DD') is
+    // parsed as UTC midnight (= 07:00 local in UTC+7), so a getTime() comparison
+    // against local midnight is always false and "today" would never match.
+    const now = new Date()
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    const isTargetToday = date === todayStr
 
     // Compute effective status for the selected date
     const roomsWithStatus = rooms.map((room) => {

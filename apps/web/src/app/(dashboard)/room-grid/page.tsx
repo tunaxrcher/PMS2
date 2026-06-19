@@ -10,10 +10,9 @@ import {
 } from '@dnd-kit/core'
 import {
   ChevronLeft, ChevronRight, RefreshCw, Plus, AlertTriangle,
-  BedDouble, Filter, MapPin
+  BedDouble, MapPin
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { motion, AnimatePresence } from 'framer-motion'
 import { AppShell } from '@/components/layout/app-shell'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -22,22 +21,15 @@ import { Input } from '@/components/ui/input'
 import { roomsApi, bookingsApi, zonesApi, roomTypesApi } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { CreateBookingDialog } from '@/components/bookings/create-booking-dialog'
+import { RoomFilterPanel } from '@/components/rooms/room-filter-panel'
+import { ROOM_STATUS, GRID_STATUS_KEYS, buildStatusChips } from '@/lib/room-status'
 import { useRouter } from 'next/navigation'
 
 const CELL_W = 52
 const ROW_H = 56
 const ROOM_COL_W = 180
 
-// Thai status labels
-const ROOM_STATUS_TH: Record<string, { label: string; bg: string; dot: string; badge: string }> = {
-  clean:         { label: 'สะอาด',           bg: 'bg-emerald-400/10', dot: 'bg-emerald-400', badge: 'bg-emerald-400/20 border-emerald-300/30 text-emerald-200' },
-  dirty:         { label: 'รอทำความสะอาด',   bg: 'bg-amber-400/10',   dot: 'bg-amber-400',   badge: 'bg-amber-400/20 border-amber-300/30 text-amber-200' },
-  occupied:      { label: 'มีผู้เข้าพัก',    bg: 'bg-rose-400/10',    dot: 'bg-rose-400',    badge: 'bg-rose-400/20 border-rose-300/30 text-rose-200' },
-  cleaning:      { label: 'กำลังทำ',         bg: 'bg-sky-400/10',     dot: 'bg-sky-400',     badge: 'bg-sky-400/20 border-sky-300/30 text-sky-200' },
-  out_of_order:  { label: 'ห้องเสีย',        bg: 'bg-stone-500/15',   dot: 'bg-stone-500',   badge: 'bg-stone-500/20 border-stone-400/30 text-stone-300' },
-  out_of_service:{ label: 'ปิดบริการ',       bg: 'bg-stone-400/10',   dot: 'bg-stone-400',   badge: 'bg-stone-400/20 border-stone-300/30 text-stone-300' },
-  inspected:     { label: 'ตรวจแล้ว',        bg: 'bg-teal-400/10',    dot: 'bg-teal-400',    badge: 'bg-teal-400/20 border-teal-300/30 text-teal-200' },
-}
+const STATUS_CHIPS = buildStatusChips(GRID_STATUS_KEYS)
 
 const BOOKING_BLOCK_COLORS: Record<string, string> = {
   confirmed:    'bg-sky-400/25 border-sky-300/40 text-sky-50 hover:bg-sky-400/35',
@@ -118,8 +110,11 @@ export default function RoomGridPage() {
   const router = useRouter()
   const qc = useQueryClient()
   const today = new Date()
-  const [startDate, setStartDate] = useState(() => { const d = new Date(); d.setDate(1); return d })
+  // Rolling 30-day window that starts at TODAY (operational tape-chart) instead of
+  // the 1st of the month — staff care about today onward, not past days.
+  const [startDate, setStartDate] = useState(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d })
   const days = 30
+  const SHIFT_DAYS = 14
   const [zoneFilter, setZoneFilter] = useState('')
   const [rtFilter, setRtFilter] = useState('')
   const [statusFilters, setStatusFilters] = useState<string[]>([])
@@ -136,6 +131,7 @@ export default function RoomGridPage() {
   const from = format(startDate, 'yyyy-MM-dd')
   const to = format(endDate, 'yyyy-MM-dd')
   const dateColumns = eachDayOfInterval({ start: startDate, end: endDate })
+  const rangeLabel = `${format(startDate, 'd MMM', { locale: th })} – ${format(endDate, 'd MMM yyyy', { locale: th })}`
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
 
@@ -150,23 +146,34 @@ export default function RoomGridPage() {
   const { data: zones } = useQuery({ queryKey: ['zones-flat'], queryFn: () => zonesApi.flat().then(r => r.data) })
   const { data: roomTypes } = useQuery({ queryKey: ['room-types'], queryFn: () => roomTypesApi.list().then(r => r.data) })
 
+  // A move/OOO/booking change is also reflected on the room map, bookings list
+  // and dashboard — keep every related view in sync.
+  const invalidateRelated = useCallback(() => {
+    qc.invalidateQueries({ queryKey: ['room-grid'] })
+    qc.invalidateQueries({ queryKey: ['room-map'] })
+    qc.invalidateQueries({ queryKey: ['rooms'] })
+    qc.invalidateQueries({ queryKey: ['bookings'] })
+    qc.invalidateQueries({ queryKey: ['dashboard'] })
+    qc.invalidateQueries({ queryKey: ['occupancy-forecast'] })
+  }, [qc])
+
   const moveRoomMutation = useMutation({
-    mutationFn: ({ bookingRoomId, newRoomId }: { bookingRoomId: string; newRoomId: string }) =>
-      bookingsApi.moveRoom('any', { bookingRoomId, newRoomId }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['room-grid'] }); toast.success('ย้ายห้องสำเร็จ') },
+    mutationFn: ({ bookingId, bookingRoomId, newRoomId }: { bookingId: string; bookingRoomId: string; newRoomId: string }) =>
+      bookingsApi.moveRoom(bookingId, { bookingRoomId, newRoomId }),
+    onSuccess: () => { invalidateRelated(); toast.success('ย้ายห้องสำเร็จ') },
     onError: (e: { response?: { data?: { message?: string } } }) => toast.error(e?.response?.data?.message || 'ไม่สามารถย้ายห้องได้'),
   })
 
   const setOooMutation = useMutation({
     mutationFn: ({ roomId, reason }: { roomId: string; reason: string }) =>
       roomsApi.updateStatus(roomId, 'out_of_order', reason),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['room-grid'] }); qc.invalidateQueries({ queryKey: ['rooms'] }); setOooDialog(null); setOooReason(''); toast.success('ตั้งห้อง Out of Order แล้ว') },
+    onSuccess: () => { invalidateRelated(); setOooDialog(null); setOooReason(''); toast.success('ตั้งห้อง Out of Order แล้ว') },
     onError: () => toast.error('เกิดข้อผิดพลาด'),
   })
 
   const clearOooMutation = useMutation({
     mutationFn: (roomId: string) => roomsApi.updateStatus(roomId, 'clean', 'แก้ไขแล้ว'),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['room-grid'] }); toast.success('ห้องพร้อมใช้งานแล้ว') },
+    onSuccess: () => { invalidateRelated(); toast.success('ห้องพร้อมใช้งานแล้ว') },
     onError: () => toast.error('เกิดข้อผิดพลาด'),
   })
 
@@ -230,38 +237,40 @@ export default function RoomGridPage() {
     if (!dragData || !dropData) return
     const allRooms: Room[] = rooms || []
     let currentRoomId = ''
+    let bookingId = ''
     for (const room of allRooms) {
-      if (room.bookingRooms?.find(b => b.id === dragData.bookingRoomId)) { currentRoomId = room.id; break }
+      const br = room.bookingRooms?.find(b => b.id === dragData.bookingRoomId)
+      if (br) { currentRoomId = room.id; bookingId = br.bookingId; break }
     }
-    if (dropData.roomId && dropData.roomId !== currentRoomId && dragData.bookingRoomId) {
-      moveRoomMutation.mutate({ bookingRoomId: dragData.bookingRoomId, newRoomId: dropData.roomId })
+    if (dropData.roomId && dropData.roomId !== currentRoomId && dragData.bookingRoomId && bookingId) {
+      moveRoomMutation.mutate({ bookingId, bookingRoomId: dragData.bookingRoomId, newRoomId: dropData.roomId })
     }
   }
 
-  const prevMonth = () => setStartDate(d => { const n = new Date(d); n.setMonth(n.getMonth() - 1); n.setDate(1); return n })
-  const nextMonth = () => setStartDate(d => { const n = new Date(d); n.setMonth(n.getMonth() + 1); n.setDate(1); return n })
-  const goToday = () => { const d = new Date(); d.setDate(1); setStartDate(d) }
+  const goPrev = () => setStartDate(d => addDays(d, -SHIFT_DAYS))
+  const goNext = () => setStartDate(d => addDays(d, SHIFT_DAYS))
+  const goToday = () => { const d = new Date(); d.setHours(0, 0, 0, 0); setStartDate(d) }
 
   const activeFilters = (zoneFilter ? 1 : 0) + (rtFilter ? 1 : 0) + statusFilters.length
 
   return (
-    <AppShell title="ปฏิทินห้องพัก" subtitle={`${format(startDate, 'MMMM yyyy', { locale: th })}`}>
+    <AppShell title="ปฏิทินห้องพัก" subtitle={rangeLabel}>
       <div className="flex flex-col gap-4">
         {/* Navigation controls */}
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <div className="flex items-center rounded-xl border border-white/15 bg-white/[0.06] overflow-hidden">
-              <button onClick={prevMonth} className="px-2.5 py-2 hover:bg-white/[0.06] transition-colors">
+              <button onClick={goPrev} title="ย้อน 2 สัปดาห์" className="px-2.5 py-2 hover:bg-white/[0.06] transition-colors">
                 <ChevronLeft className="h-4 w-4 text-stone-400" />
               </button>
               <button onClick={goToday} className="px-3 py-2 text-xs font-medium text-stone-300 hover:text-amber-300 transition-colors border-x border-white/10">
                 วันนี้
               </button>
-              <button onClick={nextMonth} className="px-2.5 py-2 hover:bg-white/[0.06] transition-colors">
+              <button onClick={goNext} title="ถัดไป 2 สัปดาห์" className="px-2.5 py-2 hover:bg-white/[0.06] transition-colors">
                 <ChevronRight className="h-4 w-4 text-stone-400" />
               </button>
             </div>
-            <span className="text-sm font-medium text-stone-300">{format(startDate, 'MMMM yyyy', { locale: th })}</span>
+            <span className="text-sm font-medium text-stone-300">{rangeLabel}</span>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => refetch()} className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/15 bg-white/[0.06] text-stone-400 hover:bg-white/[0.10] hover:text-stone-100 transition-colors">
@@ -274,107 +283,21 @@ export default function RoomGridPage() {
         </div>
 
         {/* ── Collapsible Filter Panel ── */}
-        <div className="rounded-2xl border border-white/10 bg-black/20 backdrop-blur-sm overflow-hidden">
-          {/* Toggle bar */}
-          <button
-            onClick={() => setFilterOpen(!filterOpen)}
-            className="flex w-full items-center justify-between px-4 py-3 hover:bg-white/[0.03] transition-colors"
-          >
-            <div className="flex items-center gap-2.5">
-              <Filter className="h-4 w-4 text-stone-500" />
-              <span className="text-sm font-medium text-stone-400">ตัวกรอง</span>
-              {activeFilters > 0 && (
-                <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-amber-400 px-1.5 text-xs font-bold text-stone-900">
-                  {activeFilters}
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-3">
-              {activeFilters > 0 && (
-                <button
-                  onClick={e => { e.stopPropagation(); clearAllFilters() }}
-                  className="text-xs text-stone-600 hover:text-rose-400 transition-colors"
-                >
-                  ล้างทั้งหมด ×
-                </button>
-              )}
-              <ChevronRight className={cn('h-4 w-4 text-stone-600 transition-transform duration-200', filterOpen && 'rotate-90')} />
-            </div>
-          </button>
-
-          {/* Expandable content */}
-          <AnimatePresence initial={false}>
-            {filterOpen && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.22, ease: 'easeInOut' }}
-                className="overflow-hidden"
-              >
-                <div className="border-t border-white/[0.06] divide-y divide-white/[0.06]">
-                  {/* Zone */}
-                  <div className="flex items-start gap-3 px-4 py-3">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-stone-600 w-12 flex-shrink-0 pt-1">โซน</span>
-                    <div className="flex flex-wrap gap-1.5">
-                      <button onClick={() => setZoneFilter('')}
-                        className={cn('rounded-full px-3 py-1 text-xs font-medium border transition-all', zoneFilter === '' ? 'bg-amber-400/15 border-amber-300/30 text-amber-200' : 'border-white/10 text-stone-500 hover:border-white/20 hover:text-stone-300')}>
-                        ทั้งหมด
-                      </button>
-                      {(zones as Array<{ id: string; name: string }> || []).map(z => (
-                        <button key={z.id} onClick={() => setZoneFilter(zoneFilter === z.id ? '' : z.id)}
-                          className={cn('rounded-full px-3 py-1 text-xs font-medium border transition-all', zoneFilter === z.id ? 'bg-amber-400/15 border-amber-300/30 text-amber-200' : 'border-white/10 text-stone-500 hover:border-white/20 hover:text-stone-300')}>
-                          {z.name}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Room Type */}
-                  <div className="flex items-start gap-3 px-4 py-3">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-stone-600 w-12 flex-shrink-0 pt-1">ประเภท</span>
-                    <div className="flex flex-wrap gap-1.5">
-                      <button onClick={() => setRtFilter('')}
-                        className={cn('rounded-full px-3 py-1 text-xs font-medium border transition-all', rtFilter === '' ? 'bg-amber-400/15 border-amber-300/30 text-amber-200' : 'border-white/10 text-stone-500 hover:border-white/20 hover:text-stone-300')}>
-                        ทั้งหมด
-                      </button>
-                      {(roomTypes as Array<{ id: string; name: string }> || []).map(rt => (
-                        <button key={rt.id} onClick={() => setRtFilter(rtFilter === rt.id ? '' : rt.id)}
-                          className={cn('rounded-full px-3 py-1 text-xs font-medium border transition-all', rtFilter === rt.id ? 'bg-amber-400/15 border-amber-300/30 text-amber-200' : 'border-white/10 text-stone-500 hover:border-white/20 hover:text-stone-300')}>
-                          {rt.name}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Status multi-select */}
-                  <div className="flex items-start gap-3 px-4 py-3">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-stone-600 w-12 flex-shrink-0 pt-1">สถานะ</span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {Object.entries(ROOM_STATUS_TH).map(([k, v]) => {
-                        const isSelected = statusFilters.includes(k)
-                        return (
-                          <button key={k} onClick={() => toggleStatus(k)}
-                            className={cn(
-                              'flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium border transition-all',
-                              isSelected ? `${v.badge} border-transparent` : 'border-white/10 text-stone-500 hover:border-white/20 hover:text-stone-300'
-                            )}>
-                            {isSelected ? (
-                              <span className="text-xs font-black">✓</span>
-                            ) : (
-                              <span className={cn('h-2 w-2 rounded-full flex-shrink-0', v.dot)} />
-                            )}
-                            {v.label}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+        <RoomFilterPanel
+          open={filterOpen}
+          onToggleOpen={() => setFilterOpen(!filterOpen)}
+          zones={(zones as Array<{ id: string; name: string }>) || []}
+          roomTypes={(roomTypes as Array<{ id: string; name: string }>) || []}
+          zoneFilter={zoneFilter}
+          onZoneFilter={setZoneFilter}
+          typeFilter={rtFilter}
+          onTypeFilter={setRtFilter}
+          statusOptions={STATUS_CHIPS}
+          statusFilters={statusFilters}
+          onToggleStatus={toggleStatus}
+          activeCount={activeFilters}
+          onClearAll={clearAllFilters}
+        />
 
         {/* Grid */}
         <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
@@ -473,7 +396,7 @@ export default function RoomGridPage() {
                       {/* Room rows */}
                       {group.rooms.map(room => {
                         const isOOO = room.currentStatus === 'out_of_order'
-                        const statusInfo = ROOM_STATUS_TH[room.currentStatus]
+                        const statusInfo = ROOM_STATUS[room.currentStatus]
                         return (
                           <div key={room.id} className={cn('relative flex border-b border-white/[0.05] group hover:bg-white/[0.015] transition-colors', isOOO ? 'opacity-75' : '')} style={{ height: ROW_H }}>
                             {/* Room label */}
@@ -586,7 +509,7 @@ export default function RoomGridPage() {
       </PmsDialog>
 
       <CreateBookingDialog open={createOpen} onClose={() => setCreateOpen(false)}
-        onSuccess={() => setCreateOpen(false)}
+        onSuccess={() => { setCreateOpen(false); invalidateRelated() }}
         prefillDate={prefillDate}
         prefillRoomTypeId={prefillRoomTypeId}
         prefillRoomId={prefillRoomId} />

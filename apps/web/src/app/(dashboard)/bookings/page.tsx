@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { Plus, BookOpen, Search, ChevronRight, BedDouble, CalendarRange, Phone } from 'lucide-react'
@@ -39,14 +39,22 @@ export default function BookingsPage() {
   const router = useRouter()
   const [statusFilter, setStatusFilter] = useState('')
   const [guestSearch, setGuestSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [page, setPage] = useState(1)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
 
+  // Debounce the search box so we fire one request after typing settles,
+  // not one per keystroke.
+  useEffect(() => {
+    const t = setTimeout(() => { setDebouncedSearch(guestSearch); setPage(1) }, 350)
+    return () => clearTimeout(t)
+  }, [guestSearch])
+
   const { data, isLoading } = useQuery({
-    queryKey: ['bookings', statusFilter, guestSearch, page],
+    queryKey: ['bookings', statusFilter, debouncedSearch, page],
     queryFn: () => bookingsApi.list({
       status: statusFilter || undefined,
-      guestName: guestSearch || undefined,
+      guestName: debouncedSearch || undefined,
       page, limit: 20,
     }).then(r => r.data),
     staleTime: 30_000,
@@ -77,7 +85,7 @@ export default function BookingsPage() {
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-500" />
             <input
               value={guestSearch}
-              onChange={e => { setGuestSearch(e.target.value); setPage(1) }}
+              onChange={e => setGuestSearch(e.target.value)}
               placeholder="ค้นหาชื่อ เบอร์โทร..."
               className="h-9 w-full rounded-full border border-white/15 bg-black/25 pl-9 pr-4 text-sm text-stone-100 placeholder:text-stone-600 focus:border-amber-300/40 focus:outline-none backdrop-blur-sm transition-colors"
             />
@@ -246,7 +254,14 @@ export default function BookingsPage() {
       <CreateBookingDialog
         open={createDialogOpen}
         onClose={() => setCreateDialogOpen(false)}
-        onSuccess={() => { setCreateDialogOpen(false); qc.invalidateQueries({ queryKey: ['bookings'] }) }}
+        onSuccess={() => {
+          setCreateDialogOpen(false)
+          qc.invalidateQueries({ queryKey: ['bookings'] })
+          qc.invalidateQueries({ queryKey: ['room-grid'] })
+          qc.invalidateQueries({ queryKey: ['room-map'] })
+          qc.invalidateQueries({ queryKey: ['dashboard'] })
+          qc.invalidateQueries({ queryKey: ['occupancy-forecast'] })
+        }}
       />
     </AppShell>
   )

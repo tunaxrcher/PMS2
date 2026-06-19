@@ -4,9 +4,9 @@ import React, { useState } from 'react'
 import { useParams } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  ArrowLeft, User, CalendarRange, BedDouble, Receipt, Printer,
+  ArrowLeft, BedDouble, Receipt, Printer,
   CheckCircle2, XCircle, DoorOpen, DoorClosed,
-  CreditCard, Banknote, ArrowRightLeft, AlertTriangle, Ban, Coins
+  Ban, Coins
 } from 'lucide-react'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { toast } from 'sonner'
@@ -19,9 +19,10 @@ import { PmsDialog } from '@/components/ui/pms-dialog'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
-import { bookingsApi, foliosApi, roomsApi, depositsApi, api } from '@/lib/api'
-import { formatDate, formatDateTime, formatCurrency, calcNights } from '@/lib/utils'
+import { bookingsApi, roomsApi, depositsApi } from '@/lib/api'
+import { formatDateTime } from '@/lib/utils'
 import { FolioPanel } from '@/components/bookings/folio-panel'
+import { BookingInfoCards } from '@/components/bookings/booking-info-cards'
 
 export default function BookingDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -49,27 +50,38 @@ export default function BookingDetailPage() {
     refetchInterval: 30_000,
   })
 
+  // A booking action changes shared state seen by the bookings list, room grid,
+  // room map and dashboard — invalidate them all so the related views stay in sync.
+  const invalidateRelated = React.useCallback(() => {
+    qc.invalidateQueries({ queryKey: ['booking', id] })
+    qc.invalidateQueries({ queryKey: ['bookings'] })
+    qc.invalidateQueries({ queryKey: ['room-grid'] })
+    qc.invalidateQueries({ queryKey: ['room-map'] })
+    qc.invalidateQueries({ queryKey: ['dashboard'] })
+    qc.invalidateQueries({ queryKey: ['occupancy-forecast'] })
+  }, [qc, id])
+
   const checkInMutation = useMutation({
     mutationFn: () => bookingsApi.checkIn(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['booking', id] }); toast.success('Check-in สำเร็จ') },
+    onSuccess: () => { invalidateRelated(); toast.success('Check-in สำเร็จ') },
     onError: (e: { response?: { data?: { message?: string } } }) => toast.error(e?.response?.data?.message || 'เกิดข้อผิดพลาด'),
   })
 
   const checkOutMutation = useMutation({
     mutationFn: () => bookingsApi.checkOut(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['booking', id] }); toast.success('Check-out สำเร็จ') },
+    onSuccess: () => { invalidateRelated(); toast.success('Check-out สำเร็จ') },
     onError: (e: { response?: { data?: { message?: string } } }) => toast.error(e?.response?.data?.message || 'เกิดข้อผิดพลาด'),
   })
 
   const confirmBookingMutation = useMutation({
     mutationFn: () => bookingsApi.confirm(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['booking', id] }); toast.success('ยืนยันการจองสำเร็จ') },
+    onSuccess: () => { invalidateRelated(); toast.success('ยืนยันการจองสำเร็จ') },
     onError: (e: { response?: { data?: { message?: string } } }) => toast.error(e?.response?.data?.message || 'เกิดข้อผิดพลาด'),
   })
 
   const cancelMutation = useMutation({
     mutationFn: () => bookingsApi.cancel(id, { reason: cancelReason }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['booking', id] }); setCancelDialog(false); toast.success('ยกเลิกการจองสำเร็จ') },
+    onSuccess: () => { invalidateRelated(); setCancelDialog(false); toast.success('ยกเลิกการจองสำเร็จ') },
     onError: (e: { response?: { data?: { message?: string } } }) => toast.error(e?.response?.data?.message || 'เกิดข้อผิดพลาด'),
   })
 
@@ -79,7 +91,7 @@ export default function BookingDetailPage() {
       depositType: depositForm.depositType,
       paymentMethod: depositForm.paymentMethod,
     }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['booking', id] }); setDepositDialog(false); setDepositForm({ amount: '', depositType: 'booking_deposit', paymentMethod: 'cash' }); toast.success('รับมัดจำสำเร็จ') },
+    onSuccess: () => { invalidateRelated(); setDepositDialog(false); setDepositForm({ amount: '', depositType: 'booking_deposit', paymentMethod: 'cash' }); toast.success('รับมัดจำสำเร็จ') },
     onError: (e: { response?: { data?: { message?: string } } }) => toast.error(e?.response?.data?.message || 'เกิดข้อผิดพลาด'),
   })
 
@@ -90,7 +102,7 @@ export default function BookingDetailPage() {
       reason: rateForm.reason,
       adjustmentType: rateForm.adjustmentType,
     }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['booking', id] }); qc.invalidateQueries({ queryKey: ['folio'] }); setRateDialog(null); toast.success('ปรับราคาสำเร็จ') },
+    onSuccess: () => { invalidateRelated(); qc.invalidateQueries({ queryKey: ['folio'] }); setRateDialog(null); toast.success('ปรับราคาสำเร็จ') },
     onError: (e: { response?: { data?: { message?: string } } }) => toast.error(e?.response?.data?.message || 'เกิดข้อผิดพลาด'),
   })
 
@@ -102,27 +114,56 @@ export default function BookingDetailPage() {
       children: editForm.children,
       notes: editForm.notes || undefined,
     }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['booking', id] }); setEditDialog(false); toast.success('แก้ไขการจองสำเร็จ') },
+    onSuccess: () => { invalidateRelated(); setEditDialog(false); toast.success('แก้ไขการจองสำเร็จ') },
     onError: (e: { response?: { data?: { message?: string } } }) => toast.error(e?.response?.data?.message || 'เกิดข้อผิดพลาด'),
   })
 
   const noShowMutation = useMutation({
     mutationFn: () => bookingsApi.noShow(id, { noShowFee: noShowFee ? Number(noShowFee) : undefined }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['booking', id] }); setNoShowDialog(false); toast.success('บันทึก No Show สำเร็จ') },
+    onSuccess: () => { invalidateRelated(); setNoShowDialog(false); toast.success('บันทึก No Show สำเร็จ') },
     onError: (e: { response?: { data?: { message?: string } } }) => toast.error(e?.response?.data?.message || 'เกิดข้อผิดพลาด'),
   })
 
   const assignRoomMutation = useMutation({
     mutationFn: () => bookingsApi.assignRoom(id, { bookingRoomId: assignBookingRoomId, roomId: assignRoomId }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['booking', id] }); setAssignRoomDialog(false); toast.success('กำหนดห้องสำเร็จ') },
+    onSuccess: () => { invalidateRelated(); setAssignRoomDialog(false); toast.success('กำหนดห้องสำเร็จ') },
     onError: (e: { response?: { data?: { message?: string } } }) => toast.error(e?.response?.data?.message || 'เกิดข้อผิดพลาด'),
   })
 
-  const { data: availableRooms } = useQuery({
-    queryKey: ['rooms-available', booking?.checkInDate, booking?.checkOutDate],
-    queryFn: () => roomsApi.list({ roomTypeId: booking?.bookingRooms?.[0]?.roomTypeId }).then(r => r.data),
+  // Pull the grid (rooms + their bookings in the date range) so we can offer only
+  // rooms that are genuinely free for THIS booking's dates — not merely "clean now".
+  const { data: assignGrid } = useQuery({
+    queryKey: ['rooms-grid-assign', booking?.checkInDate, booking?.checkOutDate],
+    queryFn: () => roomsApi.grid(
+      booking!.checkInDate.split('T')[0],
+      booking!.checkOutDate.split('T')[0],
+    ).then(r => r.data),
     enabled: assignRoomDialog && !!booking,
   })
+
+  type GridRoom = {
+    id: string; roomNumber: string; roomName?: string | null; currentStatus: string
+    roomType: { id: string }; zone?: { name: string } | null
+    bookingRooms?: Array<{ checkInDate: string; checkOutDate: string; status: string }>
+  }
+
+  const availableRooms = React.useMemo<GridRoom[]>(() => {
+    if (!booking) return []
+    const targetBr = (booking.bookingRooms as Array<{ id: string; roomTypeId: string }>)?.find(br => br.id === assignBookingRoomId)
+    const targetRoomTypeId = targetBr?.roomTypeId
+    const ci = new Date(booking.checkInDate)
+    const co = new Date(booking.checkOutDate)
+    const allRooms = ((assignGrid as { rooms?: GridRoom[] } | undefined)?.rooms) || []
+    return allRooms.filter(r => {
+      if (targetRoomTypeId && r.roomType.id !== targetRoomTypeId) return false
+      if (['out_of_order', 'out_of_service'].includes(r.currentStatus)) return false
+      const overlaps = r.bookingRooms?.some(br =>
+        !['cancelled', 'no_show'].includes(br.status) &&
+        new Date(br.checkInDate) < co && new Date(br.checkOutDate) > ci
+      )
+      return !overlaps
+    })
+  }, [assignGrid, booking, assignBookingRoomId])
 
   if (isLoading) {
     return (
@@ -270,89 +311,14 @@ export default function BookingDetailPage() {
           </div>
         </GlassPanel>
 
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-          {/* Guest info */}
-          <GlassPanel padding="md">
-            <div className="mb-3 flex items-center gap-2">
-              <User className="h-4 w-4 text-amber-400" />
-              <h3 className="text-sm font-semibold text-stone-100">ข้อมูลลูกค้า</h3>
-            </div>
-            <div className="space-y-2 text-sm">
-              <div><span className="text-stone-500">ชื่อ: </span><span className="text-stone-200">{booking.guest?.firstName} {booking.guest?.lastName}</span></div>
-              {booking.guest?.phone && <div><span className="text-stone-500">โทร: </span><span className="text-stone-200">{booking.guest.phone}</span></div>}
-              {booking.guest?.email && <div><span className="text-stone-500">อีเมล: </span><span className="text-stone-200">{booking.guest.email}</span></div>}
-              {booking.guest?.nationality && <div><span className="text-stone-500">สัญชาติ: </span><span className="text-stone-200">{booking.guest.nationality}</span></div>}
-            </div>
-          </GlassPanel>
-
-          {/* Booking info */}
-          <GlassPanel padding="md">
-            <div className="mb-3 flex items-center gap-2">
-              <CalendarRange className="h-4 w-4 text-amber-400" />
-              <h3 className="text-sm font-semibold text-stone-100">รายละเอียดการจอง</h3>
-            </div>
-            <div className="space-y-2 text-sm">
-              <div><span className="text-stone-500">เช็คอิน: </span><span className="text-stone-200">{formatDate(booking.checkInDate)}</span></div>
-              <div><span className="text-stone-500">เช็คเอาท์: </span><span className="text-stone-200">{formatDate(booking.checkOutDate)}</span></div>
-              <div><span className="text-stone-500">จำนวนคืน: </span><span className="text-stone-200">{calcNights(booking.checkInDate, booking.checkOutDate)} คืน</span></div>
-              <div><span className="text-stone-500">ผู้เข้าพัก: </span><span className="text-stone-200">{booking.adults} ผู้ใหญ่ {booking.children > 0 ? `${booking.children} เด็ก` : ''}</span></div>
-              {booking.bookingSource && <div><span className="text-stone-500">ช่องทาง: </span><span className="text-stone-200">{booking.bookingSource.name}</span></div>}
-              {booking.notes && <div><span className="text-stone-500">หมายเหตุ: </span><span className="text-stone-300">{booking.notes}</span></div>}
-            </div>
-          </GlassPanel>
-
-          {/* Room info */}
-          <GlassPanel padding="md">
-            <div className="mb-3 flex items-center gap-2">
-              <BedDouble className="h-4 w-4 text-amber-400" />
-              <h3 className="text-sm font-semibold text-stone-100">ห้องพัก</h3>
-            </div>
-            <div className="space-y-3">
-              {(booking.bookingRooms as Array<{
-                id: string
-                roomType: { name: string }
-                room?: { roomNumber: string; zone?: { name: string } | null } | null
-                rate: number | string
-              }>).map(br => (
-                <div key={br.id} className="rounded-xl bg-white/[0.04] p-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-sm font-medium text-stone-200">{br.roomType?.name}</div>
-                      {br.room ? (
-                        <div className="text-xs text-stone-400">ห้อง {br.room.roomNumber} {br.room.zone?.name ? `• ${br.room.zone.name}` : ''}</div>
-                      ) : (
-                        <div className="text-xs text-amber-400">ยังไม่ได้กำหนดห้อง</div>
-                      )}
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm font-semibold text-amber-300">{formatCurrency(Number(br.rate))}</div>
-                      <div className="text-xs text-stone-500">ต่อคืน</div>
-                    </div>
-                  </div>
-                  <div className="mt-2 flex gap-2">
-                    {!br.room && (
-                      <button
-                        onClick={() => { setAssignBookingRoomId(br.id); setAssignRoomDialog(true) }}
-                        className="flex-1 rounded-lg border border-amber-300/20 bg-amber-400/10 py-1.5 text-xs font-medium text-amber-300 hover:bg-amber-400/15 transition-colors"
-                      >
-                        <BedDouble className="mr-1 inline h-3 w-3" /> กำหนดห้อง
-                      </button>
-                    )}
-                    {['confirmed', 'pending', 'checked_in'].includes(booking.status) && (
-                      <button
-                        onClick={() => { setRateDialog({ bookingRoomId: br.id, currentRate: Number(br.rate) }); setRateForm({ newRate: String(br.rate), reason: '', adjustmentType: 'manual_override' }) }}
-                        className="rounded-lg border border-sky-300/20 bg-sky-400/10 px-2 py-1.5 text-xs font-medium text-sky-300 hover:bg-sky-400/15 transition-colors"
-                        title="ปรับราคา"
-                      >
-                        ปรับราคา
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </GlassPanel>
-        </div>
+        <BookingInfoCards
+          booking={booking}
+          onAssignRoom={(brId) => { setAssignBookingRoomId(brId); setAssignRoomDialog(true) }}
+          onAdjustRate={(brId, currentRate) => {
+            setRateDialog({ bookingRoomId: brId, currentRate })
+            setRateForm({ newRate: String(currentRate), reason: '', adjustmentType: 'manual_override' })
+          }}
+        />
 
         {/* Folio */}
         {folio && <FolioPanel folioId={folio.id} bookingStatus={booking.status} />}
@@ -479,9 +445,15 @@ export default function BookingDetailPage() {
           <Select value={assignRoomId} onValueChange={setAssignRoomId}>
             <SelectTrigger label="เลือกห้อง"><SelectValue placeholder="เลือกห้องพัก" /></SelectTrigger>
             <SelectContent>
-              {(availableRooms as Array<{ id: string; roomNumber: string; roomName?: string | null; currentStatus: string; zone?: { name: string } | null }> || [])
-                .filter(r => !['out_of_order', 'occupied', 'dirty', 'cleaning'].includes(r.currentStatus))
-                .map(r => <SelectItem key={r.id} value={r.id}>{r.roomNumber} {r.roomName ? `(${r.roomName})` : ''} {r.zone?.name ? `— ${r.zone.name}` : ''}</SelectItem>)}
+              {availableRooms.length === 0 ? (
+                <div className="px-3 py-2 text-xs text-stone-500">ไม่มีห้องว่างสำหรับช่วงวันนี้</div>
+              ) : (
+                availableRooms.map(r => (
+                  <SelectItem key={r.id} value={r.id}>
+                    {r.roomNumber} {r.roomName ? `(${r.roomName})` : ''} {r.zone?.name ? `— ${r.zone.name}` : ''}
+                  </SelectItem>
+                ))
+              )}
             </SelectContent>
           </Select>
           <Button onClick={() => assignRoomMutation.mutate()} loading={assignRoomMutation.isPending} className="w-full" disabled={!assignRoomId}>

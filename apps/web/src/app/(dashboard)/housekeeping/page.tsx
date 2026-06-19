@@ -44,21 +44,33 @@ export default function HousekeepingPage() {
     enabled: createOpen,
   })
 
+  // A housekeeping action changes the room's live status, which is also shown on
+  // the room map, room grid and dashboard — invalidate them so every view updates
+  // immediately instead of waiting for its own refetch interval.
+  const invalidateRelated = React.useCallback(() => {
+    qc.invalidateQueries({ queryKey: ['housekeeping'] })
+    qc.invalidateQueries({ queryKey: ['hk-pending'] })
+    qc.invalidateQueries({ queryKey: ['rooms'] })
+    qc.invalidateQueries({ queryKey: ['room-map'] })
+    qc.invalidateQueries({ queryKey: ['room-grid'] })
+    qc.invalidateQueries({ queryKey: ['dashboard'] })
+  }, [qc])
+
   const startMutation = useMutation({
     mutationFn: (id: string) => housekeepingApi.start(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['housekeeping'] }); toast.success('เริ่มทำความสะอาดแล้ว') },
+    onSuccess: () => { invalidateRelated(); toast.success('เริ่มทำความสะอาดแล้ว') },
     onError: (e: { response?: { data?: { message?: string } } }) => toast.error(e?.response?.data?.message || 'เกิดข้อผิดพลาด'),
   })
 
   const completeMutation = useMutation({
     mutationFn: ({ id, remark }: { id: string; remark?: string }) => housekeepingApi.complete(id, remark),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['housekeeping'] }); setRemarksDialog(null); setRemark(''); toast.success('ทำความสะอาดเสร็จแล้ว ห้องพร้อมใช้งาน') },
+    onSuccess: () => { invalidateRelated(); setRemarksDialog(null); setRemark(''); toast.success('ทำความสะอาดเสร็จแล้ว ห้องพร้อมใช้งาน') },
     onError: (e: { response?: { data?: { message?: string } } }) => toast.error(e?.response?.data?.message || 'เกิดข้อผิดพลาด'),
   })
 
   const createMutation = useMutation({
     mutationFn: (data: Record<string, unknown>) => housekeepingApi.create(data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['housekeeping'] }); setCreateOpen(false); toast.success('สร้างงานสำเร็จ') },
+    onSuccess: () => { invalidateRelated(); setCreateOpen(false); toast.success('สร้างงานสำเร็จ') },
     onError: () => toast.error('เกิดข้อผิดพลาด'),
   })
 

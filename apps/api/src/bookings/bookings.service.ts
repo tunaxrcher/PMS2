@@ -406,7 +406,17 @@ export class BookingsService {
       const room = await tx.room.findUnique({ where: { id: newRoomId } })
       if (!room) throw new NotFoundException('ไม่พบห้อง')
       if (room.propertyId !== br.booking.propertyId) throw new ForbiddenException('ห้องไม่ได้อยู่ใน property เดียวกัน')
-      if (room.roomTypeId !== br.roomTypeId) throw new BadRequestException('ประเภทห้องไม่ตรงกับการจอง')
+      if (room.roomTypeId !== br.roomTypeId) {
+        // Spell out both room types so the user understands the mismatch — two
+        // distinct types can share a display name, which looks identical on the grid.
+        const [targetType, bookingType] = await Promise.all([
+          tx.roomType.findUnique({ where: { id: room.roomTypeId }, select: { name: true } }),
+          tx.roomType.findUnique({ where: { id: br.roomTypeId }, select: { name: true } }),
+        ])
+        throw new BadRequestException(
+          `ย้ายได้เฉพาะห้องประเภทเดียวกัน — ห้อง ${room.roomNumber} เป็นประเภท "${targetType?.name ?? '-'}" แต่การจองนี้เป็นประเภท "${bookingType?.name ?? '-'}"`,
+        )
+      }
       if (room.currentStatus === 'out_of_order') throw new BadRequestException('ห้องนี้อยู่ระหว่างซ่อม')
 
       const conflict = await tx.bookingRoom.findFirst({
