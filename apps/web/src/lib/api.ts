@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { useAuthStore } from '@/store/auth-store'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
 
@@ -24,7 +25,15 @@ api.interceptors.response.use(
       localStorage.removeItem('access_token')
       localStorage.removeItem('refresh_token')
       localStorage.removeItem('user')
-      window.location.href = '/login'
+      // Clear the real persisted auth store (key: "serene-auth").
+      // Without this the store rehydrates user.propertyId on reload, refires
+      // authed queries → 401 → redirect → reload, causing an infinite loop.
+      useAuthStore.getState().logout()
+      // Only redirect when we're not already on the login page, otherwise the
+      // reload loops forever on /login.
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login'
+      }
     }
     return Promise.reject(error)
   }
