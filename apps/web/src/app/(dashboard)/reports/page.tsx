@@ -138,9 +138,10 @@ export default function ReportsPage() {
         {activeTab === 'occupancy' && (
           <div className="space-y-5">
             {occLoading ? <Skeleton className="h-48 rounded-2xl" /> : occupancy ? (
-              <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
                 <StatCard label="ห้องทั้งหมด" value={occupancy.totalRooms} icon={BedDouble} />
                 <StatCard label="มีผู้เข้าพัก" value={occupancy.occupied} icon={BedDouble} variant="rose" />
+                <StatCard label="จองแล้ว" value={occupancy.reserved ?? 0} icon={BedDouble} variant="sky" />
                 <StatCard label="ห้องว่าง" value={occupancy.available} icon={BedDouble} variant="emerald" />
                 <StatCard label="Occupancy" value={`${occupancy.occupancyPct}%`} icon={BarChart3} variant="amber" />
               </div>
@@ -148,8 +149,13 @@ export default function ReportsPage() {
             {occupancy && (
               <GlassPanel dense padding="md" className="flex items-center justify-center">
                 <PieChart width={300} height={200}>
-                  <Pie data={[{ name: 'เข้าพัก', value: occupancy.occupied }, { name: 'ว่าง', value: occupancy.available }, { name: 'OOO', value: occupancy.outOfOrder }]} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
-                    {[occupancy.occupied, occupancy.available, occupancy.outOfOrder].map((_: number, i: number) => <Cell key={i} fill={COLORS[i]} />)}
+                  <Pie data={[
+                    { name: 'เข้าพัก', value: occupancy.occupied },
+                    { name: 'จองแล้ว', value: occupancy.reserved ?? 0 },
+                    { name: 'ว่าง', value: occupancy.available },
+                    { name: 'OOO', value: occupancy.outOfOrder },
+                  ].filter(d => d.value > 0)} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                    {[occupancy.occupied, occupancy.reserved ?? 0, occupancy.available, occupancy.outOfOrder].filter(v => v > 0).map((_: number, i: number) => <Cell key={i} fill={COLORS[i]} />)}
                   </Pie>
                   <Tooltip contentStyle={{ background: 'rgba(0,0,0,0.8)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12 }} />
                 </PieChart>

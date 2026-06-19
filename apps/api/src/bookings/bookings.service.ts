@@ -36,8 +36,17 @@ export class BookingsService {
 
     const where: Record<string, unknown> = { propertyId }
     if (filters?.status) where.status = filters.status
-    if (filters?.checkInDate) where.checkInDate = { gte: new Date(filters.checkInDate) }
-    if (filters?.checkOutDate) where.checkOutDate = { lte: new Date(filters.checkOutDate) }
+    // Match an exact calendar day [start, nextDay) — @db.Date is stored at UTC midnight
+    if (filters?.checkInDate) {
+      const day = new Date(filters.checkInDate)
+      const next = new Date(day); next.setUTCDate(day.getUTCDate() + 1)
+      where.checkInDate = { gte: day, lt: next }
+    }
+    if (filters?.checkOutDate) {
+      const day = new Date(filters.checkOutDate)
+      const next = new Date(day); next.setUTCDate(day.getUTCDate() + 1)
+      where.checkOutDate = { gte: day, lt: next }
+    }
     if (filters?.guestName) {
       where.guest = {
         OR: [

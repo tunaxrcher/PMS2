@@ -59,6 +59,7 @@ export class ReportsService {
     const totalRooms = await this.prisma.room.count({ where: { propertyId, active: true } })
     const outOfOrder = await this.prisma.room.count({ where: { propertyId, currentStatus: 'out_of_order', active: true } })
 
+    // Occupied = guests currently checked in covering this date
     const occupied = await this.prisma.bookingRoom.count({
       where: {
         booking: { propertyId, status: 'checked_in' },
@@ -68,18 +69,22 @@ export class ReportsService {
       },
     })
 
-    const confirmed = await this.prisma.bookingRoom.count({
+    // Reserved = confirmed/pending bookings covering this date (not yet checked in)
+    // These rooms are NOT available — consistent with the room-map "reserved" status.
+    const reserved = await this.prisma.bookingRoom.count({
       where: {
-        booking: { propertyId, status: 'confirmed' },
+        booking: { propertyId, status: { in: ['confirmed', 'pending'] } },
+        status: { notIn: ['cancelled', 'no_show'] },
         checkInDate: { lte: checkDate },
         checkOutDate: { gt: checkDate },
       },
     })
 
-    const available = totalRooms - outOfOrder - occupied
+    // Available = total minus OOO, occupied, and reserved (booked but not checked in)
+    const available = Math.max(0, totalRooms - outOfOrder - occupied - reserved)
     const occupancyPct = totalRooms > 0 ? Math.round((occupied / totalRooms) * 100) : 0
 
-    return { date, totalRooms, occupied, confirmed, outOfOrder, available, occupancyPct }
+    return { date, totalRooms, occupied, reserved, confirmed: reserved, outOfOrder, available, occupancyPct }
   }
 
   async getBookingSources(propertyId: string, from: string, to: string) {
@@ -135,7 +140,12 @@ export class ReportsService {
     today.setHours(0, 0, 0, 0)
     const todayEnd = new Date(today)
     todayEnd.setHours(23, 59, 59, 999)
-    const todayStr = today.toISOString().split('T')[0]
+    // Build date string from LOCAL components — toISOString() would shift to
+    // the previous day in UTC+ timezones (local midnight = 17:00 UTC prev day).
+    const y = today.getFullYear()
+    const m = String(today.getMonth() + 1).padStart(2, '0')
+    const d = String(today.getDate()).padStart(2, '0')
+    const todayStr = `${y}-${m}-${d}`
 
     const [occupancy, revenue, arrivals, departures, pendingHousekeeping] = await Promise.all([
       this.getOccupancy(propertyId, todayStr),

@@ -8,12 +8,12 @@ import {
   TrendingUp, Activity, ChevronDown, ChevronLeft, ChevronRight,
   Plus, Building2, MapPin,
 } from 'lucide-react'
-import { format } from 'date-fns'
+import { format, addDays } from 'date-fns'
 import { th } from 'date-fns/locale'
 import { AppShell } from '@/components/layout/app-shell'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { reportsApi, housekeepingApi, bookingsApi } from '@/lib/api'
+import { reportsApi, housekeepingApi, bookingsApi, roomsApi } from '@/lib/api'
 import { cn, formatCurrency } from '@/lib/utils'
 import { useAuth } from '@/hooks/use-auth'
 import Link from 'next/link'
@@ -200,6 +200,16 @@ export default function DashboardPage() {
     queryKey: ['hk-pending'],
     queryFn: () => housekeepingApi.tasks({ status: 'pending' }).then(r => r.data),
     refetchInterval: 10_000,
+  })
+
+  // 7-day occupancy forecast
+  const fcFrom = useMemo(() => format(new Date(), 'yyyy-MM-dd'), [])
+  const fcTo = useMemo(() => format(addDays(new Date(), 7), 'yyyy-MM-dd'), [])
+  type ForecastDay = { date: string; totalAvail: number; total: number; occupancyPct: number; status: string }
+  const { data: forecast = [] } = useQuery<ForecastDay[]>({
+    queryKey: ['occupancy-forecast', fcFrom, fcTo],
+    queryFn: () => roomsApi.availabilityCalendar(fcFrom, fcTo).then(r => r.data),
+    staleTime: 5 * 60_000,
   })
 
   const occ = dashboard?.occupancy
@@ -418,47 +428,60 @@ export default function DashboardPage() {
           {/* Divider */}
           <div className="h-px bg-white/[0.06] mx-5" />
 
-          {/* Middle: 2 stats (humidity + wind speed equivalent) */}
-          <div className="grid grid-cols-2 divide-x divide-white/[0.06] px-0 py-1">
-            {[
-              { icon: DoorOpen,  label: 'เช็คอิน',   val: arrList.length, color: 'text-emerald-400', bg: 'bg-emerald-400/10' },
-              { icon: DoorClosed, label: 'เช็คเอาท์', val: depList.length, color: 'text-amber-400',   bg: 'bg-amber-400/10'   },
-            ].map(s => (
-              <div key={s.label} className="flex items-center gap-3 px-5 py-4">
-                <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl ${s.bg}`}>
-                  <s.icon className={`h-4.5 w-4.5 ${s.color}`} />
-                </div>
-                <div>
-                  {isLoading ? <Skeleton className="h-5 w-8" /> : (
-                    <div className={`text-xl font-bold ${s.color}`}>{s.val ?? 0}</div>
-                  )}
-                  <div className="text-xs text-stone-500">{s.label}</div>
-                </div>
+          {/* เช็คอิน/เช็คเอาท์ removed — already shown as dedicated cards in row 2 */}
+
+          {/* Bottom: 7-day occupancy forecast (weather-style) */}
+          <div className="px-4 py-4">
+            <div className="flex items-center justify-between px-0.5 mb-3">
+              <p className="text-xs text-stone-500 font-medium">พยากรณ์ห้องพัก 7 วัน</p>
+              <div className="flex items-center gap-2 text-[0.6875rem] text-stone-600">
+                <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />ว่าง</span>
+                <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-amber-400" />ปานกลาง</span>
+                <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-rose-400" />เต็ม</span>
               </div>
-            ))}
-          </div>
-
-          {/* Divider */}
-          <div className="h-px bg-white/[0.06] mx-5" />
-
-          {/* Bottom: 4 columns — forecast style with stagger */}
-          <div className="grid grid-cols-4 px-2 py-4">
-            {[
-              { label: 'เข้าพัก', val: occ?.occupied,                  icon: BedDouble, color: 'text-rose-400'    },
-              { label: 'ว่าง',    val: occ?.available,                  icon: BedDouble, color: 'text-emerald-400' },
-              { label: 'แม่บ้าน', val: dashboard?.pendingHousekeeping,  icon: Sparkles,  color: 'text-sky-400'     },
-              { label: 'OOO',     val: occ?.outOfOrder,                 icon: Wrench,    color: 'text-stone-500'   },
-            ].map((s, i) => (
-              <motion.div key={s.label} className="flex flex-col items-center gap-1.5 text-center"
-                initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 + i * 0.08, duration: 0.25 }}>
-                <span className="text-[0.6875rem] text-stone-600 font-medium">{s.label}</span>
-                <s.icon className={cn('h-5 w-5', s.color)} />
-                {isLoading ? <Skeleton className="h-4 w-5" /> : (
-                  <span className={cn('text-sm font-bold', s.color)}>{s.val ?? 0}</span>
-                )}
-              </motion.div>
-            ))}
+            </div>
+            <div className="flex items-stretch justify-between gap-1.5">
+              {forecast.slice(0, 7).map((day, i) => {
+                const d = new Date(day.date)
+                const isToday = i === 0
+                const barColor =
+                  day.occupancyPct >= 90 ? 'bg-rose-400' :
+                  day.occupancyPct >= 60 ? 'bg-amber-400' :
+                  'bg-emerald-400'
+                return (
+                  <motion.div key={day.date}
+                    className={cn('flex flex-1 flex-col items-center gap-2 rounded-xl py-2.5 px-1 transition-colors',
+                      isToday ? 'bg-amber-400/10 border border-amber-300/20' : 'hover:bg-white/[0.03]')}
+                    initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.4 + i * 0.06, duration: 0.25 }}>
+                    {/* Day name */}
+                    <span className={cn('text-[0.6875rem] leading-none', isToday ? 'text-amber-300 font-bold' : 'text-stone-500')}>
+                      {isToday ? 'วันนี้' : format(d, 'EE', { locale: th })}
+                    </span>
+                    {/* Date number */}
+                    <span className={cn('text-xs font-bold leading-none', isToday ? 'text-amber-200' : 'text-stone-400')}>
+                      {format(d, 'd')}
+                    </span>
+                    {/* Vertical bar */}
+                    <div className="relative h-16 w-full flex items-end justify-center">
+                      <div className="w-3 rounded-full bg-white/[0.06] h-full flex items-end overflow-hidden">
+                        <motion.div className={cn('w-full rounded-full', barColor)}
+                          initial={{ height: 0 }}
+                          animate={{ height: `${Math.max(6, day.occupancyPct)}%` }}
+                          transition={{ delay: 0.5 + i * 0.06, duration: 0.5, ease: 'easeOut' }}
+                        />
+                      </div>
+                    </div>
+                    {/* Percentage */}
+                    <span className={cn('text-xs font-bold leading-none', isToday ? 'text-amber-200' : 'text-stone-400')}>
+                      {day.occupancyPct}%
+                    </span>
+                    {/* Occupied count — same direction as % (high % = many occupied) */}
+                    <span className="text-[0.6875rem] text-stone-600 leading-none">เข้าพัก {day.total - day.totalAvail}</span>
+                  </motion.div>
+                )
+              })}
+            </div>
           </div>
         </GlassCard>
 

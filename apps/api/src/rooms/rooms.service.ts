@@ -341,7 +341,7 @@ export class RoomsService {
     })
 
     // Build per-day map
-    const days: { date: string; totalAvail: number; status: 'available' | 'limited' | 'full' | 'past' }[] = []
+    const days: { date: string; totalAvail: number; total: number; occupancyPct: number; status: 'available' | 'limited' | 'full' | 'past' }[] = []
     const today = new Date(); today.setHours(0, 0, 0, 0)
     const cursor = new Date(fromDate)
 
@@ -355,7 +355,7 @@ export class RoomsService {
       const dayEnd = new Date(cursor); dayEnd.setDate(dayEnd.getDate() + 1)
 
       if (cursor < today) {
-        days.push({ date: dayStr, totalAvail: 0, status: 'past' })
+        days.push({ date: dayStr, totalAvail: 0, total: globalTotal, occupancyPct: 0, status: 'past' })
       } else {
         // Count bookings overlapping this single day per room type
         const bookedByType = new Map<string, number>()
@@ -378,7 +378,8 @@ export class RoomsService {
           totalAvail <= Math.ceil(globalTotal * 0.3) ? 'limited' :
           'available'
 
-        days.push({ date: dayStr, totalAvail, status })
+        const occupancyPct = globalTotal > 0 ? Math.round(((globalTotal - totalAvail) / globalTotal) * 100) : 0
+        days.push({ date: dayStr, totalAvail, total: globalTotal, occupancyPct, status })
       }
 
       cursor.setDate(cursor.getDate() + 1)
