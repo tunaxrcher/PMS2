@@ -27,6 +27,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { ImageUpload } from '@/components/ui/image-upload'
 import { roomsApi, roomTypesApi, zonesApi, uploadApi } from '@/lib/api'
 import { formatCurrency, cn } from '@/lib/utils'
+import { ROOM_STATUS } from '@/lib/room-status'
 
 // ── Types ──────────────────────────────────────────────────────
 interface Zone { id: string; name: string; zoneType: string; sortOrder: number; imageUrl?: string | null; parentZoneId?: string | null }
@@ -83,24 +84,30 @@ function ActionRow({ isSelected, onClick, onEdit, onDelete, children }: {
 }
 
 // ── Column wrapper ─────────────────────────────────────────────
-function Column({ title, icon: Icon, count, onAdd, addLabel, onAddBulk, children, loading, className = '' }: {
+function Column({ title, icon: Icon, count, onAdd, addLabel, onAddBulk, children, loading, className = '', headerExtra }: {
   title: string; icon: React.ElementType; count?: number; onAdd: () => void; addLabel: string
   onAddBulk?: () => void
   children: React.ReactNode; loading?: boolean; className?: string
+  headerExtra?: React.ReactNode
 }) {
   return (
     <div className={cn('flex flex-col rounded-2xl border border-white/[0.10] bg-black/20 backdrop-blur-sm overflow-hidden', className)}>
-      {/* Column header — title + count only */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.07]">
-        <Icon className="h-3.5 w-3.5 text-amber-400" />
-        <span className="text-xs font-semibold text-stone-300">{title}</span>
-        {count !== undefined && (
-          <span className="rounded-full bg-white/[0.08] px-1.5 py-0.5 text-[10px] text-stone-500">{count}</span>
-        )}
+      {/* Column header */}
+      <div className="px-4 pt-3.5 pb-3 border-b border-white/[0.07] bg-gradient-to-b from-white/[0.03] to-transparent">
+        <div className="flex items-center gap-2">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-400/15">
+            <Icon className="h-3.5 w-3.5 text-amber-400" />
+          </div>
+          <span className="text-sm font-semibold text-stone-200">{title}</span>
+          {count !== undefined && (
+            <span className="ml-0.5 rounded-full bg-white/[0.08] px-2 py-0.5 text-[11px] font-medium text-stone-400">{count}</span>
+          )}
+        </div>
+        {headerExtra && <div className="mt-2.5">{headerExtra}</div>}
       </div>
 
       {/* Scrollable content */}
-      <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
+      <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
         {loading ? (
           <div className="space-y-1.5 p-1">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-9 w-full rounded-xl" />)}</div>
         ) : children}
@@ -111,14 +118,12 @@ function Column({ title, icon: Icon, count, onAdd, addLabel, onAddBulk, children
         {onAddBulk ? (
           <div className="grid grid-cols-2 gap-1.5">
             <button onClick={onAdd}
-              className="flex flex-col items-center gap-1 rounded-xl border border-dashed border-white/15 py-2.5 text-xs text-stone-500 hover:border-amber-300/30 hover:text-amber-300 transition-colors">
-              <Plus className="h-3.5 w-3.5" />
-              <span>ห้องเดียว</span>
+              className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-white/15 py-2.5 text-xs text-stone-500 hover:border-amber-300/30 hover:text-amber-300 transition-colors">
+              <Plus className="h-3.5 w-3.5" /> ห้องเดียว
             </button>
             <button onClick={onAddBulk}
-              className="flex flex-col items-center gap-1 rounded-xl border border-dashed border-sky-400/20 py-2.5 text-xs text-stone-500 hover:border-sky-400/40 hover:text-sky-400 transition-colors">
-              <span className="text-base leading-none">⚡</span>
-              <span>สร้างเป็นชุด</span>
+              className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-sky-400/20 py-2.5 text-xs text-stone-500 hover:border-sky-400/40 hover:text-sky-400 transition-colors">
+              <span>⚡</span> สร้างเป็นชุด
             </button>
           </div>
         ) : (
@@ -132,51 +137,63 @@ function Column({ title, icon: Icon, count, onAdd, addLabel, onAddBulk, children
   )
 }
 
-// ── Sortable zone row ─────────────────────────────────────────
-function SortableZoneRow({ zone, isSelected, onClick, onEdit, onDelete, count }: {
-  zone: Zone; isSelected: boolean; onClick: () => void
+// ── Sortable zone card ─────────────────────────────────────────
+function SortableZoneRow({ zone, isSelected, isDimmed, onClick, onEdit, onDelete, count }: {
+  zone: Zone; isSelected: boolean; isDimmed?: boolean; onClick: () => void
   onEdit: (e: React.MouseEvent) => void; onDelete: (e: React.MouseEvent) => void; count: number
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: zone.id })
   return (
     <div
       ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : isDimmed ? 0.35 : 1 }}
       className={cn(
-        'group relative flex cursor-pointer items-center justify-between gap-2 rounded-xl px-2 py-2.5 transition-all',
-        isSelected ? 'bg-amber-400/15 border border-amber-300/25' : 'hover:bg-white/[0.05] border border-transparent'
+        'group relative rounded-2xl overflow-hidden transition-all duration-150',
+        isDimmed ? 'cursor-default' : 'cursor-pointer',
+        isSelected
+          ? 'ring-2 ring-amber-400/60 shadow-[0_0_20px_rgba(251,191,36,0.15)]'
+          : !isDimmed && 'hover:scale-[1.02] hover:shadow-[0_4px_20px_rgba(0,0,0,0.4)]'
       )}
-      onClick={onClick}
+      onClick={isDimmed ? undefined : onClick}
     >
-      {/* Drag handle */}
+      {/* Background image or gradient */}
+      {zone.imageUrl ? (
+        <img src={zone.imageUrl} alt={zone.name} className="absolute inset-0 h-full w-full object-cover" />
+      ) : (
+        <div className="absolute inset-0 bg-gradient-to-br from-amber-900/40 via-stone-900/60 to-stone-950" />
+      )}
+      {/* Gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/10" />
+
+      {/* Content */}
+          <div className="relative px-3 pt-10 pb-3 min-h-[96px] flex flex-col justify-end">
+            <div className="flex items-end justify-between gap-1">
+              <div className="min-w-0">
+                <div className="text-sm font-bold text-white truncate leading-tight">{zone.name}</div>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="text-[9px] text-white/50">{ZONE_TYPES.find(t => t.value === zone.zoneType)?.label}</span>
+                  <span className="text-[9px] text-white/30">·</span>
+                  <span className="text-[9px] text-white/60">{count} ห้อง{isDimmed ? ' · ไม่มีในประเภทนี้' : ''}</span>
+                </div>
+              </div>
+              {isSelected && <ChevronRight className="h-3.5 w-3.5 text-amber-400 flex-shrink-0" />}
+            </div>
+          </div>
+
+      {/* Drag handle — top left */}
       <button
         {...attributes} {...listeners}
         onClick={e => e.stopPropagation()}
-        className="flex-shrink-0 cursor-grab active:cursor-grabbing text-stone-700 hover:text-stone-500 touch-none"
+        className="absolute top-1.5 left-1.5 flex h-6 w-6 items-center justify-center rounded-lg bg-black/30 text-white/40 hover:text-white/80 cursor-grab active:cursor-grabbing touch-none transition-colors"
       >
         <GripVertical className="h-3.5 w-3.5" />
       </button>
 
-      <div className="flex flex-1 items-center gap-2.5 min-w-0">
-        {zone.imageUrl ? (
-          <img src={zone.imageUrl} alt={zone.name} className="h-8 w-10 rounded-lg object-cover border border-white/10 flex-shrink-0" />
-        ) : (
-          <div className="flex h-8 w-10 items-center justify-center rounded-lg bg-amber-400/10 flex-shrink-0">
-            <MapPin className="h-3.5 w-3.5 text-amber-400/60" />
-          </div>
-        )}
-        <div className="min-w-0">
-          <div className="truncate text-xs font-medium text-stone-200">{zone.name}</div>
-          <div className="text-[10px] text-stone-600">{ZONE_TYPES.find(t => t.value === zone.zoneType)?.label} · {count} ห้อง</div>
-        </div>
+      {/* Edit/Delete — top right, on hover */}
+      <div className="absolute top-1.5 right-1.5 flex gap-1 opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity">
+        <button onClick={onEdit} className="flex h-6 w-6 items-center justify-center rounded-lg bg-black/40 text-white/60 hover:text-white transition-colors"><Edit2 className="h-3 w-3" /></button>
+        <button onClick={onDelete} className="flex h-6 w-6 items-center justify-center rounded-lg bg-black/40 text-rose-300/80 hover:text-rose-300 transition-colors"><Trash2 className="h-3 w-3" /></button>
       </div>
-
-      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity flex-shrink-0">
-        <button onClick={onEdit} className="flex h-6 w-6 items-center justify-center rounded-lg text-stone-500 hover:bg-white/[0.10] hover:text-stone-200 transition-colors"><Edit2 className="h-3 w-3" /></button>
-        <button onClick={onDelete} className="flex h-6 w-6 items-center justify-center rounded-lg text-stone-500 hover:bg-rose-400/15 hover:text-rose-300 transition-colors"><Trash2 className="h-3 w-3" /></button>
-      </div>
-
-      {isSelected && <ChevronRight className="h-3 w-3 text-amber-400 flex-shrink-0 -mr-0.5" />}
     </div>
   )
 }
@@ -214,12 +231,12 @@ export default function RoomsSettingsPage() {
 
   // ── Queries ──
   const { data: zonesData = [], isLoading: zonesLoading } = useQuery<Zone[]>({ queryKey: ['zones-flat'], queryFn: () => zonesApi.flat().then(r => r.data) })
-  const [zonOrder, setZonOrder] = useState<string[]>([])
+  const [zoneOrder, setZoneOrder] = useState<string[]>([])
   // Sorted zones — local order takes priority once user drags
   const zones = useMemo(() => {
-    if (zonOrder.length === 0) return zonesData
-    return [...zonesData].sort((a, b) => zonOrder.indexOf(a.id) - zonOrder.indexOf(b.id))
-  }, [zonesData, zonOrder])
+    if (zoneOrder.length === 0) return zonesData
+    return [...zonesData].sort((a, b) => zoneOrder.indexOf(a.id) - zoneOrder.indexOf(b.id))
+  }, [zonesData, zoneOrder])
   const { data: roomTypes = [], isLoading: typesLoading } = useQuery<RoomType[]>({ queryKey: ['room-types'], queryFn: () => roomTypesApi.list().then(r => r.data) })
   const { data: rooms = [], isLoading: roomsLoading } = useQuery<Room[]>({ queryKey: ['rooms'], queryFn: () => roomsApi.list().then(r => r.data) })
 
@@ -268,6 +285,14 @@ export default function RoomsSettingsPage() {
     return map
   }, [rooms])
 
+  // Zones that have at least one room of the selected type — used to dim zones
+  const zonesWithSelectedType = useMemo(() => {
+    if (!selectedRoomTypeId) return null
+    const ids = new Set<string>()
+    rooms.forEach(r => { if (r.roomTypeId === selectedRoomTypeId && r.zoneId) ids.add(r.zoneId) })
+    return ids
+  }, [rooms, selectedRoomTypeId])
+
   const roomCountByType = useMemo(() => {
     const map: Record<string, number> = {}
     const source = selectedZoneId ? rooms.filter(r => r.zoneId === selectedZoneId) : rooms
@@ -285,7 +310,7 @@ export default function RoomsSettingsPage() {
       const oldIndex = currentIds.indexOf(active.id as string)
       const newIndex = currentIds.indexOf(over.id as string)
       const newOrder = arrayMove(currentIds, oldIndex, newIndex)
-      setZonOrder(newOrder)
+      setZoneOrder(newOrder)
       // Persist new order to backend
       newOrder.forEach((id, idx) => {
         zonesApi.update(id, { sortOrder: idx }).catch(() => {/* silent */})
@@ -296,7 +321,7 @@ export default function RoomsSettingsPage() {
   const zoneMutations = {
     create: useMutation({ mutationFn: (d: Record<string, unknown>) => zonesApi.create(d), onSuccess: () => { qc.invalidateQueries({ queryKey: ['zones-flat'] }); closeDialog(); toast.success('เพิ่มโซนสำเร็จ') }, onError: () => toast.error('เกิดข้อผิดพลาด') }),
     update: useMutation({ mutationFn: ({ id, d }: { id: string; d: Record<string, unknown> }) => zonesApi.update(id, d), onSuccess: () => { qc.invalidateQueries({ queryKey: ['zones-flat'] }); closeDialog(); toast.success('แก้ไขสำเร็จ') }, onError: () => toast.error('เกิดข้อผิดพลาด') }),
-    delete: useMutation({ mutationFn: (id: string) => zonesApi.delete(id), onSuccess: () => { qc.invalidateQueries({ queryKey: ['zones-flat'] }); qc.invalidateQueries({ queryKey: ['rooms'] }); setZonOrder([]); toast.success('ลบสำเร็จ') }, onError: () => toast.error('ไม่สามารถลบโซนที่มีห้องพักอยู่ได้') }),
+    delete: useMutation({ mutationFn: (id: string) => zonesApi.delete(id), onSuccess: () => { qc.invalidateQueries({ queryKey: ['zones-flat'] }); qc.invalidateQueries({ queryKey: ['rooms'] }); setZoneOrder([]); toast.success('ลบสำเร็จ') }, onError: () => toast.error('ไม่สามารถลบโซนที่มีห้องพักอยู่ได้') }),
   }
   const typeMutations = {
     create: useMutation({ mutationFn: (d: Record<string, unknown>) => roomTypesApi.create(d), onSuccess: () => { qc.invalidateQueries({ queryKey: ['room-types'] }); closeDialog(); toast.success('เพิ่มประเภทห้องสำเร็จ') }, onError: (e: { response?: { data?: { message?: string } } }) => toast.error(e?.response?.data?.message || 'เกิดข้อผิดพลาด') }),
@@ -376,6 +401,9 @@ export default function RoomsSettingsPage() {
   const submitBulk = async () => {
     if (!bulkForm.roomTypeId) { toast.error('กรุณาเลือกประเภทห้อง'); return }
     if (bulkRows.length === 0) return
+    // Inherit maxOccupancy from the selected room type (not hardcoded 4)
+    const selectedRt = roomTypes.find(rt => rt.id === bulkForm.roomTypeId)
+    const maxOccupancy = Number(selectedRt?.maxOccupancy ?? 4)
     setBulkCreating(true)
     setBulkProgress(0)
     let success = 0
@@ -389,7 +417,7 @@ export default function RoomsSettingsPage() {
           roomNumber: row.roomNumber.trim(),
           roomName: row.roomName.trim() || undefined,
           floorNo: row.floorNo.trim() || undefined,
-          maxOccupancy: 4,
+          maxOccupancy,
         })
         success++
       } catch { /* skip duplicates */ }
@@ -417,13 +445,8 @@ export default function RoomsSettingsPage() {
     setDeleteTarget(null)
   }
 
-  // ── Status dot color ──
-  const STATUS_DOT: Record<string, string> = {
-    clean: 'bg-emerald-400', dirty: 'bg-amber-400', occupied: 'bg-rose-400',
-    cleaning: 'bg-sky-400', out_of_order: 'bg-stone-500', inspected: 'bg-teal-400',
-  }
+  const colHeight = 'h-[calc(100vh-180px)] max-h-[780px]'
 
-  const colHeight = 'h-[calc(100vh-220px)] max-h-[640px]'
 
   return (
     <AppShell title="จัดการห้องพัก" subtitle="โซน · ประเภทห้อง · ห้องพัก">
@@ -456,16 +479,21 @@ export default function RoomsSettingsPage() {
           loading={zonesLoading}
           className={cn(colHeight, mobileCol !== 0 && 'hidden lg:flex')}
         >
-          {/* "ทั้งหมด" option */}
+          {/* "ทั้งหมด" row */}
           <div
             onClick={() => { setSelectedZoneId(null); setSelectedRoomTypeId(null) }}
             className={cn(
-              'flex cursor-pointer items-center justify-between rounded-xl px-3 py-2 transition-all',
-              !selectedZoneId ? 'bg-amber-400/15 border border-amber-300/25' : 'hover:bg-white/[0.05] border border-transparent'
+              'flex cursor-pointer items-center justify-between rounded-xl px-3 py-2.5 transition-all border',
+              !selectedZoneId
+                ? 'bg-amber-400/15 border-amber-300/25 text-amber-200'
+                : 'border-transparent text-stone-400 hover:bg-white/[0.05] hover:text-stone-200'
             )}
           >
-            <span className="text-xs font-medium text-stone-300">ทั้งหมด</span>
-            <span className="text-[10px] text-stone-600">{rooms.length} ห้อง</span>
+            <span className="text-xs font-medium">ทั้งหมด</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] text-stone-600">{rooms.length} ห้อง</span>
+              {!selectedZoneId && <ChevronRight className="h-3 w-3 text-amber-400" />}
+            </div>
           </div>
 
           {zones.length === 0 && !zonesLoading && (
@@ -482,6 +510,7 @@ export default function RoomsSettingsPage() {
                   key={z.id}
                   zone={z}
                   isSelected={selectedZoneId === z.id}
+                  isDimmed={zonesWithSelectedType !== null && !zonesWithSelectedType.has(z.id)}
                   count={roomCountByZone[z.id] || 0}
                   onClick={() => { setSelectedZoneId(z.id); setSelectedRoomTypeId(null); if (window.innerWidth < 1024) setMobileCol(1) }}
                   onEdit={e => openZoneEdit(z, e)}
@@ -502,18 +531,23 @@ export default function RoomsSettingsPage() {
           loading={typesLoading}
           className={cn(colHeight, mobileCol !== 1 && 'hidden lg:flex')}
         >
-          {/* "ทั้งหมด" option */}
+          {/* "ทั้งหมด" row */}
           <div
             onClick={() => setSelectedRoomTypeId(null)}
             className={cn(
-              'flex cursor-pointer items-center justify-between rounded-xl px-3 py-2 transition-all',
-              !selectedRoomTypeId ? 'bg-amber-400/15 border border-amber-300/25' : 'hover:bg-white/[0.05] border border-transparent'
+              'flex cursor-pointer items-center justify-between rounded-xl px-3 py-2.5 transition-all border',
+              !selectedRoomTypeId
+                ? 'bg-amber-400/15 border-amber-300/25 text-amber-200'
+                : 'border-transparent text-stone-400 hover:bg-white/[0.05] hover:text-stone-200'
             )}
           >
-            <span className="text-xs font-medium text-stone-300">ทั้งหมด</span>
-            <span className="text-[10px] text-stone-600">
-              {selectedZoneId ? (roomCountByZone[selectedZoneId] || 0) : rooms.length} ห้อง
-            </span>
+            <span className="text-xs font-medium">ทั้งหมด</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] text-stone-600">
+                {selectedZoneId ? (roomCountByZone[selectedZoneId] || 0) : rooms.length} ห้อง
+              </span>
+              {!selectedRoomTypeId && <ChevronRight className="h-3 w-3 text-amber-400" />}
+            </div>
           </div>
 
           {roomTypes.length === 0 && !typesLoading && (
@@ -525,29 +559,52 @@ export default function RoomsSettingsPage() {
 
           {roomTypes.map(rt => {
             const count = roomCountByType[rt.id] || 0
-            if (selectedZoneId && count === 0) return null
+            // When a zone is selected, show types with 0 rooms dimmed (not absent) so
+            // users don't think the type disappeared — they just can't add that combo.
+            const notInZone = !!selectedZoneId && count === 0
             return (
-              <ActionRow
+              <div
                 key={rt.id}
-                isSelected={selectedRoomTypeId === rt.id}
-                onClick={() => { setSelectedRoomTypeId(rt.id); if (window.innerWidth < 1024) setMobileCol(2) }}
-                onEdit={e => openTypeEdit(rt, e)}
-                onDelete={e => { e.stopPropagation(); setDeleteTarget({ id: rt.id, name: rt.name, type: 'roomType' }) }}
+                onClick={() => { if (!notInZone) { setSelectedRoomTypeId(rt.id); if (window.innerWidth < 1024) setMobileCol(2) } }}
+                className={cn(
+                  'group relative rounded-2xl overflow-hidden transition-all duration-150',
+                  notInZone ? 'opacity-40 cursor-default' : 'cursor-pointer',
+                  selectedRoomTypeId === rt.id
+                    ? 'ring-2 ring-amber-400/60 shadow-[0_0_20px_rgba(251,191,36,0.15)]'
+                    : !notInZone && 'hover:scale-[1.02] hover:shadow-[0_4px_20px_rgba(0,0,0,0.4)]'
+                )}
               >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  {rt.imageUrl ? (
-                    <img src={rt.imageUrl} alt={rt.name} className="h-8 w-10 rounded-lg object-cover border border-white/10 flex-shrink-0" />
-                  ) : (
-                    <div className="flex h-8 w-10 items-center justify-center rounded-lg bg-stone-700/50 flex-shrink-0">
-                      <Layers className="h-3.5 w-3.5 text-stone-500" />
+                {/* Background image or gradient */}
+                {rt.imageUrl ? (
+                  <img src={rt.imageUrl} alt={rt.name} className="absolute inset-0 h-full w-full object-cover" />
+                ) : (
+                  <div className="absolute inset-0 bg-gradient-to-br from-stone-800/80 via-stone-900/60 to-stone-950" />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-black/10" />
+
+                {/* Content */}
+                <div className="relative px-3 pt-10 pb-3 min-h-[96px] flex flex-col justify-end">
+                  <div className="flex items-end justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-bold text-white truncate leading-tight">{rt.name}</div>
+                      <div className="text-[9px] text-white/50 mt-0.5">{count} ห้อง{notInZone ? ' · ไม่มีในโซนนี้' : ''}</div>
                     </div>
-                  )}
-                  <div className="min-w-0">
-                    <div className="truncate text-xs font-medium text-stone-200">{rt.name}</div>
-                    <div className="text-[10px] text-stone-600">{formatCurrency(Number(rt.baseRate))} · {count} ห้อง</div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <div className="text-right">
+                        <div className="text-base font-black text-amber-300 leading-none">{formatCurrency(Number(rt.baseRate))}</div>
+                        <div className="text-[9px] text-white/30 mt-0.5">ต่อคืน</div>
+                      </div>
+                      {selectedRoomTypeId === rt.id && <ChevronRight className="h-3.5 w-3.5 text-amber-400 ml-1" />}
+                    </div>
                   </div>
                 </div>
-              </ActionRow>
+
+                {/* Edit/Delete — top right hover */}
+                <div className="absolute top-1.5 right-1.5 flex gap-1 opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity">
+                  <button onClick={e => { e.stopPropagation(); openTypeEdit(rt, e) }} className="flex h-6 w-6 items-center justify-center rounded-lg bg-black/40 text-white/60 hover:text-white transition-colors"><Edit2 className="h-3 w-3" /></button>
+                  <button onClick={e => { e.stopPropagation(); setDeleteTarget({ id: rt.id, name: rt.name, type: 'roomType' }) }} className="flex h-6 w-6 items-center justify-center rounded-lg bg-black/40 text-rose-300/80 hover:text-rose-300 transition-colors"><Trash2 className="h-3 w-3" /></button>
+                </div>
+              </div>
             )
           })}
         </Column>
@@ -564,14 +621,38 @@ export default function RoomsSettingsPage() {
           className={cn(colHeight, mobileCol !== 2 && 'hidden lg:flex')}
         >
           {filteredRooms.length === 0 && !roomsLoading && (
-            <div className="flex flex-col items-center gap-2 py-8 text-stone-600">
-              <BedDouble className="h-8 w-8 opacity-40" />
-              <p className="text-xs">ยังไม่มีห้องพัก</p>
-              <button onClick={openRoomCreate} className="text-[10px] text-amber-400 hover:text-amber-300 underline">+ เพิ่มห้องพัก</button>
+            <div className="flex flex-col items-center gap-3 py-12 text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.03]">
+                <BedDouble className="h-7 w-7 text-stone-600" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-stone-400">ยังไม่มีห้องพัก</p>
+                <p className="text-xs text-stone-600 mt-0.5">เลือกโซนและประเภทแล้วเพิ่มห้องพัก</p>
+              </div>
+              <button onClick={openRoomCreate}
+                className="rounded-xl border border-amber-300/20 bg-amber-400/10 px-3 py-1.5 text-xs text-amber-300 hover:bg-amber-400/15 transition-colors">
+                + เพิ่มห้องพัก
+              </button>
             </div>
           )}
 
-          {/* Floor cross-section grid — group by floorNo */}
+          {/* Zone context banner — shown when a zone with an image is selected */}
+          {selectedZoneId && (() => {
+            const z = zones.find(z => z.id === selectedZoneId)
+            if (!z?.imageUrl) return null
+            return (
+              <div className="relative rounded-xl overflow-hidden mb-3 h-20">
+                <img src={z.imageUrl} alt={z.name} className="absolute inset-0 h-full w-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 px-3 py-2">
+                  <p className="text-sm font-bold text-white leading-tight">{z.name}</p>
+                  <p className="text-xs text-white/50">{filteredRooms.length} ห้อง</p>
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* Floor cross-section — group by floor */}
           {filteredRooms.length > 0 && (() => {
             const floorMap = new Map<string, Room[]>()
             filteredRooms.forEach(r => {
@@ -579,58 +660,83 @@ export default function RoomsSettingsPage() {
               if (!floorMap.has(floor)) floorMap.set(floor, [])
               floorMap.get(floor)!.push(r)
             })
-            // Sort floors: numeric first, then non-numeric
             const sortedFloors = Array.from(floorMap.keys()).sort((a, b) => {
               const na = Number(a), nb = Number(b)
               if (!isNaN(na) && !isNaN(nb)) return na - nb
               return a.localeCompare(b, 'th')
             })
             return sortedFloors.map(floor => (
-              <div key={floor} className="mb-3">
-                {/* Floor label */}
-                <div className="flex items-center gap-2 px-1 mb-1.5">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-stone-600">
-                    {floor === 'ไม่ระบุชั้น' ? floor : `ชั้น ${floor}`}
-                  </span>
-                  <div className="flex-1 h-px bg-white/[0.06]" />
-                  <span className="text-[9px] text-stone-700">{floorMap.get(floor)!.length} ห้อง</span>
+              <div key={floor} className="mb-4">
+                {/* Floor label — pill style */}
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center gap-1.5 rounded-lg bg-white/[0.06] border border-white/[0.08] px-2.5 py-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
+                      {floor === 'ไม่ระบุชั้น' ? floor : `ชั้น ${floor}`}
+                    </span>
+                    <span className="text-[10px] text-stone-600">· {floorMap.get(floor)!.length}</span>
+                  </div>
+                  <div className="flex-1 h-px bg-white/[0.05]" />
                 </div>
-                {/* Room tiles — 3 cols (sweet spot for readability) */}
-                <div className="grid grid-cols-3 gap-1.5">
-                  {floorMap.get(floor)!.map(room => (
-                    <div key={room.id} className="group relative">
-                      <div
-                        className="relative rounded-xl border p-2.5 cursor-pointer transition-all border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.07] hover:border-white/15"
-                        title={`ห้อง ${room.roomNumber} — ${room.roomType.name}${room.zone ? ` · ${room.zone.name}` : ''}`}
-                      >
-                        {/* Status dot */}
-                        <div className={cn('absolute top-2 right-2 h-2 w-2 rounded-full', STATUS_DOT[room.currentStatus] || 'bg-stone-600')} />
-                        {/* Room number */}
-                        <div className="text-sm font-black font-mono text-amber-300 leading-none pr-4">{room.roomNumber}</div>
-                        {/* Room type — tooltip shows full name */}
-                        <div className="text-[9px] text-stone-400 mt-1 truncate leading-tight">{room.roomType.name}</div>
-                        {/* Zone name — hidden when zone is already selected (avoids redundancy) */}
-                        {room.zone && !selectedZoneId && (
-                          <div className="text-[9px] text-stone-600 truncate leading-tight">{room.zone.name}</div>
-                        )}
-                        {/* Hover actions */}
-                        <div className="absolute inset-0 flex items-center justify-center gap-1.5 bg-black/65 opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 rounded-xl transition-opacity">
-                          <button
-                            onClick={e => openRoomEdit(room, e)}
-                            className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/15 text-stone-200 hover:bg-white/25 transition-colors"
-                          >
-                            <Edit2 className="h-3 w-3" />
-                          </button>
-                          <button
-                            onClick={e => { e.stopPropagation(); setDeleteTarget({ id: room.id, name: `ห้อง ${room.roomNumber}`, type: 'room' }) }}
-                            className="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-500/20 text-rose-300 hover:bg-rose-500/35 transition-colors"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </button>
+
+                {/* Room tiles */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2">
+                  {floorMap.get(floor)!.map(room => {
+                    const s = ROOM_STATUS[room.currentStatus]
+                    // Subtle tinted backgrounds per status
+                    const tileBg: Record<string, string> = {
+                      clean:          'bg-emerald-400/[0.06] border-emerald-400/[0.15] hover:bg-emerald-400/[0.11]',
+                      occupied:       'bg-rose-400/[0.06]    border-rose-400/[0.15]    hover:bg-rose-400/[0.11]',
+                      dirty:          'bg-amber-400/[0.06]   border-amber-400/[0.15]   hover:bg-amber-400/[0.11]',
+                      cleaning:       'bg-sky-400/[0.06]     border-sky-400/[0.15]     hover:bg-sky-400/[0.11]',
+                      out_of_order:   'bg-stone-500/[0.06]   border-stone-500/[0.15]   hover:bg-stone-500/[0.10]',
+                      out_of_service: 'bg-stone-500/[0.04]   border-stone-500/[0.12]   hover:bg-stone-500/[0.08]',
+                      inspected:      'bg-teal-400/[0.06]    border-teal-400/[0.15]    hover:bg-teal-400/[0.11]',
+                    }
+                    return (
+                      <div key={room.id} className="group relative">
+                        <div className={cn(
+                          'relative rounded-2xl border cursor-pointer transition-all duration-150 hover:shadow-[0_4px_20px_rgba(0,0,0,0.45)] hover:scale-[1.03]',
+                          tileBg[room.currentStatus] || 'bg-white/[0.04] border-white/[0.10] hover:bg-white/[0.07]',
+                        )}>
+                          {/* Status dot — top right */}
+                          <span className={cn('absolute top-2.5 right-2.5 h-2.5 w-2.5 rounded-full shadow-sm', s?.dot || 'bg-stone-600')} />
+
+                          {/* Body */}
+                          <div className="px-3 pt-5 pb-4 flex flex-col justify-between min-h-[130px]">
+                            <div>
+                              {/* Room number */}
+                              <div className="text-3xl font-black font-mono text-stone-100 leading-none tracking-tight">{room.roomNumber}</div>
+                              {/* Room name — only if set */}
+                              {room.roomName && (
+                                <div className="text-[10px] text-stone-300 mt-1 truncate leading-tight font-medium">{room.roomName}</div>
+                              )}
+                              {/* Room type */}
+                              <div className="text-[9px] text-stone-500 mt-1 truncate leading-tight">{room.roomType.name}</div>
+                              {room.zone && !selectedZoneId && (
+                                <div className="text-[9px] text-stone-700 truncate leading-tight mt-0.5">{room.zone.name}</div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Hover overlay */}
+                          <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/75 backdrop-blur-sm opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 rounded-2xl transition-opacity">
+                            <button
+                              onClick={e => openRoomEdit(room, e)}
+                              className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/15 text-stone-200 hover:bg-amber-400/30 hover:text-amber-300 transition-colors"
+                            >
+                              <Edit2 className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={e => { e.stopPropagation(); setDeleteTarget({ id: room.id, name: `ห้อง ${room.roomNumber}`, type: 'room' }) }}
+                              className="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-500/20 text-rose-300 hover:bg-rose-500/35 transition-colors"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
             ))
