@@ -242,8 +242,7 @@ export default function GuestsPage() {
         </div>
 
         {/* Toolbar */}
-        <div className="flex items-center gap-2">
-          <div className="ml-auto flex items-center gap-2">
+        <div className="flex items-center justify-end gap-2">
             <SearchToggle
               value={search}
               onChange={v => { setSearch(v); setPage(1) }}
@@ -251,7 +250,7 @@ export default function GuestsPage() {
             />
             <ViewToggle
               value={view}
-              onChange={setView}
+              onChange={v => { setView(v); setPage(1) }}
               options={[
                 { value: 'table', label: 'ตาราง', icon: List },
                 { value: 'card', label: 'การ์ด', icon: LayoutGrid },
@@ -260,7 +259,6 @@ export default function GuestsPage() {
             <Button size="sm" onClick={() => { setEditId(null); setForm(defaultForm); setDialogOpen(true) }}>
               <Plus className="h-4 w-4" /> เพิ่มลูกค้า
             </Button>
-          </div>
         </div>
 
         {/* Filter chips */}
@@ -288,8 +286,8 @@ export default function GuestsPage() {
         {/* Content */}
         {isLoading ? (
           view === 'card' ? (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-36 rounded-2xl" />)}
+            <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
+              {[...Array(16)].map((_, i) => <Skeleton key={i} className="h-32 rounded-2xl" />)}
             </div>
           ) : (
             <div className="space-y-1.5">

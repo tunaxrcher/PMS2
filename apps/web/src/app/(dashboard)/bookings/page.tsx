@@ -125,7 +125,7 @@ export default function BookingsPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const [guestSearch, setGuestSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [sourceFilter, setSourceFilter] = useState('')
+  // const [sourceFilter, setSourceFilter] = useState('')  // ยังไม่เปิดใช้ — uncomment เมื่อเปิด source filter
   const [dateChip, setDateChip] = useState('')
   const [page, setPage] = useState(1)
   const [view, setView] = useState<'list' | 'board'>('list')
@@ -145,11 +145,11 @@ export default function BookingsPage() {
   const limit = view === 'board' ? 60 : 20
 
   const { data, isLoading } = useQuery({
-    queryKey: ['bookings', statusFilter, debouncedSearch, sourceFilter, dateChip, page, view],
+    queryKey: ['bookings', statusFilter, debouncedSearch, dateChip, page, view],
     queryFn: () => bookingsApi.list({
       status: statusFilter || undefined,
       guestName: debouncedSearch || undefined,
-      bookingSourceId: sourceFilter || undefined,
+      // bookingSourceId: sourceFilter || undefined,
       ...dateParams,
       page, limit,
     }).then(r => r.data),
