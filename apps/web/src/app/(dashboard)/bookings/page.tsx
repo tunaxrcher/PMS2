@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import {
-  Plus, BookOpen, Search, ChevronRight, BedDouble, CalendarRange,
+  Plus, BookOpen, ChevronRight, BedDouble, CalendarRange,
   List, LayoutGrid, DoorOpen, DoorClosed, Hotel, Clock,
 } from 'lucide-react'
 import { AppShell } from '@/components/layout/app-shell'
@@ -14,7 +14,8 @@ import { StatusBadge } from '@/components/ui/status-badge'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ViewToggle } from '@/components/ui/view-toggle'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { SearchToggle } from '@/components/ui/search-toggle'
+// import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { bookingsApi } from '@/lib/api'
 import { calcNights, cn } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
@@ -176,27 +177,21 @@ export default function BookingsPage() {
         </div>
 
         {/* Toolbar */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative flex-1 min-w-[200px] max-w-xs">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-500" />
-            <input
-              value={guestSearch}
-              onChange={e => setGuestSearch(e.target.value)}
-              placeholder="ค้นหาชื่อ เบอร์โทร..."
-              className="h-9 w-full rounded-full border border-white/15 bg-black/25 pl-9 pr-4 text-sm text-stone-100 placeholder:text-stone-600 focus:border-amber-300/40 focus:outline-none backdrop-blur-sm transition-colors"
-            />
-          </div>
-          {/* Source filter */}
-          <div className="w-40">
-            <Select value={sourceFilter || 'all'} onValueChange={v => { setSourceFilter(v === 'all' ? '' : v); setPage(1) }}>
-              <SelectTrigger className="h-9 rounded-full"><SelectValue placeholder="ทุกช่องทาง" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">ทุกช่องทาง</SelectItem>
-                {sources.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="flex items-center gap-2">
+          {/* Source filter — ยังไม่เปิดใช้งาน */}
+          {/* <Select value={sourceFilter || 'all'} onValueChange={v => { setSourceFilter(v === 'all' ? '' : v); setPage(1) }}>
+            <SelectTrigger className="h-9 w-40 rounded-full"><SelectValue placeholder="ทุกช่องทาง" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">ทุกช่องทาง</SelectItem>
+              {sources.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+            </SelectContent>
+          </Select> */}
           <div className="ml-auto flex items-center gap-2">
+            <SearchToggle
+              value={guestSearch}
+              onChange={v => { setGuestSearch(v); setPage(1) }}
+              placeholder="ค้นหาชื่อ เบอร์โทร..."
+            />
             <ViewToggle
               value={view}
               onChange={setView}

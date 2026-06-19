@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import {
-  Plus, Users, Search, Phone, Mail, AlertTriangle, User,
+  Plus, Users, Phone, Mail, AlertTriangle, User,
   LayoutGrid, List, Star, UserPlus, CalendarClock, MapPin,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -17,6 +17,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { PmsDialog } from '@/components/ui/pms-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ViewToggle } from '@/components/ui/view-toggle'
+import { SearchToggle } from '@/components/ui/search-toggle'
 import { guestsApi } from '@/lib/api'
 import { formatDate, cn } from '@/lib/utils'
 import Link from 'next/link'
@@ -84,7 +85,7 @@ export default function GuestsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['guests', page, debouncedSearch, nationality, returningOnly, blacklistOnly],
     queryFn: () => guestsApi.list({
-      page, limit: 24,
+      page, limit: 20,
       search: debouncedSearch || undefined,
       nationality: nationality || undefined,
       returning: returningOnly || undefined,
@@ -135,17 +136,13 @@ export default function GuestsPage() {
         </div>
 
         {/* Toolbar */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative flex-1 min-w-[200px] max-w-sm">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-500" />
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="ค้นหาชื่อ เบอร์โทร อีเมล..."
-              className="h-9 w-full rounded-full border border-white/15 bg-black/25 pl-9 pr-4 text-sm text-stone-100 placeholder:text-stone-500 focus:border-amber-300/40 focus:outline-none backdrop-blur-sm"
-            />
-          </div>
+        <div className="flex items-center gap-2">
           <div className="ml-auto flex items-center gap-2">
+            <SearchToggle
+              value={search}
+              onChange={v => { setSearch(v); setPage(1) }}
+              placeholder="ค้นหาชื่อ เบอร์โทร อีเมล..."
+            />
             <ViewToggle
               value={view}
               onChange={setView}
@@ -209,68 +206,74 @@ export default function GuestsPage() {
             className="py-16"
           />
         ) : view === 'card' ? (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
             {guests.map((g, i) => {
+              const isNew = !g.lastVisit && !(g.stayCount ?? 0)
+              const isReturning = (g.stayCount ?? 0) > 1
+              // Pick avatar gradient based on guest type
+              const avatarCls = g.blacklistFlag
+                ? 'from-rose-500/40 to-rose-700/30 text-rose-200'
+                : isReturning
+                ? 'from-emerald-500/30 to-emerald-700/20 text-emerald-200'
+                : 'from-amber-500/30 to-amber-700/20 text-amber-200'
+
               return (
                 <motion.div
                   key={g.id}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: Math.min(i * 0.025, 0.3), duration: 0.2 }}
-                  className="group relative flex flex-col rounded-2xl border border-white/10 bg-white/[0.04] p-4 transition-all hover:bg-white/[0.06] hover:border-white/20"
+                  initial={{ opacity: 0, scale: 0.92 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: Math.min(i * 0.02, 0.25), duration: 0.18, ease: 'easeOut' }}
+                  className="group relative"
                 >
-                  <Link href={`/guests/${g.id}`} className="absolute inset-0 rounded-2xl" aria-label={`โปรไฟล์ ${g.firstName}`} />
-                  <div className="flex items-start gap-3">
-                    <div className={cn('flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl text-sm font-bold',
-                      g.blacklistFlag ? 'bg-rose-400/15 text-rose-300' : 'bg-amber-400/15 text-amber-300')}>
-                      {initials(g) || <User className="h-5 w-5" />}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-semibold text-stone-100 text-sm truncate">{g.firstName} {g.lastName}</span>
-                        {g.blacklistFlag && <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 text-rose-400" />}
+                  <Link href={`/guests/${g.id}`} className="flex flex-col items-center gap-2 rounded-2xl p-3 transition-all hover:bg-white/[0.06]">
+                    {/* Circular avatar */}
+                    <div className="relative">
+                      <div className={cn(
+                        'flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br text-xl font-black shadow-lg ring-2 ring-white/[0.08]',
+                        avatarCls,
+                      )}>
+                        {initials(g) || <User className="h-7 w-7" />}
                       </div>
-                      {g.nationality && (
-                        <span className="inline-flex items-center gap-1 mt-0.5 text-xs text-stone-500">
-                          <MapPin className="h-3 w-3" />{g.nationality}
+                      {/* Status indicators */}
+                      {isNew && (
+                        <span className="absolute -top-1 -right-1 flex h-5 items-center rounded-full bg-emerald-500 px-1.5 text-[0.55rem] font-black uppercase tracking-wide text-white shadow">
+                          NEW
+                        </span>
+                      )}
+                      {g.blacklistFlag && (
+                        <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 shadow">
+                          <AlertTriangle className="h-3 w-3 text-white" />
+                        </span>
+                      )}
+                      {isReturning && !g.blacklistFlag && (
+                        <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/90 shadow">
+                          <Star className="h-3 w-3 text-white" />
                         </span>
                       )}
                     </div>
-                    {g.nextVisit && (
-                      <span className="flex-shrink-0 inline-flex items-center gap-1 rounded-full bg-sky-400/15 border border-sky-300/25 px-2 py-0.5 text-xs font-medium text-sky-200">
-                        <CalendarClock className="h-3 w-3" /> {formatDate(g.nextVisit, 'dd MMM')}
-                      </span>
-                    )}
-                  </div>
 
-                  <div className="mt-3 space-y-1">
-                    {g.phone && <div className="flex items-center gap-1.5 text-xs text-stone-400"><Phone className="h-3 w-3 flex-shrink-0" /> {g.phone}</div>}
-                    {g.email && <div className="flex items-center gap-1.5 text-xs text-stone-500 truncate"><Mail className="h-3 w-3 flex-shrink-0" /> {g.email}</div>}
-                  </div>
+                    {/* Name */}
+                    <div className="w-full text-center">
+                      <p className="text-xs font-semibold text-stone-100 truncate leading-tight">
+                        {g.firstName}
+                      </p>
+                      <p className="text-xs text-stone-500 truncate leading-tight mt-0.5">
+                        {g.lastName}
+                      </p>
+                      <p className="text-[0.625rem] text-stone-600 truncate mt-1 leading-tight">
+                        {g.nationality || (g.stayCount ? `${g.stayCount} ครั้ง` : 'ลูกค้าใหม่')}
+                      </p>
+                    </div>
+                  </Link>
 
-                  <div className="mt-3 flex items-center justify-between border-t border-white/[0.06] pt-2.5">
-                    <span className={cn('inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-xs font-medium',
-                      (g.stayCount ?? 0) > 1 ? 'bg-emerald-400/10 text-emerald-300' : 'bg-white/[0.05] text-stone-400')}>
-                      เข้าพัก {g.stayCount ?? 0} ครั้ง
-                    </span>
-                    <span className="text-xs text-stone-500">
-                      {g.lastVisit ? `ล่าสุด ${formatDate(g.lastVisit, 'dd MMM yy')}` : 'ลูกค้าใหม่'}
-                    </span>
-                  </div>
-
-                  {/* NEW badge / edit button at top-right */}
-                  {!g.lastVisit && !g.stayCount ? (
-                    <span className="absolute right-3 top-3 z-10 rounded-full border border-emerald-300/30 bg-emerald-400/15 px-2 py-0.5 text-[0.625rem] font-bold uppercase tracking-wide text-emerald-300">
-                      NEW
-                    </span>
-                  ) : (
-                    <button
-                      onClick={() => openEdit(g)}
-                      className="absolute right-3 top-3 z-10 rounded-lg border border-white/10 bg-black/30 px-2 py-1 text-xs text-stone-400 opacity-0 transition-opacity hover:text-amber-300 group-hover:opacity-100"
-                    >
-                      แก้ไข
-                    </button>
-                  )}
+                  {/* Edit on hover */}
+                  <button
+                    onClick={() => openEdit(g)}
+                    title="แก้ไข"
+                    className="absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-lg bg-black/50 text-stone-400 opacity-0 transition-opacity hover:text-amber-300 group-hover:opacity-100"
+                  >
+                    <span className="text-[0.6rem] font-bold">✎</span>
+                  </button>
                 </motion.div>
               )
             })}
@@ -347,10 +350,19 @@ export default function GuestsPage() {
 
         {/* Pagination */}
         {data && data.total > data.limit && (
-          <div className="flex items-center justify-center gap-2">
-            <Button variant="secondary" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>← ก่อนหน้า</Button>
-            <span className="text-sm text-stone-400">หน้า {page} / {Math.ceil(data.total / data.limit)}</span>
-            <Button variant="secondary" size="sm" onClick={() => setPage(p => p + 1)} disabled={page * data.limit >= data.total}>ถัดไป →</Button>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-stone-600">
+              แสดง {(page - 1) * data.limit + 1}–{Math.min(page * data.limit, data.total)} จาก {data.total} รายชื่อ
+            </span>
+            <div className="flex items-center gap-2">
+              <Button variant="secondary" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
+                ← ก่อนหน้า
+              </Button>
+              <span className="text-xs text-stone-500 w-16 text-center">{page} / {Math.ceil(data.total / data.limit)}</span>
+              <Button variant="secondary" size="sm" onClick={() => setPage(p => p + 1)} disabled={page * data.limit >= data.total}>
+                ถัดไป →
+              </Button>
+            </div>
           </div>
         )}
       </div>
