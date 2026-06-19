@@ -72,6 +72,8 @@ export const guestsApi = {
   get: (id: string, sensitive?: boolean) => api.get(`/guests/${id}`, { params: { sensitive } }),
   create: (data: Record<string, unknown>) => api.post('/guests', data),
   update: (id: string, data: Record<string, unknown>) => api.patch(`/guests/${id}`, data),
+  delete: (id: string) => api.delete(`/guests/${id}`),
+  toggleBlacklist: (id: string, flag: boolean) => api.patch(`/guests/${id}`, { blacklistFlag: flag }),
   bookings: (id: string) => api.get(`/guests/${id}/bookings`),
 }
 

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
 
 @Injectable()
@@ -115,6 +115,20 @@ export class GuestsService {
       orderBy: { nationality: 'asc' },
     })
     return rows.map((r) => r.nationality).filter(Boolean)
+  }
+
+  async remove(id: string, propertyId: string) {
+    const guest = await this.prisma.guest.findUnique({
+      where: { id },
+      select: { propertyId: true, _count: { select: { bookings: true } } },
+    })
+    if (!guest || guest.propertyId !== propertyId) throw new NotFoundException('ไม่พบข้อมูลลูกค้า')
+    if (guest._count.bookings > 0) {
+      throw new BadRequestException(
+        `ไม่สามารถลบได้ — ลูกค้าคนนี้มีประวัติการจอง ${guest._count.bookings} รายการ หากต้องการปิดกั้น ให้ใช้ Blacklist แทน`,
+      )
+    }
+    return this.prisma.guest.delete({ where: { id } })
   }
 
   async getStats(propertyId: string) {

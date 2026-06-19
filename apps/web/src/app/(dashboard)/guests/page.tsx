@@ -3,10 +3,14 @@
 import React, { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import {
   Plus, Users, Phone, Mail, AlertTriangle, User,
-  LayoutGrid, List, Star, UserPlus, CalendarClock, MapPin,
+  LayoutGrid, List, Star, UserPlus, MapPin,
+  MoreHorizontal, Eye, Pencil, Trash2, ShieldOff, ShieldAlert, Clock,
 } from 'lucide-react'
+import { formatDistanceToNow } from 'date-fns'
+import { th } from 'date-fns/locale'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/app-shell'
 import { Button } from '@/components/ui/button'
@@ -14,6 +18,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { EmptyState } from '@/components/ui/empty-state'
 import { PmsDialog } from '@/components/ui/pms-dialog'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ViewToggle } from '@/components/ui/view-toggle'
 import { SearchToggle } from '@/components/ui/search-toggle'
@@ -32,6 +37,7 @@ interface Guest {
   idType?: string | null; idNumber?: string | null; address?: string | null; remark?: string | null
   blacklistFlag: boolean
   stayCount?: number; lastVisit?: string | null; nextVisit?: string | null
+  createdAt?: string | null; updatedAt?: string | null
 }
 
 const defaultForm: GuestForm = { firstName: '', lastName: '', phone: '', email: '', nationality: '', idType: '', idNumber: '', address: '', remark: '' }
@@ -43,9 +49,87 @@ function initials(g: Guest) {
   return `${g.firstName?.[0] || ''}${g.lastName?.[0] || ''}`.toUpperCase()
 }
 
-// Past stay summary — a clear, past-tense concept on its own.
-function lastStayText(g: Guest): string {
-  return g.lastVisit ? formatDate(g.lastVisit, 'dd MMM yy') : 'ลูกค้าใหม่'
+function relativeTime(dateStr?: string | null): string {
+  if (!dateStr) return '—'
+  const d = new Date(dateStr)
+  const diffMins = Math.floor((Date.now() - d.getTime()) / 60_000)
+  if (diffMins < 1) return 'เมื่อกี้'
+  if (diffMins < 60) return `${diffMins} นาทีที่แล้ว`
+  const diffHrs = Math.floor(diffMins / 60)
+  if (diffHrs < 24) return `${diffHrs} ชม.ที่แล้ว`
+  if (diffHrs < 48) return 'เมื่อวาน'
+  return formatDistanceToNow(d, { locale: th, addSuffix: true })
+}
+
+// ── Guest action dropdown ────────────────────────────────────
+const menuItem = 'flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-stone-200 outline-none cursor-pointer transition-colors hover:bg-white/[0.07] data-[highlighted]:bg-white/[0.07]'
+const menuItemDanger = 'flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-rose-400 outline-none cursor-pointer transition-colors hover:bg-rose-400/10 data-[highlighted]:bg-rose-400/10'
+
+function GuestActionMenu({ guest, onEdit, onDelete, onToggleBlacklist }: {
+  guest: Guest
+  onEdit: () => void
+  onDelete: () => void
+  onToggleBlacklist: () => void
+}) {
+  return (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger asChild>
+        <button
+          onClick={e => e.preventDefault()}
+          className="flex h-7 w-7 items-center justify-center rounded-lg text-stone-500 transition-colors hover:bg-white/[0.08] hover:text-stone-200"
+          title="เมนู"
+        >
+          <MoreHorizontal className="h-4 w-4" />
+        </button>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content
+          align="end"
+          sideOffset={6}
+          className="z-50 min-w-[160px] rounded-2xl border border-white/[0.12] bg-[#1c1612]/90 p-1.5 shadow-2xl backdrop-blur-xl"
+        >
+          <DropdownMenu.Item asChild>
+            <a href={`/guests/${guest.id}`} className={menuItem}>
+              <Eye className="h-3.5 w-3.5 text-stone-400" /> ดูโปรไฟล์
+            </a>
+          </DropdownMenu.Item>
+          <DropdownMenu.Item className={menuItem} onSelect={onEdit}>
+            <Pencil className="h-3.5 w-3.5 text-stone-400" /> แก้ไขข้อมูล
+          </DropdownMenu.Item>
+          <DropdownMenu.Item className={menuItem} onSelect={onToggleBlacklist}>
+            {guest.blacklistFlag
+              ? <><ShieldOff className="h-3.5 w-3.5 text-emerald-400" /> ยกเลิก Blacklist</>
+              : <><ShieldAlert className="h-3.5 w-3.5 text-amber-400" /> เพิ่ม Blacklist</>
+            }
+          </DropdownMenu.Item>
+          <DropdownMenu.Separator className="my-1 h-px bg-white/10" />
+          <DropdownMenu.Item className={menuItemDanger} onSelect={onDelete}>
+            <Trash2 className="h-3.5 w-3.5" /> ลบลูกค้า
+          </DropdownMenu.Item>
+          {/* Timestamps info footer */}
+          {(guest.createdAt || guest.updatedAt) && (
+            <>
+              <DropdownMenu.Separator className="my-1 h-px bg-white/10" />
+              <div className="px-3 py-1.5 space-y-0.5 pointer-events-none select-none">
+                {guest.createdAt && (
+                  <div className="flex items-center gap-1.5 text-[0.6875rem] text-stone-600">
+                    <Clock className="h-3 w-3" />
+                    <span>สร้างเมื่อ {relativeTime(guest.createdAt)}</span>
+                  </div>
+                )}
+                {guest.updatedAt && guest.updatedAt !== guest.createdAt && (
+                  <div className="flex items-center gap-1.5 text-[0.6875rem] text-stone-600">
+                    <Clock className="h-3 w-3" />
+                    <span>อัปเดต {relativeTime(guest.updatedAt)}</span>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
+  )
 }
 
 function StatCard({ icon: Icon, label, value, tone }: { icon: typeof Users; label: string; value: number; tone: string }) {
@@ -74,6 +158,7 @@ export default function GuestsPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState<GuestForm>(defaultForm)
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
 
   // Debounce search so we fire one request after typing settles.
   useEffect(() => {
@@ -104,6 +189,28 @@ export default function GuestsPage() {
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => guestsApi.update(id, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['guests'] }); qc.invalidateQueries({ queryKey: ['guest-stats'] }); setDialogOpen(false); toast.success('แก้ไขสำเร็จ') },
+    onError: () => toast.error('เกิดข้อผิดพลาด'),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => guestsApi.delete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['guests'] })
+      qc.invalidateQueries({ queryKey: ['guest-stats'] })
+      setDeleteTarget(null)
+      toast.success('ลบลูกค้าสำเร็จ')
+    },
+    onError: (e: { response?: { data?: { message?: string } } }) =>
+      toast.error(e?.response?.data?.message || 'ไม่สามารถลบลูกค้าได้'),
+  })
+
+  const blacklistMutation = useMutation({
+    mutationFn: ({ id, flag }: { id: string; flag: boolean }) => guestsApi.toggleBlacklist(id, flag),
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ['guests'] })
+      qc.invalidateQueries({ queryKey: ['guest-stats'] })
+      toast.success(vars.flag ? 'เพิ่มใน Blacklist แล้ว' : 'ยกเลิก Blacklist แล้ว')
+    },
     onError: () => toast.error('เกิดข้อผิดพลาด'),
   })
 
@@ -260,17 +367,26 @@ export default function GuestsPage() {
                       <p className="text-[0.625rem] text-stone-600 truncate mt-1 leading-tight">
                         {g.nationality || (g.stayCount ? `${g.stayCount} ครั้ง` : 'ลูกค้าใหม่')}
                       </p>
+                      {g.createdAt && (
+                        <p className="text-[0.55rem] text-stone-700 truncate mt-0.5 leading-tight flex items-center justify-center gap-0.5">
+                          <Clock className="h-2.5 w-2.5 flex-shrink-0" />
+                          {g.updatedAt && g.updatedAt !== g.createdAt
+                            ? `อัปเดต ${relativeTime(g.updatedAt)}`
+                            : relativeTime(g.createdAt)}
+                        </p>
+                      )}
                     </div>
                   </Link>
 
-                  {/* Edit on hover */}
-                  <button
-                    onClick={() => openEdit(g)}
-                    title="แก้ไข"
-                    className="absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-lg bg-black/50 text-stone-400 opacity-0 transition-opacity hover:text-amber-300 group-hover:opacity-100"
-                  >
-                    <span className="text-[0.6rem] font-bold">✎</span>
-                  </button>
+                  {/* Action menu */}
+                  <div className="absolute right-1.5 top-1.5 z-10 opacity-0 transition-opacity group-hover:opacity-100">
+                    <GuestActionMenu
+                      guest={g}
+                      onEdit={() => openEdit(g)}
+                      onDelete={() => setDeleteTarget({ id: g.id, name: `${g.firstName} ${g.lastName}` })}
+                      onToggleBlacklist={() => blacklistMutation.mutate({ id: g.id, flag: !g.blacklistFlag })}
+                    />
+                  </div>
                 </motion.div>
               )
             })}
@@ -327,18 +443,28 @@ export default function GuestsPage() {
                   </span>
                 </div>
 
-                {/* Last visit */}
-                <div className="hidden lg:flex flex-col items-end flex-shrink-0 w-28 text-right">
-                  <span className="text-xs font-medium text-stone-300">{g.lastVisit ? formatDate(g.lastVisit, 'dd MMM yy') : '—'}</span>
-                  <span className="text-xs text-stone-600 mt-0.5">เข้าพักล่าสุด</span>
+                {/* Created / Updated timestamps */}
+                <div className="hidden lg:flex flex-col items-end flex-shrink-0 w-36 text-right">
+                  <div className="flex items-center justify-end gap-1 text-xs text-stone-300">
+                    <Clock className="h-3 w-3 text-stone-600" />
+                    <span>{relativeTime(g.createdAt)}</span>
+                  </div>
+                  <span className="text-[0.625rem] text-stone-600 mt-0.5">เพิ่มเข้าระบบ</span>
+                  {g.updatedAt && g.updatedAt !== g.createdAt && (
+                    <span className="text-[0.625rem] text-stone-700 mt-0.5">
+                      อัปเดต {relativeTime(g.updatedAt)}
+                    </span>
+                  )}
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-1.5 flex-shrink-0 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Link href={`/guests/${g.id}`} onClick={e => e.stopPropagation()}>
-                    <Button variant="ghost" size="sm" title="ดูโปรไฟล์"><User className="h-3.5 w-3.5" /></Button>
-                  </Link>
-                  <Button variant="ghost" size="sm" onClick={() => openEdit(g)}>แก้ไข</Button>
+                <div className="flex-shrink-0 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                  <GuestActionMenu
+                    guest={g}
+                    onEdit={() => openEdit(g)}
+                    onDelete={() => setDeleteTarget({ id: g.id, name: `${g.firstName} ${g.lastName}` })}
+                    onToggleBlacklist={() => blacklistMutation.mutate({ id: g.id, flag: !g.blacklistFlag })}
+                  />
                 </div>
               </motion.div>
             ))}
@@ -363,6 +489,17 @@ export default function GuestsPage() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
+        title="ลบลูกค้า"
+        description={`ลบ "${deleteTarget?.name}" ออกจากระบบถาวร — ทำได้เฉพาะลูกค้าที่ยังไม่มีการจองเท่านั้น`}
+        confirmLabel="ลบถาวร"
+        variant="danger"
+        loading={deleteMutation.isPending}
+      />
 
       <PmsDialog open={dialogOpen} onClose={() => setDialogOpen(false)} title={editId ? 'แก้ไขข้อมูลลูกค้า' : 'เพิ่มลูกค้าใหม่'} description={editId ? 'แก้ไขข้อมูลส่วนตัวและข้อมูลบัตรของลูกค้า' : 'บันทึกข้อมูลลูกค้าใหม่สำหรับการจองครั้งนี้และครั้งต่อไป'} size="lg">
         <div className="space-y-4">

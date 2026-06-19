@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common'
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common'
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
 import { PermissionsGuard } from '../auth/guards/permissions.guard'
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator'
@@ -83,5 +83,12 @@ export class GuestsController {
   @RequirePermissions(PERMISSIONS.GUEST_UPDATE)
   update(@Param('id') id: string, @Body() body: UpdateGuestDto, @CurrentUser() user: JwtPayload) {
     return this.service.update(id, body, user.propertyId!)
+  }
+
+  @Delete(':id')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.GUEST_UPDATE)
+  remove(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    return this.service.remove(id, user.propertyId!)
   }
 }
