@@ -9,7 +9,6 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/app-shell'
-import { GlassPanel } from '@/components/ui/glass-panel'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -186,17 +185,15 @@ export default function GuestsPage() {
               {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-36 rounded-2xl" />)}
             </div>
           ) : (
-            <GlassPanel dense padding="none">
-              <div className="divide-y divide-white/5">
-                {[...Array(8)].map((_, i) => (
-                  <div key={i} className="flex items-center gap-4 px-4 py-3.5">
-                    <Skeleton className="h-9 w-9 rounded-xl flex-shrink-0" />
-                    <div className="flex-1 space-y-2"><Skeleton className="h-3.5 w-40" /><Skeleton className="h-3 w-28" /></div>
-                    <Skeleton className="h-7 w-16 rounded-lg flex-shrink-0" />
-                  </div>
-                ))}
-              </div>
-            </GlassPanel>
+            <div className="space-y-1.5">
+              {[...Array(8)].map((_, i) => (
+                <div key={i} className="flex items-center gap-4 rounded-2xl border border-white/[0.08] bg-white/[0.04] px-4 py-3.5">
+                  <Skeleton className="h-9 w-9 rounded-xl flex-shrink-0" />
+                  <div className="flex-1 space-y-2"><Skeleton className="h-3.5 w-40" /><Skeleton className="h-3 w-28" /></div>
+                  <Skeleton className="h-7 w-16 rounded-lg flex-shrink-0" />
+                </div>
+              ))}
+            </div>
           )
         ) : !guests.length ? (
           <EmptyState

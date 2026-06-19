@@ -8,7 +8,6 @@ import {
   List, LayoutGrid, DoorOpen, DoorClosed, Hotel, Clock,
 } from 'lucide-react'
 import { AppShell } from '@/components/layout/app-shell'
-import { GlassPanel } from '@/components/ui/glass-panel'
 import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -20,7 +19,7 @@ import { bookingsApi } from '@/lib/api'
 import { calcNights, cn } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 import { CreateBookingDialog } from '@/components/bookings/create-booking-dialog'
-import { format, addDays, isToday, isTomorrow, isYesterday } from 'date-fns'
+import { format, addDays, isToday, isTomorrow, isYesterday, formatDistanceToNow } from 'date-fns'
 import { th } from 'date-fns/locale'
 
 const STATUS_TABS = [
@@ -46,6 +45,14 @@ const BOARD_COLUMNS = [
   { status: 'checked_out', label: 'ออกแล้ว', accent: 'text-stone-400 bg-white/[0.04] border-white/10' },
 ]
 
+const STATUS_ACCENT: Record<string, string> = {
+  confirmed: 'bg-sky-400',
+  checked_in: 'bg-rose-400',
+  pending: 'bg-amber-400',
+  checked_out: 'bg-stone-500',
+  cancelled: 'bg-stone-700',
+}
+
 const AVATAR_BG: Record<string, string> = {
   confirmed: 'bg-sky-400/20 text-sky-300',
   checked_in: 'bg-rose-400/20 text-rose-300',
@@ -60,11 +67,24 @@ type Booking = {
   status: string
   checkInDate: string
   checkOutDate: string
+  createdAt: string
   adults: number
   children: number
   bookingSource?: { name: string } | null
   guest: { firstName: string; lastName: string; phone?: string | null; nationality?: string | null }
   bookingRooms: Array<{ roomType: { name: string }; room?: { roomNumber: string; zone?: { name: string } | null } | null }>
+}
+
+function relativeTime(dateStr: string): string {
+  const d = new Date(dateStr)
+  const diffMs = Date.now() - d.getTime()
+  const diffMins = Math.floor(diffMs / 60_000)
+  if (diffMins < 1) return 'เมื่อกี้'
+  if (diffMins < 60) return `${diffMins} นาทีที่แล้ว`
+  const diffHrs = Math.floor(diffMins / 60)
+  if (diffHrs < 24) return `${diffHrs} ชม.ที่แล้ว`
+  if (diffHrs < 48) return 'เมื่อวาน'
+  return formatDistanceToNow(d, { locale: th, addSuffix: true })
 }
 
 function smartDate(dateStr: string): string {
@@ -239,17 +259,15 @@ export default function BookingsPage() {
 
         {/* Content */}
         {isLoading ? (
-          <GlassPanel dense padding="none">
-            <div className="divide-y divide-white/5">
-              {[...Array(6)].map((_, i) => (
-                <div key={i} className="flex items-center gap-4 px-5 py-4">
-                  <Skeleton className="h-10 w-10 rounded-xl flex-shrink-0" />
-                  <div className="flex-1 space-y-2"><Skeleton className="h-3.5 w-48" /><Skeleton className="h-3 w-32" /></div>
-                  <Skeleton className="h-6 w-20 rounded-full" />
-                </div>
-              ))}
-            </div>
-          </GlassPanel>
+          <div className="space-y-1.5">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="flex items-center gap-4 rounded-2xl border border-white/[0.08] bg-white/[0.04] px-4 py-3.5">
+                <Skeleton className="h-10 w-10 rounded-xl flex-shrink-0" />
+                <div className="flex-1 space-y-2"><Skeleton className="h-3.5 w-48" /><Skeleton className="h-3 w-32" /></div>
+                <Skeleton className="h-6 w-20 rounded-full" />
+              </div>
+            ))}
+          </div>
         ) : !bookings.length ? (
           <EmptyState
             icon={BookOpen}
@@ -264,13 +282,6 @@ export default function BookingsPage() {
               const nights = calcNights(b.checkInDate, b.checkOutDate)
               const isToCheck = isToday(new Date(b.checkInDate)) && b.status === 'confirmed'
               const r = roomInfo(b)
-              const accentColor: Record<string, string> = {
-                confirmed: 'bg-sky-400',
-                checked_in: 'bg-rose-400',
-                pending: 'bg-amber-400',
-                checked_out: 'bg-stone-500',
-                cancelled: 'bg-stone-700',
-              }
               return (
                 <motion.div
                   key={b.id}
@@ -284,15 +295,15 @@ export default function BookingsPage() {
                   )}
                 >
                   {/* Status accent left stripe */}
-                  <div className={cn('absolute left-0 top-3 bottom-3 w-[3px] rounded-full', accentColor[b.status] || 'bg-stone-600')} />
+                  <div className={cn('absolute left-0 top-3 bottom-3 w-[3px] rounded-full', STATUS_ACCENT[b.status] || 'bg-stone-600')} />
 
                   {/* Avatar */}
                   <div className={cn('flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-sm font-bold', AVATAR_BG[b.status] || 'bg-amber-400/15 text-amber-300')}>
                     {b.guest.firstName[0]}{b.guest.lastName[0]}
                   </div>
 
-                  {/* Guest + booking number */}
-                  <div className="min-w-0 w-40 flex-shrink-0">
+                  {/* Guest + booking number + created time */}
+                  <div className="min-w-0 w-44 flex-shrink-0">
                     <div className="flex items-center gap-1.5">
                       <span className="font-semibold text-stone-100 text-sm truncate">{b.guest.firstName} {b.guest.lastName}</span>
                       {isToCheck && (
@@ -303,7 +314,8 @@ export default function BookingsPage() {
                     </div>
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <span className="font-mono text-xs text-amber-400/60">{b.bookingNumber}</span>
-                      {b.bookingSource && <span className="text-xs text-stone-600">· {b.bookingSource.name}</span>}
+                      <span className="text-xs text-stone-700">·</span>
+                      <span className="text-xs text-stone-600">{relativeTime(b.createdAt)}</span>
                     </div>
                   </div>
 
@@ -364,7 +376,10 @@ export default function BookingsPage() {
                             </div>
                             <div className="min-w-0 flex-1">
                               <div className="text-sm font-semibold text-stone-100 truncate">{b.guest.firstName} {b.guest.lastName}</div>
-                              <div className="font-mono text-xs text-amber-400/70">{b.bookingNumber}</div>
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-mono text-xs text-amber-400/70">{b.bookingNumber}</span>
+                                <span className="text-xs text-stone-700">· {relativeTime(b.createdAt)}</span>
+                              </div>
                             </div>
                           </div>
                           <div className="mt-2 text-xs">
