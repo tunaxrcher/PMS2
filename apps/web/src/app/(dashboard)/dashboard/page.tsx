@@ -13,7 +13,7 @@ import { th } from 'date-fns/locale'
 import { AppShell } from '@/components/layout/app-shell'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { reportsApi, housekeepingApi, bookingsApi, roomsApi } from '@/lib/api'
+import { reportsApi, housekeepingApi, bookingsApi, roomsApi, maintenanceApi } from '@/lib/api'
 import { cn, formatCurrency } from '@/lib/utils'
 import { useAuth } from '@/hooks/use-auth'
 import Link from 'next/link'
@@ -81,34 +81,52 @@ function GlassCard({ children, className = '', delay = 0, style }: React.HTMLAtt
   )
 }
 
-// ── Circular Gauge ────────────────────────────────────────────
-// pct = final value for smooth circle animation
-// displayPct = countUp animated value for the number text
-function OccupancyGauge({ pct, displayPct, occupied, available, ooo }: {
-  pct: number; displayPct: number; occupied: number; available: number; ooo: number
+// ── Room composition donut (multi-segment) ───────────────────
+// Shows occupied / available / OOO as proportional arcs; center = total rooms.
+function OccupancyGauge({ displayTotal, occupied, available, ooo }: {
+  displayTotal: number; occupied: number; available: number; ooo: number
 }) {
-  const size = 130, stroke = 10, r = (size - stroke) / 2
+  const size = 130, stroke = 12, r = (size - stroke) / 2
   const circ = 2 * Math.PI * r
-  const color = pct > 80 ? '#f87171' : pct > 50 ? '#fbbf24' : '#34d399'
+  const total = occupied + available + ooo || 1
+
+  const segments = [
+    { value: occupied,  color: '#f87171' },
+    { value: available, color: '#34d399' },
+    { value: ooo,       color: '#78716c' },
+  ]
+
+  // Compute cumulative offsets for each arc
+  let cumulative = 0
+  const arcs = segments.map((s) => {
+    const len = (s.value / total) * circ
+    const offset = cumulative
+    cumulative += len
+    return { ...s, len, offset }
+  })
+
   return (
     <div className="flex flex-col items-center justify-center py-4 px-3">
       <div className="relative" style={{ width: size, height: size }}>
         <svg width={size} height={size} className="-rotate-90">
-          <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={stroke} />
-          <motion.circle
-            cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={stroke}
-            strokeLinecap="round" strokeDasharray={circ}
-            initial={{ strokeDashoffset: circ }}
-            animate={{ strokeDashoffset: circ - (pct / 100) * circ }}
-            transition={{ duration: 1.3, ease: 'easeOut', delay: 0.3 }}
-          />
+          <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth={stroke} />
+          {arcs.map((a, i) => a.value > 0 && (
+            <motion.circle
+              key={i}
+              cx={size/2} cy={size/2} r={r} fill="none" stroke={a.color} strokeWidth={stroke}
+              strokeDasharray={`${a.len} ${circ - a.len}`}
+              initial={{ strokeDashoffset: 0, opacity: 0 }}
+              animate={{ strokeDashoffset: -a.offset, opacity: 1 }}
+              transition={{ duration: 0.9, ease: 'easeOut', delay: 0.3 + i * 0.15 }}
+            />
+          ))}
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-3xl font-black text-stone-50">{displayPct}%</span>
-          <span className="text-xs text-stone-600 mt-0.5">Occupancy</span>
+          <span className="text-3xl font-black text-stone-50">{displayTotal}</span>
+          <span className="text-xs text-stone-600 mt-0.5">ห้องทั้งหมด</span>
         </div>
       </div>
-      <div className="mt-3 w-full grid grid-cols-3 gap-1.5 text-center text-[0.6875rem]">
+      <div className="mt-3 w-full grid grid-cols-3 gap-1.5 text-center">
         <div className="rounded-2xl bg-rose-500/10 py-2">
           <div className="font-bold text-rose-300 text-base">{occupied}</div>
           <div className="text-stone-600 text-xs mt-0.5">เข้าพัก</div>
@@ -202,6 +220,13 @@ export default function DashboardPage() {
     refetchInterval: 10_000,
   })
 
+  // Open maintenance tickets
+  const { data: maintenanceTickets } = useQuery({
+    queryKey: ['maintenance-open'],
+    queryFn: () => maintenanceApi.list({ status: 'open' }).then(r => r.data),
+    refetchInterval: 30_000,
+  })
+
   // 7-day occupancy forecast
   const fcFrom = useMemo(() => format(new Date(), 'yyyy-MM-dd'), [])
   const fcTo = useMemo(() => format(addDays(new Date(), 7), 'yyyy-MM-dd'), [])
@@ -222,7 +247,7 @@ export default function DashboardPage() {
   const occPct    = useCountUp(occ?.occupancyPct ?? 0, 1200, 400)
   const revAmount = useCountUp(rev?.totalNet ?? 0, 1400, 500)
   const hkCount   = useCountUp(dashboard?.pendingHousekeeping ?? 0, 800, 450)
-  const oooCount  = useCountUp(occ?.outOfOrder ?? 0, 800, 500)
+  const maintCount = useCountUp((maintenanceTickets as unknown[] | undefined)?.length ?? 0, 800, 500)
 
   // Rooms to cycle through in the center widget
   const liveRooms = hkList.filter(t => t.room.zone?.imageUrl || t.room.roomType?.imageUrl)
@@ -266,7 +291,7 @@ export default function DashboardPage() {
 
           {/* Members */}
           <div className="mt-6">
-            <p className="text-xs text-stone-600 mb-2.5 font-semibold tracking-widest uppercase">Members</p>
+            <p className="text-xs text-stone-600 mb-2.5 font-semibold tracking-widest uppercase">ผู้ใช้ระบบ</p>
             <div className="flex items-center -space-x-2">
               <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-amber-400/50 bg-amber-400/15 text-sm font-bold text-amber-300 z-10">
                 {user?.firstName?.[0]}{user?.lastName?.[0]}
@@ -462,20 +487,25 @@ export default function DashboardPage() {
                     <span className={cn('text-xs font-bold leading-none', isToday ? 'text-amber-200' : 'text-stone-400')}>
                       {format(d, 'd')}
                     </span>
-                    {/* Vertical bar */}
-                    <div className="relative h-16 w-full flex items-end justify-center">
-                      <div className="w-3 rounded-full bg-white/[0.06] h-full flex items-end overflow-hidden">
+                    {/* Vertical bar with % floating just above the tip */}
+                    <div className="relative h-20 w-full flex items-end justify-center">
+                      <div className="w-2.5 rounded-full bg-white/[0.06] h-full flex items-end overflow-hidden">
                         <motion.div className={cn('w-full rounded-full', barColor)}
                           initial={{ height: 0 }}
                           animate={{ height: `${Math.max(6, day.occupancyPct)}%` }}
                           transition={{ delay: 0.5 + i * 0.06, duration: 0.5, ease: 'easeOut' }}
                         />
                       </div>
+                      {/* % label — small, hugging the bar tip, capped so it never clips the top */}
+                      <motion.span
+                        className={cn('absolute left-1/2 -translate-x-1/2 text-[0.625rem] font-semibold leading-none whitespace-nowrap', isToday ? 'text-amber-200' : 'text-stone-400')}
+                        style={{ bottom: `calc(${Math.min(82, Math.max(6, day.occupancyPct))}% + 3px)` }}
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                        transition={{ delay: 0.9 + i * 0.06 }}
+                      >
+                        {day.occupancyPct}%
+                      </motion.span>
                     </div>
-                    {/* Percentage */}
-                    <span className={cn('text-xs font-bold leading-none', isToday ? 'text-amber-200' : 'text-stone-400')}>
-                      {day.occupancyPct}%
-                    </span>
                     {/* Occupied count — same direction as % (high % = many occupied) */}
                     <span className="text-[0.6875rem] text-stone-600 leading-none">เข้าพัก {day.total - day.totalAvail}</span>
                   </motion.div>
@@ -496,7 +526,7 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between px-4 pt-4 pb-0">
             <div>
               <p className="text-sm font-semibold text-stone-200">สถานะห้อง</p>
-              <p className="text-xs text-stone-500 mt-0.5">{occ?.totalRooms ?? 0} ห้องทั้งหมด</p>
+              <p className="text-xs text-stone-500 mt-0.5">ภาพรวมวันนี้</p>
             </div>
             <Link href="/room-map" className="flex h-7 w-7 items-center justify-center rounded-full bg-white/[0.06] text-stone-500 hover:bg-white/[0.12] hover:text-stone-300 transition-colors text-xs">→</Link>
           </div>
@@ -504,8 +534,7 @@ export default function DashboardPage() {
             <div className="flex justify-center py-10"><Skeleton className="h-32 w-32 rounded-full" /></div>
           ) : (
             <OccupancyGauge
-              pct={occ?.occupancyPct ?? 0}
-              displayPct={occPct}
+              displayTotal={occ?.totalRooms ?? 0}
               occupied={occ?.occupied ?? 0}
               available={occ?.available ?? 0}
               ooo={occ?.outOfOrder ?? 0}
@@ -516,7 +545,7 @@ export default function DashboardPage() {
         {/* Arrivals + Departures stacked — col 4 (TV + LED-like) */}
         <div className="col-span-12 sm:col-span-6 xl:col-span-4 flex flex-col gap-3">
           {/* Arrivals (taller) */}
-          <GlassCard delay={0.2}>
+          <GlassCard delay={0.2} className="flex-1 flex flex-col">
             <div className="flex items-center justify-between px-4 pt-4 pb-1">
               <div>
                 <p className="text-sm font-semibold text-stone-200 flex items-center gap-2">
@@ -527,7 +556,7 @@ export default function DashboardPage() {
               </div>
               <Link href="/bookings?status=confirmed" className="flex h-7 w-7 items-center justify-center rounded-full bg-white/[0.06] text-stone-500 hover:bg-white/[0.12] hover:text-stone-300 transition-colors text-xs">→</Link>
             </div>
-            <div className="pt-1 pb-1.5">
+            <div className="flex-1 flex flex-col justify-center pt-1 pb-1.5">
               {arrList.length === 0 ? (
                 <div className="flex items-center justify-center py-4 gap-2 text-stone-700">
                   <DoorOpen className="h-5 w-5" /><span className="text-xs">ไม่มีเช็คอินวันนี้</span>
@@ -537,7 +566,7 @@ export default function DashboardPage() {
           </GlassCard>
 
           {/* Departures (shorter) */}
-          <GlassCard delay={0.25}>
+          <GlassCard delay={0.25} className="flex-1 flex flex-col">
             <div className="flex items-center justify-between px-4 pt-4 pb-1">
               <div>
                 <p className="text-sm font-semibold text-stone-200 flex items-center gap-2">
@@ -548,7 +577,7 @@ export default function DashboardPage() {
               </div>
               <Link href="/bookings?status=checked_in" className="flex h-7 w-7 items-center justify-center rounded-full bg-white/[0.06] text-stone-500 hover:bg-white/[0.12] hover:text-stone-300 transition-colors text-xs">→</Link>
             </div>
-            <div className="pt-1 pb-1.5">
+            <div className="flex-1 flex flex-col justify-center pt-1 pb-1.5">
               {depList.length === 0 ? (
                 <div className="flex items-center justify-center py-4 gap-2 text-stone-700">
                   <DoorClosed className="h-5 w-5" /><span className="text-xs">ไม่มีเช็คเอาท์วันนี้</span>
@@ -572,10 +601,10 @@ export default function DashboardPage() {
           </GlassCard>
           <GlassCard delay={0.3} className="flex-1">
             <div className="flex flex-col items-center justify-center h-full py-4 px-3 gap-1">
-              <p className="text-xs text-stone-400 w-full text-center">ห้อง OOO</p>
+              <p className="text-xs text-stone-400 w-full text-center">แจ้งซ่อมค้าง</p>
               {isLoading ? <Skeleton className="h-9 w-12" /> : (
                 <Link href="/maintenance" className="text-4xl font-black text-stone-50 hover:text-rose-400 transition-colors">
-                  {oooCount}
+                  {maintCount}
                 </Link>
               )}
             </div>
