@@ -9,7 +9,7 @@ import {
   useDraggable, useDroppable, PointerSensor, useSensor, useSensors
 } from '@dnd-kit/core'
 import {
-  ChevronLeft, ChevronRight, RefreshCw, Plus, AlertTriangle,
+  ChevronLeft, ChevronRight, Plus, AlertTriangle,
   BedDouble, MapPin
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -135,7 +135,7 @@ export default function RoomGridPage() {
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
 
-  const { data: gridData, isLoading, refetch } = useQuery({
+  const { data: gridData, isLoading } = useQuery({
     queryKey: ['room-grid', from, to],
     queryFn: () => roomsApi.grid(from, to).then(r => r.data),
     refetchInterval: 15_000,
@@ -272,14 +272,9 @@ export default function RoomGridPage() {
             </div>
             <span className="text-sm font-medium text-stone-300">{rangeLabel}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => refetch()} className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/15 bg-white/[0.06] text-stone-400 hover:bg-white/[0.10] hover:text-stone-100 transition-colors">
-              <RefreshCw className="h-3.5 w-3.5" />
-            </button>
-            <Button size="sm" onClick={() => { setPrefillDate(undefined); setPrefillRoomTypeId(undefined); setPrefillRoomId(undefined); setCreateOpen(true) }}>
-              <Plus className="h-4 w-4" /> สร้างการจอง
-            </Button>
-          </div>
+          <Button size="sm" onClick={() => { setPrefillDate(undefined); setPrefillRoomTypeId(undefined); setPrefillRoomId(undefined); setCreateOpen(true) }}>
+            <Plus className="h-4 w-4" /> สร้างการจอง
+          </Button>
         </div>
 
         {/* ── Collapsible Filter Panel ── */}

@@ -7,7 +7,7 @@ import { createPortal } from 'react-dom'
 import { format, addDays, parseISO, isToday, isTomorrow } from 'date-fns'
 import { th } from 'date-fns/locale'
 import {
-  ChevronLeft, ChevronRight, RefreshCw, Plus,
+  ChevronLeft, ChevronRight, Plus,
   AlertTriangle, BedDouble,
 } from 'lucide-react'
 
@@ -341,7 +341,7 @@ export default function RoomMapPage() {
   // react-query so this view participates in cross-page cache invalidation
   // (bookings / room-grid / dashboard share the same data). Background refetch
   // every 3 min keeps previous data on screen — no loading flash.
-  const { data: mapData = [], isLoading, isFetching, refetch, isError } = useQuery<ZoneGroup[]>({
+  const { data: mapData = [], isLoading, isError } = useQuery<ZoneGroup[]>({
     queryKey: ['room-map', selectedDate],
     queryFn: () => roomsApi.map(selectedDate).then(r => r.data ?? []),
     refetchInterval: 3 * 60_000,
@@ -462,11 +462,7 @@ export default function RoomMapPage() {
             onChange={e => { if (e.target.value) setSelectedDate(e.target.value) }}
             className="h-9 rounded-xl border border-white/15 bg-black/25 px-3 text-sm text-stone-300 focus:border-amber-300/40 focus:outline-none" />
 
-          <div className="ml-auto flex items-center gap-2">
-            <button onClick={() => refetch()}
-              className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/15 bg-white/[0.06] text-stone-400 hover:text-stone-100 transition-colors">
-              <RefreshCw className={cn('h-4 w-4', isFetching && 'animate-spin')} />
-            </button>
+          <div className="ml-auto">
             <Button size="sm" onClick={() => { setPrefillRoomId(undefined); setPrefillRoomTypeId(undefined); setCreateOpen(true) }}>
               <Plus className="h-4 w-4" /> สร้างการจอง
             </Button>
