@@ -58,6 +58,43 @@ function useCountUp(target: number, duration = 1000, delay = 400) {
   return value
 }
 
+// ── Looping typing effect hook (type → hold → erase → repeat) ──
+function useTypingEffect(text: string, { typeSpeed = 70, eraseSpeed = 35, holdFull = 2200, holdEmpty = 600 } = {}) {
+  const [out, setOut] = useState('')
+  useEffect(() => {
+    setOut('')
+    if (!text) return
+    let i = 0
+    let phase: 'typing' | 'erasing' = 'typing'
+    let timer: ReturnType<typeof setTimeout>
+
+    const tick = () => {
+      if (phase === 'typing') {
+        i++
+        setOut(text.slice(0, i))
+        if (i >= text.length) {
+          phase = 'erasing'
+          timer = setTimeout(tick, holdFull)
+        } else {
+          timer = setTimeout(tick, typeSpeed)
+        }
+      } else {
+        i--
+        setOut(text.slice(0, i))
+        if (i <= 0) {
+          phase = 'typing'
+          timer = setTimeout(tick, holdEmpty)
+        } else {
+          timer = setTimeout(tick, eraseSpeed)
+        }
+      }
+    }
+    timer = setTimeout(tick, 400)
+    return () => clearTimeout(timer)
+  }, [text, typeSpeed, eraseSpeed, holdFull, holdEmpty])
+  return out
+}
+
 // ── Constants (outside component to avoid recreation on every render) ──
 const PAYMENT_METHODS = [
   { key: 'cash',        label: 'เงินสด',  color: 'bg-amber-400'  },
@@ -70,7 +107,7 @@ const PAYMENT_METHODS = [
 function GlassCard({ children, className = '', delay = 0, style }: React.HTMLAttributes<HTMLDivElement> & { delay?: number }) {
   return (
     <motion.div
-      className={cn('rounded-3xl border border-white/[0.14] bg-white/[0.06] backdrop-blur-xl overflow-hidden', className)}
+      className={cn('rounded-3xl border border-white/[0.14] bg-white/[0.06] backdrop-blur-md overflow-hidden', className)}
       style={style}
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
@@ -232,13 +269,12 @@ export default function DashboardPage() {
     refetchInterval: 30_000,
   })
 
-  // 7-day occupancy forecast
-  const fcFrom = useMemo(() => format(new Date(), 'yyyy-MM-dd'), [])
+  // 7-day occupancy forecast (reuses `today` as the start date)
   const fcTo = useMemo(() => format(addDays(new Date(), 7), 'yyyy-MM-dd'), [])
   type ForecastDay = { date: string; totalAvail: number; total: number; occupancyPct: number; status: string }
   const { data: forecast = [] } = useQuery<ForecastDay[]>({
-    queryKey: ['occupancy-forecast', fcFrom, fcTo],
-    queryFn: () => roomsApi.availabilityCalendar(fcFrom, fcTo).then(r => r.data),
+    queryKey: ['occupancy-forecast', today, fcTo],
+    queryFn: () => roomsApi.availabilityCalendar(today, fcTo).then(r => r.data),
     staleTime: 5 * 60_000,
   })
 
@@ -254,10 +290,25 @@ export default function DashboardPage() {
   const hkCount   = useCountUp(dashboard?.pendingHousekeeping ?? 0, 800, 450)
   const maintCount = useCountUp((maintenanceTickets as unknown[] | undefined)?.length ?? 0, 800, 500)
 
-  // Rooms to cycle through in the center widget
-  const liveRooms = hkList.filter(t => t.room.zone?.imageUrl || t.room.roomType?.imageUrl)
-  const activeRoom = liveRooms[roomIdx] || hkList[roomIdx]
+  // Center widget slideshow — only rooms that have an image (single consistent index space)
+  const slideRooms = useMemo(
+    () => hkList.filter(t => t.room.zone?.imageUrl || t.room.roomType?.imageUrl),
+    [hkList],
+  )
+  const activeRoom = slideRooms[roomIdx]
   const roomImage = activeRoom?.room.zone?.imageUrl || activeRoom?.room.roomType?.imageUrl
+
+  // Auto-advance the room slideshow every 5s (idle "alive" motion)
+  useEffect(() => {
+    if (slideRooms.length <= 1) return
+    const t = setInterval(() => setRoomIdx(i => (i + 1) % slideRooms.length), 5000)
+    return () => clearInterval(t)
+  }, [slideRooms.length])
+
+  // Reset roomIdx if it falls out of range after a refetch
+  useEffect(() => {
+    if (roomIdx >= slideRooms.length && slideRooms.length > 0) setRoomIdx(0)
+  }, [slideRooms.length, roomIdx])
 
   const greeting = () => {
     const h = new Date().getHours()
@@ -265,6 +316,10 @@ export default function DashboardPage() {
     if (h < 17) return 'สวัสดีตอนบ่าย'
     return 'สวัสดีตอนเย็น'
   }
+
+  // Looping typing effect for the greeting line
+  const greetingText = user?.firstName ? `${greeting()}, ${user.firstName}!` : ''
+  const typedGreeting = useTypingEffect(greetingText)
 
   return (
     <AppShell>
@@ -285,12 +340,16 @@ export default function DashboardPage() {
         >
           {/* Greeting + property name */}
           <div>
-            <p className="text-base text-stone-300 font-medium">{greeting()}, {user?.firstName}!</p>
+            <p className="text-base text-stone-300 font-medium min-h-[1.5rem]">
+              {typedGreeting}
+              {/* blinking cursor — always visible since text loops */}
+              <span className="inline-block w-[2px] h-4 ml-0.5 bg-amber-300 align-middle animate-pulse" />
+            </p>
             <h1 className="mt-2 text-5xl font-black text-stone-50 leading-[1.05] tracking-tight break-words">
               {user?.property?.name || 'Serene Resort'}
             </h1>
             <p className="mt-3 text-sm text-stone-400">
-              {format(new Date(), 'EEEE, d MMMM yyyy', { locale: th })} (อยู่ในช่วงทดสอบระบบ)
+              {format(new Date(), 'EEEE, d MMMM yyyy', { locale: th })}
             </p>
           </div>
 
@@ -298,29 +357,42 @@ export default function DashboardPage() {
           <div className="mt-6">
             <p className="text-xs text-stone-600 mb-2.5 font-semibold tracking-widest uppercase">ผู้ใช้ระบบ</p>
             <div className="flex items-center -space-x-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-amber-400/50 bg-amber-400/15 text-sm font-bold text-amber-300 z-10">
-                {user?.firstName?.[0]}{user?.lastName?.[0]}
-              </div>
+              {/* Current user — rotating glow ring marks "this is you" */}
+              <motion.div
+                className="avatar-ring relative flex h-10 w-10 items-center justify-center rounded-full bg-amber-400/15 text-sm font-bold text-amber-300 z-10"
+                initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                transition={{ delay: 0.6, type: 'spring', stiffness: 260, damping: 18 }}
+              >
+                {/* inner mask so ring shows as a thin border */}
+                <span className="absolute inset-0 rounded-full bg-[#1a140e]" />
+                <span className="relative">{user?.firstName?.[0]}{user?.lastName?.[0]}</span>
+              </motion.div>
               {['SM', 'PK', 'NK', 'TT'].map((initials, i) => (
-                <div key={initials} className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-stone-800 bg-stone-700/60 text-[0.6875rem] font-medium text-stone-400"
-                  style={{ zIndex: 9 - i }}>
+                <motion.div key={initials}
+                  className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-stone-800 bg-stone-700/60 text-[0.6875rem] font-medium text-stone-400"
+                  style={{ zIndex: 9 - i }}
+                  initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                  transition={{ delay: 0.7 + i * 0.08, type: 'spring', stiffness: 260, damping: 18 }}
+                >
                   {initials}
-                </div>
+                </motion.div>
               ))}
-              <button className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-dashed border-white/15 text-stone-700 hover:border-white/25 hover:text-stone-500 transition-colors ml-2.5">
+              <motion.button
+                className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-dashed border-white/15 text-stone-700 hover:border-white/25 hover:text-stone-500 transition-colors ml-2.5"
+                initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                transition={{ delay: 1.1, type: 'spring', stiffness: 260, damping: 18 }}
+                whileHover={{ scale: 1.1 }}
+              >
                 <Plus className="h-3.5 w-3.5" />
-              </button>
+              </motion.button>
             </div>
           </div>
 
           {/* Live indicator */}
-          <div className="mt-4 flex items-center gap-2">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-            </span>
+          {/* <div className="mt-4 flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
             <span className="text-[0.6875rem] text-stone-600">Live Dashboard</span>
-          </div>
+          </div> */}
         </motion.div>
 
         {/* CENTER — Room image widget (camera-like, header+footer overlaid on image) */}
@@ -357,13 +429,10 @@ export default function DashboardPage() {
               <span className="text-xs font-medium text-stone-200">
                 {activeRoom ? `ห้อง ${activeRoom.room.roomNumber}` : 'ไม่มีงานค้าง'}
               </span>
-              {hkList.length > 1 && <ChevronDown className="h-3 w-3 text-stone-400" />}
+              {slideRooms.length > 1 && <ChevronDown className="h-3 w-3 text-stone-400" />}
             </button>
             <div className="flex items-center gap-1.5 rounded-full bg-black/40 border border-white/10 backdrop-blur-md px-2.5 py-1.5" >
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 opacity-75" />
-                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-rose-400" />
-              </span>
+              <span className="h-1.5 w-1.5 rounded-full bg-rose-400 animate-pulse" />
               <span className="text-[0.6875rem] text-stone-300 font-medium">Live</span>
             </div>
           </motion.div>
@@ -389,20 +458,22 @@ export default function DashboardPage() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setRoomIdx(i => Math.max(0, i - 1))}
-                  disabled={roomIdx === 0 || hkList.length === 0}
+                  disabled={roomIdx === 0 || slideRooms.length === 0}
+                  aria-label="ห้องก่อนหน้า"
                   className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/[0.12] backdrop-blur-sm text-stone-300 hover:bg-white/20 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
                   <ChevronLeft className="h-3.5 w-3.5" />
                 </button>
                 <button
-                  onClick={() => setRoomIdx(i => Math.min(hkList.length - 1, i + 1))}
-                  disabled={roomIdx >= hkList.length - 1 || hkList.length === 0}
+                  onClick={() => setRoomIdx(i => Math.min(slideRooms.length - 1, i + 1))}
+                  disabled={roomIdx >= slideRooms.length - 1 || slideRooms.length === 0}
+                  aria-label="ห้องถัดไป"
                   className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/[0.12] backdrop-blur-sm text-stone-300 hover:bg-white/20 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
                   <ChevronRight className="h-3.5 w-3.5" />
                 </button>
                 <div className="flex gap-1 ml-1">
-                  {hkList.slice(0, 6).map((_, i) => (
+                  {slideRooms.slice(0, 6).map((_, i) => (
                     <button key={i} onClick={() => setRoomIdx(i)}
                       className={cn('h-1.5 rounded-full transition-all duration-200', i === roomIdx ? 'w-4 bg-white' : 'w-1.5 bg-white/30')} />
                   ))}
@@ -425,7 +496,7 @@ export default function DashboardPage() {
         </GlassCard>
 
         {/* RIGHT — Stats (weather-like widget) */}
-        <GlassCard delay={0.1}>
+        <GlassCard delay={0.1} className="relative card-shimmer" style={{ ['--shimmer-delay' as string]: '0s' }}>
           {/* Top: mini ring (weather icon) + occupancy + date */}
           <div className="flex items-start gap-3 px-5 pt-5 pb-4">
             {/* Mini ring gauge — like the sun/cloud weather icon */}
@@ -480,8 +551,7 @@ export default function DashboardPage() {
                   'bg-emerald-400'
                 return (
                   <motion.div key={day.date}
-                    className={cn('flex flex-1 flex-col items-center gap-2 rounded-xl py-2.5 px-1 transition-colors',
-                      isToday ? 'bg-amber-400/10 border border-amber-300/20' : 'hover:bg-white/[0.03]')}
+                    className={cn('flex flex-1 flex-col items-center gap-2 rounded-xl py-2.5 px-1 transition-colors',)}
                     initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.4 + i * 0.06, duration: 0.25 }}>
                     {/* Day name */}
@@ -495,7 +565,7 @@ export default function DashboardPage() {
                     {/* Vertical bar with % floating just above the tip */}
                     <div className="relative h-20 w-full flex items-end justify-center">
                       <div className="w-2.5 rounded-full bg-white/[0.06] h-full flex items-end overflow-hidden">
-                        <motion.div className={cn('w-full rounded-full', barColor)}
+                        <motion.div className={cn('w-full rounded-full', barColor, isToday && 'bar-breathe')}
                           initial={{ height: 0 }}
                           animate={{ height: `${Math.max(6, day.occupancyPct)}%` }}
                           transition={{ delay: 0.5 + i * 0.06, duration: 0.5, ease: 'easeOut' }}
@@ -527,7 +597,7 @@ export default function DashboardPage() {
         {/* ═══════════════════════════════════════════════ */}
 
         {/* Occupancy Gauge */}
-        <GlassCard className="col-span-12 sm:col-span-6 xl:col-span-3" delay={0.15}>
+        <GlassCard className="relative card-shimmer col-span-12 sm:col-span-6 xl:col-span-3" delay={0.15} style={{ ['--shimmer-delay' as string]: '3.5s' }}>
           <div className="flex items-center justify-between px-4 pt-4 pb-0">
             <div>
               <p className="text-sm font-semibold text-stone-200">สถานะห้อง</p>
@@ -618,7 +688,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Revenue — col 3 (Music player-like, tall) */}
-        <GlassCard className="col-span-6 sm:col-span-3 xl:col-span-3" delay={0.32}>
+        <GlassCard className="relative card-shimmer col-span-6 sm:col-span-3 xl:col-span-3" delay={0.32} style={{ ['--shimmer-delay' as string]: '7s' }}>
           {/* Artist/song style — title inline */}
           <div className="flex items-center justify-between px-4 pt-4 pb-0">
             <div>

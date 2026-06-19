@@ -289,6 +289,13 @@ export function AppHeader() {
 
   const today = format(new Date(), 'EEEE, d MMMM yyyy', { locale: th })
 
+  // Live clock — ticks every second
+  const [now, setNow] = useState(new Date())
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000)
+    return () => clearInterval(t)
+  }, [])
+
   const { data: dashboard } = useQuery({
     queryKey: ['dashboard-noti'],
     queryFn: () => reportsApi.dashboard().then(r => r.data),
@@ -343,7 +350,11 @@ export function AppHeader() {
 
           {/* Right controls */}
           <div className="flex items-center gap-1.5">
-            <span className="hidden xl:block mr-2 text-xs text-stone-600">{today}</span>
+            <span className="hidden xl:block text-xs text-stone-600">{today}</span>
+            {/* Live realtime clock */}
+            <span className="hidden lg:block mr-2 text-xs font-mono font-semibold text-amber-300/90 tabular-nums tracking-wide">
+              {format(now, 'HH:mm:ss')}
+            </span>
 
             {/* Search */}
             <button

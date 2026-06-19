@@ -50,6 +50,73 @@ body {
   animation: skeleton-shimmer 1.5s ease-in-out infinite;
 }
 
+/* Forecast bar breathing (decorative idle motion) */
+@keyframes bar-breathe {
+  0%, 100% { transform: scaleY(0.92); }
+  50%      { transform: scaleY(1.1); }
+}
+.bar-breathe {
+  transform-origin: bottom;
+  animation: bar-breathe 2s ease-in-out infinite;
+}
+
+/* Shimmer sweep across cards (idle "alive" motion).
+   Animates background-position (paint) NOT transform — transform-based
+   animation forces backdrop-filter (backdrop-blur) layers to re-sample
+   every frame, which causes flicker on neighbouring glass cards. */
+@keyframes card-shimmer {
+  0%   { background-position: 200% 0; opacity: 0; }
+  12%  { opacity: 0.5; }
+  28%  { background-position: -100% 0; opacity: 0; }
+  100% { background-position: -100% 0; opacity: 0; }
+}
+.card-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background: linear-gradient(105deg, transparent 38%, rgba(255,255,255,0.07) 50%, transparent 62%);
+  background-size: 250% 100%;
+  background-position: 200% 0;
+  animation: card-shimmer 10s ease-in-out infinite;
+  animation-delay: var(--shimmer-delay, 0s);
+}
+
+/* Rotating glow ring around the current user avatar */
+@keyframes avatar-ring-spin {
+  to { transform: rotate(360deg); }
+}
+.avatar-ring::before {
+  content: '';
+  position: absolute;
+  inset: -2.5px;
+  border-radius: 9999px;
+  background: conic-gradient(from 0deg, transparent 0deg, rgba(251,191,36,0.85) 70deg, transparent 160deg, transparent 360deg);
+  animation: avatar-ring-spin 5s linear infinite;
+  will-change: transform;
+  z-index: -1;
+}
+
+/* Live pulse ring */
+@keyframes live-ring {
+  0%   { transform: scale(0.8); opacity: 0.7; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+.live-ring::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: rgb(248 113 113);
+  animation: live-ring 1.8s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar-breathe, .live-ring::before, .avatar-ring::before { animation: none; }
+  .card-shimmer::after { animation: none; display: none; }
+}
+
 /* Hide scrollbar utility */
 .scrollbar-none {
   scrollbar-width: none;
