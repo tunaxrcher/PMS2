@@ -19,8 +19,19 @@ export class GuestsController {
     @CurrentUser() user: JwtPayload,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('nationality') nationality?: string,
+    @Query('blacklist') blacklist?: string,
+    @Query('returning') returning?: string,
   ) {
-    return this.service.findAll(user.propertyId!, Number(page) || 1, Number(limit) || 20)
+    return this.service.findAll(user.propertyId!, {
+      page: Number(page) || 1,
+      limit: Number(limit) || 20,
+      search: search || undefined,
+      nationality: nationality || undefined,
+      blacklist: blacklist === 'true',
+      returning: returning === 'true',
+    })
   }
 
   @Get('search')
@@ -28,6 +39,20 @@ export class GuestsController {
   @RequirePermissions(PERMISSIONS.GUEST_VIEW)
   search(@CurrentUser() user: JwtPayload, @Query('q') q: string) {
     return this.service.search(user.propertyId!, q || '')
+  }
+
+  @Get('nationalities')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.GUEST_VIEW)
+  getNationalities(@CurrentUser() user: JwtPayload) {
+    return this.service.getNationalities(user.propertyId!)
+  }
+
+  @Get('stats')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.GUEST_VIEW)
+  getStats(@CurrentUser() user: JwtPayload) {
+    return this.service.getStats(user.propertyId!)
   }
 
   @Get(':id')

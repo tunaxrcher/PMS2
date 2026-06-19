@@ -1,8 +1,12 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Users, Search, Phone, Mail, AlertTriangle, User } from 'lucide-react'
+import { motion } from 'framer-motion'
+import {
+  Plus, Users, Search, Phone, Mail, AlertTriangle, User,
+  LayoutGrid, List, Star, UserPlus, CalendarClock, MapPin,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/app-shell'
 import { GlassPanel } from '@/components/ui/glass-panel'
@@ -12,8 +16,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { EmptyState } from '@/components/ui/empty-state'
 import { PmsDialog } from '@/components/ui/pms-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
+import { ViewToggle } from '@/components/ui/view-toggle'
 import { guestsApi } from '@/lib/api'
-import { formatDate } from '@/lib/utils'
+import { formatDate, cn } from '@/lib/utils'
 import Link from 'next/link'
 
 interface GuestForm {
@@ -21,33 +26,84 @@ interface GuestForm {
   nationality: string; idType: string; idNumber: string; address: string; remark: string
 }
 
+interface Guest {
+  id: string; firstName: string; lastName: string
+  phone?: string | null; email?: string | null; nationality?: string | null
+  idType?: string | null; idNumber?: string | null; address?: string | null; remark?: string | null
+  blacklistFlag: boolean
+  stayCount?: number; lastVisit?: string | null; nextVisit?: string | null
+}
+
 const defaultForm: GuestForm = { firstName: '', lastName: '', phone: '', email: '', nationality: '', idType: '', idNumber: '', address: '', remark: '' }
+const pillBase = 'rounded-full px-3 py-1 text-xs font-medium border transition-all'
+const pillIdle = 'border-white/10 text-stone-500 hover:border-white/20 hover:text-stone-300'
+const pillActive = 'bg-amber-400/15 border-amber-300/30 text-amber-200'
+
+function initials(g: Guest) {
+  return `${g.firstName?.[0] || ''}${g.lastName?.[0] || ''}`.toUpperCase()
+}
+
+// Past stay summary — a clear, past-tense concept on its own.
+function lastStayText(g: Guest): string {
+  return g.lastVisit ? formatDate(g.lastVisit, 'dd MMM yy') : 'ลูกค้าใหม่'
+}
+
+function StatCard({ icon: Icon, label, value, tone }: { icon: typeof Users; label: string; value: number; tone: string }) {
+  return (
+    <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+      <div className={cn('flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl', tone)}>
+        <Icon className="h-4 w-4" />
+      </div>
+      <div className="min-w-0">
+        <div className="text-lg font-bold text-stone-100 leading-none">{value}</div>
+        <div className="text-xs text-stone-500 mt-1 truncate">{label}</div>
+      </div>
+    </div>
+  )
+}
 
 export default function GuestsPage() {
   const qc = useQueryClient()
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [nationality, setNationality] = useState('')
+  const [returningOnly, setReturningOnly] = useState(false)
+  const [blacklistOnly, setBlacklistOnly] = useState(false)
   const [page, setPage] = useState(1)
+  const [view, setView] = useState<'card' | 'table'>('table')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState<GuestForm>(defaultForm)
 
+  // Debounce search so we fire one request after typing settles.
+  useEffect(() => {
+    const t = setTimeout(() => { setDebouncedSearch(search); setPage(1) }, 350)
+    return () => clearTimeout(t)
+  }, [search])
+
   const { data, isLoading } = useQuery({
-    queryKey: ['guests', page, search],
-    queryFn: () => {
-      if (search.length >= 2) return guestsApi.search(search).then(r => ({ guests: r.data, total: r.data.length, page: 1, limit: 20 }))
-      return guestsApi.list({ page, limit: 20 }).then(r => r.data)
-    },
+    queryKey: ['guests', page, debouncedSearch, nationality, returningOnly, blacklistOnly],
+    queryFn: () => guestsApi.list({
+      page, limit: 24,
+      search: debouncedSearch || undefined,
+      nationality: nationality || undefined,
+      returning: returningOnly || undefined,
+      blacklist: blacklistOnly || undefined,
+    }).then(r => r.data),
     staleTime: 30_000,
   })
 
+  const { data: stats } = useQuery({ queryKey: ['guest-stats'], queryFn: () => guestsApi.stats().then(r => r.data) })
+  const { data: nationalities = [] } = useQuery<string[]>({ queryKey: ['guest-nationalities'], queryFn: () => guestsApi.nationalities().then(r => r.data) })
+
   const createMutation = useMutation({
     mutationFn: (d: Record<string, unknown>) => guestsApi.create(d),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['guests'] }); setDialogOpen(false); toast.success('เพิ่มลูกค้าสำเร็จ') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['guests'] }); qc.invalidateQueries({ queryKey: ['guest-stats'] }); setDialogOpen(false); toast.success('เพิ่มลูกค้าสำเร็จ') },
     onError: () => toast.error('เกิดข้อผิดพลาด'),
   })
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => guestsApi.update(id, data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['guests'] }); setDialogOpen(false); toast.success('แก้ไขสำเร็จ') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['guests'] }); qc.invalidateQueries({ queryKey: ['guest-stats'] }); setDialogOpen(false); toast.success('แก้ไขสำเร็จ') },
     onError: () => toast.error('เกิดข้อผิดพลาด'),
   })
 
@@ -58,89 +114,242 @@ export default function GuestsPage() {
     else createMutation.mutate(payload)
   }
 
-  const openEdit = (g: { id: string; firstName: string; lastName: string; phone?: string | null; email?: string | null; nationality?: string | null; idType?: string | null; idNumber?: string | null; address?: string | null; remark?: string | null }) => {
-    setEditId(g.id); setForm({ firstName: g.firstName, lastName: g.lastName, phone: g.phone || '', email: g.email || '', nationality: g.nationality || '', idType: g.idType || '', idNumber: g.idNumber || '', address: g.address || '', remark: g.remark || '' }); setDialogOpen(true)
+  const openEdit = (g: Guest) => {
+    setEditId(g.id)
+    setForm({ firstName: g.firstName, lastName: g.lastName, phone: g.phone || '', email: g.email || '', nationality: g.nationality || '', idType: g.idType || '', idNumber: g.idNumber || '', address: g.address || '', remark: g.remark || '' })
+    setDialogOpen(true)
   }
 
+  const guests = (data?.guests as Guest[]) || []
+  const activeFilters = (nationality ? 1 : 0) + (returningOnly ? 1 : 0) + (blacklistOnly ? 1 : 0)
+
   return (
-    <AppShell title="ลูกค้า" subtitle="ฐานข้อมูลลูกค้าทั้งหมด">
+    <AppShell title="ลูกค้า" subtitle={stats ? `${stats.total} รายชื่อในระบบ` : 'ฐานข้อมูลลูกค้าทั้งหมด'}>
       <div className="space-y-5">
-        <div className="flex items-center justify-between gap-4">
-          <div className="relative flex-1 max-w-sm">
+        {/* Stat strip */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <StatCard icon={Users} label="ลูกค้าทั้งหมด" value={stats?.total ?? 0} tone="bg-amber-400/15 text-amber-300" />
+          <StatCard icon={Star} label="ลูกค้าประจำ" value={stats?.returning ?? 0} tone="bg-emerald-400/15 text-emerald-300" />
+          <StatCard icon={UserPlus} label="เพิ่มใหม่เดือนนี้" value={stats?.newThisMonth ?? 0} tone="bg-sky-400/15 text-sky-300" />
+          <StatCard icon={AlertTriangle} label="Blacklist" value={stats?.blacklist ?? 0} tone="bg-rose-400/15 text-rose-300" />
+        </div>
+
+        {/* Toolbar */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[200px] max-w-sm">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-500" />
             <input
               value={search}
-              onChange={e => { setSearch(e.target.value); setPage(1) }}
-              placeholder="ค้นหาชื่อ เบอร์โทร..."
+              onChange={e => setSearch(e.target.value)}
+              placeholder="ค้นหาชื่อ เบอร์โทร อีเมล..."
               className="h-9 w-full rounded-full border border-white/15 bg-black/25 pl-9 pr-4 text-sm text-stone-100 placeholder:text-stone-500 focus:border-amber-300/40 focus:outline-none backdrop-blur-sm"
             />
           </div>
-          <Button onClick={() => { setEditId(null); setForm(defaultForm); setDialogOpen(true) }}><Plus className="h-4 w-4" /> เพิ่มลูกค้า</Button>
+          <div className="ml-auto flex items-center gap-2">
+            <ViewToggle
+              value={view}
+              onChange={setView}
+              options={[
+                { value: 'table', label: 'ตาราง', icon: List },
+                { value: 'card', label: 'การ์ด', icon: LayoutGrid },
+              ]}
+            />
+            <Button size="sm" onClick={() => { setEditId(null); setForm(defaultForm); setDialogOpen(true) }}>
+              <Plus className="h-4 w-4" /> เพิ่มลูกค้า
+            </Button>
+          </div>
         </div>
 
-        <GlassPanel dense padding="none">
-          {isLoading ? (
-            <div className="divide-y divide-white/5">
-              {[...Array(8)].map((_, i) => (
-                <div key={i} className="flex items-center gap-4 px-4 py-3.5">
-                  <div className="flex-1 min-w-0 space-y-2">
-                    <Skeleton className="h-3.5 w-40" />
-                  </div>
-                  <div className="flex-1 min-w-0 space-y-1.5">
-                    <Skeleton className="h-3 w-32" />
-                    <Skeleton className="h-3 w-24" />
-                  </div>
-                  <Skeleton className="h-3.5 w-16 flex-shrink-0" />
-                  <div className="flex gap-1.5 flex-shrink-0">
-                    <Skeleton className="h-7 w-7 rounded-lg" />
-                    <Skeleton className="h-7 w-12 rounded-lg" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : !data?.guests?.length ? (
-            <EmptyState icon={Users} title="ไม่พบลูกค้า" description={search ? `ไม่พบลูกค้าที่ค้นหา "${search}"` : 'ยังไม่มีข้อมูลลูกค้า'} className="m-4" />
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead><tr className="border-b border-white/10 bg-white/[0.03]">
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-stone-500">ชื่อ-นามสกุล</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-stone-500">ติดต่อ</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-stone-500">สัญชาติ</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-stone-500">จัดการ</th>
-                </tr></thead>
-                <tbody>
-                  {(data.guests as Array<{ id: string; firstName: string; lastName: string; phone?: string | null; email?: string | null; nationality?: string | null; idType?: string | null; idNumber?: string | null; address?: string | null; remark?: string | null; blacklistFlag: boolean }>).map(g => (
-                    <tr key={g.id} className="border-b border-white/5 hover:bg-white/[0.03]">
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-stone-200">{g.firstName} {g.lastName}</span>
-                          {g.blacklistFlag && <span title="Blacklist"><AlertTriangle className="h-3.5 w-3.5 text-rose-400" /></span>}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        {g.phone && <div className="flex items-center gap-1 text-stone-400 text-xs"><Phone className="h-3 w-3" /> {g.phone}</div>}
-                        {g.email && <div className="flex items-center gap-1 text-stone-500 text-xs"><Mail className="h-3 w-3" /> {g.email}</div>}
-                      </td>
-                      <td className="px-4 py-3 text-stone-400">{g.nationality || '-'}</td>
-                      <td className="px-4 py-3 text-right flex justify-end gap-1">
-                        <Link href={`/guests/${g.id}`}>
-                          <Button variant="ghost" size="sm" title="ดูโปรไฟล์"><User className="h-3.5 w-3.5" /></Button>
-                        </Link>
-                        <Button variant="ghost" size="sm" onClick={() => openEdit(g)}>แก้ไข</Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </GlassPanel>
+        {/* Filter chips */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button onClick={() => { setNationality(''); setPage(1) }} className={cn(pillBase, nationality === '' ? pillActive : pillIdle)}>
+            ทุกสัญชาติ
+          </button>
+          {nationalities.map(n => (
+            <button key={n} onClick={() => { setNationality(nationality === n ? '' : n); setPage(1) }}
+              className={cn(pillBase, nationality === n ? pillActive : pillIdle)}>
+              {n}
+            </button>
+          ))}
+          <span className="mx-1 h-4 w-px bg-white/10" />
+          <button onClick={() => { setReturningOnly(v => !v); setPage(1) }}
+            className={cn(pillBase, 'flex items-center gap-1', returningOnly ? 'bg-emerald-400/15 border-emerald-300/30 text-emerald-200' : pillIdle)}>
+            <Star className="h-3 w-3" /> ลูกค้าประจำ
+          </button>
+          <button onClick={() => { setBlacklistOnly(v => !v); setPage(1) }}
+            className={cn(pillBase, 'flex items-center gap-1', blacklistOnly ? 'bg-rose-400/15 border-rose-300/30 text-rose-200' : pillIdle)}>
+            <AlertTriangle className="h-3 w-3" /> Blacklist
+          </button>
+        </div>
 
+        {/* Content */}
+        {isLoading ? (
+          view === 'card' ? (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-36 rounded-2xl" />)}
+            </div>
+          ) : (
+            <GlassPanel dense padding="none">
+              <div className="divide-y divide-white/5">
+                {[...Array(8)].map((_, i) => (
+                  <div key={i} className="flex items-center gap-4 px-4 py-3.5">
+                    <Skeleton className="h-9 w-9 rounded-xl flex-shrink-0" />
+                    <div className="flex-1 space-y-2"><Skeleton className="h-3.5 w-40" /><Skeleton className="h-3 w-28" /></div>
+                    <Skeleton className="h-7 w-16 rounded-lg flex-shrink-0" />
+                  </div>
+                ))}
+              </div>
+            </GlassPanel>
+          )
+        ) : !guests.length ? (
+          <EmptyState
+            icon={Users}
+            title="ไม่พบลูกค้า"
+            description={debouncedSearch || activeFilters ? 'ลองล้างตัวกรองหรือค้นหาด้วยคำอื่น' : 'ยังไม่มีข้อมูลลูกค้า'}
+            className="py-16"
+          />
+        ) : view === 'card' ? (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {guests.map((g, i) => {
+              return (
+                <motion.div
+                  key={g.id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: Math.min(i * 0.025, 0.3), duration: 0.2 }}
+                  className="group relative flex flex-col rounded-2xl border border-white/10 bg-white/[0.04] p-4 transition-all hover:bg-white/[0.06] hover:border-white/20"
+                >
+                  <Link href={`/guests/${g.id}`} className="absolute inset-0 rounded-2xl" aria-label={`โปรไฟล์ ${g.firstName}`} />
+                  <div className="flex items-start gap-3">
+                    <div className={cn('flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl text-sm font-bold',
+                      g.blacklistFlag ? 'bg-rose-400/15 text-rose-300' : 'bg-amber-400/15 text-amber-300')}>
+                      {initials(g) || <User className="h-5 w-5" />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-semibold text-stone-100 text-sm truncate">{g.firstName} {g.lastName}</span>
+                        {g.blacklistFlag && <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 text-rose-400" />}
+                      </div>
+                      {g.nationality && (
+                        <span className="inline-flex items-center gap-1 mt-0.5 text-xs text-stone-500">
+                          <MapPin className="h-3 w-3" />{g.nationality}
+                        </span>
+                      )}
+                    </div>
+                    {g.nextVisit && (
+                      <span className="flex-shrink-0 inline-flex items-center gap-1 rounded-full bg-sky-400/15 border border-sky-300/25 px-2 py-0.5 text-xs font-medium text-sky-200">
+                        <CalendarClock className="h-3 w-3" /> {formatDate(g.nextVisit, 'dd MMM')}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="mt-3 space-y-1">
+                    {g.phone && <div className="flex items-center gap-1.5 text-xs text-stone-400"><Phone className="h-3 w-3 flex-shrink-0" /> {g.phone}</div>}
+                    {g.email && <div className="flex items-center gap-1.5 text-xs text-stone-500 truncate"><Mail className="h-3 w-3 flex-shrink-0" /> {g.email}</div>}
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-between border-t border-white/[0.06] pt-2.5">
+                    <span className={cn('inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-xs font-medium',
+                      (g.stayCount ?? 0) > 1 ? 'bg-emerald-400/10 text-emerald-300' : 'bg-white/[0.05] text-stone-400')}>
+                      เข้าพัก {g.stayCount ?? 0} ครั้ง
+                    </span>
+                    <span className="text-xs text-stone-500">
+                      {g.lastVisit ? `ล่าสุด ${formatDate(g.lastVisit, 'dd MMM yy')}` : 'ลูกค้าใหม่'}
+                    </span>
+                  </div>
+
+                  {/* NEW badge / edit button at top-right */}
+                  {!g.lastVisit && !g.stayCount ? (
+                    <span className="absolute right-3 top-3 z-10 rounded-full border border-emerald-300/30 bg-emerald-400/15 px-2 py-0.5 text-[0.625rem] font-bold uppercase tracking-wide text-emerald-300">
+                      NEW
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => openEdit(g)}
+                      className="absolute right-3 top-3 z-10 rounded-lg border border-white/10 bg-black/30 px-2 py-1 text-xs text-stone-400 opacity-0 transition-opacity hover:text-amber-300 group-hover:opacity-100"
+                    >
+                      แก้ไข
+                    </button>
+                  )}
+                </motion.div>
+              )
+            })}
+          </div>
+        ) : (
+          <div className="space-y-1.5">
+            {guests.map((g, i) => (
+              <motion.div
+                key={g.id}
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: Math.min(i * 0.02, 0.25), duration: 0.18 }}
+                className={cn(
+                  'group flex items-center gap-4 rounded-2xl border border-white/[0.08] bg-white/[0.04] px-4 py-3 transition-all hover:bg-white/[0.07] hover:border-white/[0.14]',
+                  g.blacklistFlag && 'border-rose-400/20 bg-rose-400/[0.04]',
+                )}
+              >
+                {/* Avatar */}
+                <div className={cn(
+                  'flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-sm font-bold',
+                  g.blacklistFlag ? 'bg-rose-400/15 text-rose-300' : (g.stayCount ?? 0) > 1 ? 'bg-emerald-400/15 text-emerald-300' : 'bg-amber-400/15 text-amber-300',
+                )}>
+                  {initials(g) || <User className="h-5 w-5" />}
+                </div>
+
+                {/* Name + blacklist */}
+                <div className="min-w-0 w-44 flex-shrink-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-semibold text-stone-100 text-sm truncate">{g.firstName} {g.lastName}</span>
+                    {g.blacklistFlag && <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 text-rose-400" />}
+                  </div>
+                  {g.nationality && (
+                    <span className="flex items-center gap-1 text-xs text-stone-500 mt-0.5">
+                      <MapPin className="h-3 w-3" />{g.nationality}
+                    </span>
+                  )}
+                </div>
+
+                {/* Contact */}
+                <div className="hidden sm:flex flex-col flex-1 min-w-0">
+                  {g.phone && <div className="flex items-center gap-1.5 text-xs text-stone-400 truncate"><Phone className="h-3 w-3 flex-shrink-0" />{g.phone}</div>}
+                  {g.email && <div className="flex items-center gap-1.5 text-xs text-stone-500 truncate"><Mail className="h-3 w-3 flex-shrink-0" />{g.email}</div>}
+                  {!g.phone && !g.email && <span className="text-xs text-stone-700">ไม่มีข้อมูลติดต่อ</span>}
+                </div>
+
+                {/* Stay count */}
+                <div className="hidden md:flex flex-col items-center flex-shrink-0 w-20">
+                  <span className={cn(
+                    'inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold',
+                    (g.stayCount ?? 0) > 1 ? 'bg-emerald-400/10 text-emerald-300' : 'bg-white/[0.05] text-stone-500',
+                  )}>
+                    {(g.stayCount ?? 0) > 1 && <Star className="h-3 w-3" />}
+                    {g.stayCount ?? 0} ครั้ง
+                  </span>
+                </div>
+
+                {/* Last visit */}
+                <div className="hidden lg:flex flex-col items-end flex-shrink-0 w-28 text-right">
+                  <span className="text-xs font-medium text-stone-300">{g.lastVisit ? formatDate(g.lastVisit, 'dd MMM yy') : '—'}</span>
+                  <span className="text-xs text-stone-600 mt-0.5">เข้าพักล่าสุด</span>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-1.5 flex-shrink-0 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Link href={`/guests/${g.id}`} onClick={e => e.stopPropagation()}>
+                    <Button variant="ghost" size="sm" title="ดูโปรไฟล์"><User className="h-3.5 w-3.5" /></Button>
+                  </Link>
+                  <Button variant="ghost" size="sm" onClick={() => openEdit(g)}>แก้ไข</Button>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
+
+        {/* Pagination */}
         {data && data.total > data.limit && (
           <div className="flex items-center justify-center gap-2">
             <Button variant="secondary" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>← ก่อนหน้า</Button>
-            <span className="text-sm text-stone-400">หน้า {page}</span>
+            <span className="text-sm text-stone-400">หน้า {page} / {Math.ceil(data.total / data.limit)}</span>
             <Button variant="secondary" size="sm" onClick={() => setPage(p => p + 1)} disabled={page * data.limit >= data.total}>ถัดไป →</Button>
           </div>
         )}

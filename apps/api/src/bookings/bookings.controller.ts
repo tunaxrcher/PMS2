@@ -36,11 +36,14 @@ export class BookingsController {
     @Query('status') status?: string,
     @Query('checkInDate') checkInDate?: string,
     @Query('checkOutDate') checkOutDate?: string,
+    @Query('checkInFrom') checkInFrom?: string,
+    @Query('checkInTo') checkInTo?: string,
+    @Query('bookingSourceId') bookingSourceId?: string,
     @Query('guestName') guestName?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
-    return this.service.findAll(user.propertyId!, { status, checkInDate, checkOutDate, guestName, page: Number(page), limit: Number(limit) })
+    return this.service.findAll(user.propertyId!, { status, checkInDate, checkOutDate, checkInFrom, checkInTo, bookingSourceId, guestName, page: Number(page), limit: Number(limit) })
   }
 
   @Get(':id')

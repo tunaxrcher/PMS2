@@ -26,6 +26,9 @@ export class BookingsService {
     status?: string
     checkInDate?: string
     checkOutDate?: string
+    checkInFrom?: string
+    checkInTo?: string
+    bookingSourceId?: string
     guestName?: string
     page?: number
     limit?: number
@@ -36,11 +39,18 @@ export class BookingsService {
 
     const where: Record<string, unknown> = { propertyId }
     if (filters?.status) where.status = filters.status
+    if (filters?.bookingSourceId) where.bookingSourceId = filters.bookingSourceId
     // Match an exact calendar day [start, nextDay) — @db.Date is stored at UTC midnight
     if (filters?.checkInDate) {
       const day = new Date(filters.checkInDate)
       const next = new Date(day); next.setUTCDate(day.getUTCDate() + 1)
       where.checkInDate = { gte: day, lt: next }
+    } else if (filters?.checkInFrom || filters?.checkInTo) {
+      // Date-range filter on check-in (used by the bookings list quick-chips)
+      const range: { gte?: Date; lt?: Date } = {}
+      if (filters.checkInFrom) range.gte = new Date(filters.checkInFrom)
+      if (filters.checkInTo) { const d = new Date(filters.checkInTo); d.setUTCDate(d.getUTCDate() + 1); range.lt = d }
+      where.checkInDate = range
     }
     if (filters?.checkOutDate) {
       const day = new Date(filters.checkOutDate)
@@ -62,7 +72,7 @@ export class BookingsService {
         include: {
           guest: { select: { id: true, firstName: true, lastName: true, phone: true } },
           bookingSource: true,
-          bookingRooms: { include: { roomType: true, room: true } },
+          bookingRooms: { include: { roomType: true, room: { include: { zone: true } } } },
         },
         orderBy: { createdAt: 'desc' },
         skip,

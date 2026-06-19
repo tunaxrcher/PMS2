@@ -66,6 +66,8 @@ export const bookingsApi = {
 
 export const guestsApi = {
   list: (params?: Record<string, unknown>) => api.get('/guests', { params }),
+  nationalities: () => api.get('/guests/nationalities'),
+  stats: () => api.get('/guests/stats'),
   search: (q: string) => api.get('/guests/search', { params: { q } }),
   get: (id: string, sensitive?: boolean) => api.get(`/guests/${id}`, { params: { sensitive } }),
   create: (data: Record<string, unknown>) => api.post('/guests', data),
