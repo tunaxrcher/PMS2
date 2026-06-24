@@ -79,38 +79,34 @@ export function BookingInfoCards({ booking, onAssignRoom, onAdjustRate }: Bookin
           {booking.bookingRooms.map(br => (
             <div key={br.id} className="rounded-xl bg-white/[0.04] p-3">
               <div className="flex items-center justify-between">
-                <div>
+                <div className="min-w-0 flex-1">
                   <div className="text-sm font-medium text-stone-200">{br.roomType?.name}</div>
                   {br.room ? (
-                    <div className="text-xs text-stone-400">ห้อง {br.room.roomNumber} {br.room.zone?.name ? `• ${br.room.zone.name}` : ''}</div>
+                    <div className="text-xs text-stone-400 mt-0.5">
+                      ห้อง {br.room.roomNumber}{br.room.zone?.name ? ` • ${br.room.zone.name}` : ''}
+                    </div>
                   ) : (
-                    <div className="text-xs text-amber-400">ยังไม่ได้กำหนดห้อง</div>
+                    <span className="mt-1 inline-flex items-center rounded-full border border-stone-600/40 bg-stone-700/30 px-2 py-0.5 text-[10px] text-stone-400">
+                      รอกำหนดห้อง
+                    </span>
                   )}
                 </div>
-                <div className="text-right">
+                <div className="text-right flex-shrink-0 ml-3">
                   <div className="text-sm font-semibold text-amber-300">{formatCurrency(Number(br.rate))}</div>
                   <div className="text-xs text-stone-500">ต่อคืน</div>
                 </div>
               </div>
-              <div className="mt-2 flex gap-2">
-                {!br.room && (
-                  <button
-                    onClick={() => onAssignRoom(br.id)}
-                    className="flex-1 rounded-lg border border-amber-300/20 bg-amber-400/10 py-1.5 text-xs font-medium text-amber-300 hover:bg-amber-400/15 transition-colors"
-                  >
-                    <BedDouble className="mr-1 inline h-3 w-3" /> กำหนดห้อง
-                  </button>
-                )}
-                {canAdjustRate && (
+              {canAdjustRate && (
+                <div className="mt-2">
                   <button
                     onClick={() => onAdjustRate(br.id, Number(br.rate))}
-                    className="rounded-lg border border-sky-300/20 bg-sky-400/10 px-2 py-1.5 text-xs font-medium text-sky-300 hover:bg-sky-400/15 transition-colors"
+                    className="rounded-lg border border-sky-300/20 bg-sky-400/10 px-2.5 py-1.5 text-xs font-medium text-sky-300 hover:bg-sky-400/15 transition-colors"
                     title="ปรับราคา"
                   >
                     ปรับราคา
                   </button>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
