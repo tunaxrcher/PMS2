@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { User, CalendarRange, BedDouble, ExternalLink, Pencil } from 'lucide-react'
+import { User, CalendarRange, BedDouble, ExternalLink, Pencil, Users, Globe, MessageSquare } from 'lucide-react'
 import Link from 'next/link'
 import { GlassPanel } from '@/components/ui/glass-panel'
 import { formatDate, formatCurrency, calcNights } from '@/lib/utils'
@@ -35,6 +35,10 @@ interface BookingInfoCardsProps {
  * Read-only summary cards (guest / booking / rooms) for the booking detail page.
  * Interactions bubble up via callbacks so all mutations stay in the parent.
  */
+const TH_MONTHS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
+function dayNum(d: string) { return String(new Date(d).getDate()).padStart(2, '0') }
+function monthYear(d: string) { const dt = new Date(d); return `${TH_MONTHS[dt.getMonth()]} ${dt.getFullYear()}` }
+
 export function BookingInfoCards({ booking, onAssignRoom, onAdjustRate }: BookingInfoCardsProps) {
   const canAdjustRate = ['confirmed', 'pending', 'checked_in'].includes(booking.status)
   const canReassign = ['confirmed', 'pending'].includes(booking.status)
@@ -63,19 +67,58 @@ export function BookingInfoCards({ booking, onAssignRoom, onAdjustRate }: Bookin
         </div>
       </GlassPanel>
 
-      {/* Booking info */}
+      {/* Booking info — large date hero */}
       <GlassPanel padding="md">
-        <div className="mb-3 flex items-center gap-2">
+        <div className="mb-4 flex items-center gap-2">
           <CalendarRange className="h-4 w-4 text-amber-400" />
           <h3 className="text-sm font-semibold text-stone-100">รายละเอียดการจอง</h3>
         </div>
-        <div className="space-y-2 text-sm">
-          <div><span className="text-stone-500">เช็คอิน: </span><span className="text-stone-200">{formatDate(booking.checkInDate)}</span></div>
-          <div><span className="text-stone-500">เช็คเอาท์: </span><span className="text-stone-200">{formatDate(booking.checkOutDate)}</span></div>
-          <div><span className="text-stone-500">จำนวนคืน: </span><span className="text-stone-200">{calcNights(booking.checkInDate, booking.checkOutDate)} คืน</span></div>
-          <div><span className="text-stone-500">ผู้เข้าพัก: </span><span className="text-stone-200">{booking.adults} ผู้ใหญ่ {booking.children > 0 ? `${booking.children} เด็ก` : ''}</span></div>
-          {booking.bookingSource && <div><span className="text-stone-500">ช่องทาง: </span><span className="text-stone-200">{booking.bookingSource.name}</span></div>}
-          {booking.notes && <div><span className="text-stone-500">หมายเหตุ: </span><span className="text-stone-300">{booking.notes}</span></div>}
+
+        {/* Date hero */}
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 mb-4">
+          {/* Check-in */}
+          <div>
+            <div className="text-[10px] text-stone-500 uppercase tracking-wide mb-1">เช็คอิน</div>
+            <div className="text-3xl font-black text-stone-100 leading-none tabular-nums">{dayNum(booking.checkInDate)}</div>
+            <div className="text-xs text-stone-400 mt-1">{monthYear(booking.checkInDate)}</div>
+          </div>
+
+          {/* Night badge — center */}
+          <div className="flex flex-col items-center gap-1 px-1">
+            <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-2.5 py-1 text-sm font-bold text-amber-300 tabular-nums">
+              {calcNights(booking.checkInDate, booking.checkOutDate)}
+            </span>
+            <span className="text-[9px] text-stone-600 uppercase tracking-wide">คืน</span>
+          </div>
+
+          {/* Check-out */}
+          <div className="text-right">
+            <div className="text-[10px] text-stone-500 uppercase tracking-wide mb-1">เช็คเอาท์</div>
+            <div className="text-3xl font-black text-stone-100 leading-none tabular-nums">{dayNum(booking.checkOutDate)}</div>
+            <div className="text-xs text-stone-400 mt-1">{monthYear(booking.checkOutDate)}</div>
+          </div>
+        </div>
+
+        {/* Secondary row */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 pt-3 border-t border-white/[0.06]">
+          <div className="flex items-center gap-1.5 text-xs">
+            <Users className="h-3 w-3 text-stone-500" />
+            <span className="text-stone-400">
+              {booking.adults} ผู้ใหญ่{booking.children > 0 ? ` · ${booking.children} เด็ก` : ''}
+            </span>
+          </div>
+          {booking.bookingSource && (
+            <div className="flex items-center gap-1.5 text-xs">
+              <Globe className="h-3 w-3 text-stone-500" />
+              <span className="text-stone-400">{booking.bookingSource.name}</span>
+            </div>
+          )}
+          {booking.notes && (
+            <div className="flex items-start gap-1.5 text-xs w-full mt-0.5">
+              <MessageSquare className="h-3 w-3 text-stone-600 flex-shrink-0 mt-0.5" />
+              <span className="text-stone-500 line-clamp-2">{booking.notes}</span>
+            </div>
+          )}
         </div>
       </GlassPanel>
 
