@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import { motion } from 'framer-motion'
 import { User, CalendarRange, BedDouble, ExternalLink, Pencil, Users, Globe, MessageSquare } from 'lucide-react'
 import Link from 'next/link'
 import { GlassPanel } from '@/components/ui/glass-panel'
@@ -46,7 +47,8 @@ export function BookingInfoCards({ booking, onAssignRoom, onAdjustRate }: Bookin
   return (
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
       {/* Guest info */}
-      <GlassPanel padding="md">
+      <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="h-full">
+      <GlassPanel padding="md" className="h-full">
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <User className="h-4 w-4 text-amber-400" />
@@ -66,9 +68,11 @@ export function BookingInfoCards({ booking, onAssignRoom, onAdjustRate }: Bookin
           {booking.guest?.nationality && <div><span className="text-stone-500">สัญชาติ: </span><span className="text-stone-200">{booking.guest.nationality}</span></div>}
         </div>
       </GlassPanel>
+      </motion.div>
 
       {/* Booking info — large date hero */}
-      <GlassPanel padding="md">
+      <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.08 }} className="h-full">
+      <GlassPanel padding="md" className="h-full">
         <div className="mb-4 flex items-center gap-2">
           <CalendarRange className="h-4 w-4 text-amber-400" />
           <h3 className="text-sm font-semibold text-stone-100">รายละเอียดการจอง</h3>
@@ -85,9 +89,14 @@ export function BookingInfoCards({ booking, onAssignRoom, onAdjustRate }: Bookin
 
           {/* Night badge — center */}
           <div className="flex flex-col items-center gap-1 px-1">
-            <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-2.5 py-1 text-sm font-bold text-amber-300 tabular-nums">
+            <motion.span
+              className="rounded-full border border-amber-400/30 bg-amber-400/10 px-2.5 py-1 text-sm font-bold text-amber-300 tabular-nums"
+              initial={{ scale: 0.4, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', stiffness: 420, damping: 18, delay: 0.35 }}
+            >
               {calcNights(booking.checkInDate, booking.checkOutDate)}
-            </span>
+            </motion.span>
             <span className="text-[9px] text-stone-600 uppercase tracking-wide">คืน</span>
           </div>
 
@@ -121,9 +130,11 @@ export function BookingInfoCards({ booking, onAssignRoom, onAdjustRate }: Bookin
           )}
         </div>
       </GlassPanel>
+      </motion.div>
 
       {/* Room info */}
-      <GlassPanel padding="md">
+      <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.16 }} className="h-full">
+      <GlassPanel padding="md" className="h-full">
         <div className="mb-3 flex items-center gap-2">
           <BedDouble className="h-4 w-4 text-amber-400" />
           <h3 className="text-sm font-semibold text-stone-100">ห้องพัก</h3>
@@ -175,6 +186,7 @@ export function BookingInfoCards({ booking, onAssignRoom, onAdjustRate }: Bookin
           ))}
         </div>
       </GlassPanel>
+      </motion.div>
     </div>
   )
 }

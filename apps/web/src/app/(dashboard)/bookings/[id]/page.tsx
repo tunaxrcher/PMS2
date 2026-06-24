@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import { AppShell } from '@/components/layout/app-shell'
@@ -171,7 +172,7 @@ function RoomPickerDialog({ open, onClose, rooms, loading, selectedId, onSelect,
       </div>
 
       {/* Room grid */}
-      <div className="max-h-[500px] overflow-y-auto pr-0.5 space-y-4">
+      <div className="max-h-[500px] pr-0.5 space-y-4">
         {loading ? (
           <div className="grid grid-cols-4 gap-2">
             {[...Array(12)].map((_, i) => <Skeleton key={i} className="h-20 rounded-2xl" />)}
@@ -483,30 +484,39 @@ export default function BookingDetailPage() {
       <div className="space-y-5">
 
         {/* Completed status banner */}
-        {isCompleted && (
-          <div className={cn(
-            'flex items-center gap-3 rounded-2xl border px-4 py-3.5',
-            booking.status === 'checked_out' && 'border-emerald-400/30 bg-emerald-400/[0.08]',
-            booking.status === 'cancelled'   && 'border-rose-400/30 bg-rose-400/[0.08]',
-            booking.status === 'no_show'     && 'border-amber-400/30 bg-amber-400/[0.08]',
-          )}>
-            {booking.status === 'checked_out' && <CheckCircle2 className="h-5 w-5 text-emerald-400 flex-shrink-0" />}
-            {booking.status === 'cancelled'   && <XCircle      className="h-5 w-5 text-rose-400 flex-shrink-0" />}
-            {booking.status === 'no_show'     && <Ban          className="h-5 w-5 text-amber-400 flex-shrink-0" />}
-            <div>
-              <div className={cn('text-sm font-semibold',
-                booking.status === 'checked_out' && 'text-emerald-200',
-                booking.status === 'cancelled'   && 'text-rose-200',
-                booking.status === 'no_show'     && 'text-amber-200',
-              )}>
-                {booking.status === 'checked_out' && 'Check-out เสร็จสิ้น'}
-                {booking.status === 'cancelled'   && 'ยกเลิกการจองแล้ว'}
-                {booking.status === 'no_show'     && 'บันทึก No Show แล้ว'}
+        <AnimatePresence>
+          {isCompleted && (
+            <motion.div
+              key="completed-banner"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+              className={cn(
+                'flex items-center gap-3 rounded-2xl border px-4 py-3.5',
+                booking.status === 'checked_out' && 'border-emerald-400/30 bg-emerald-400/[0.08]',
+                booking.status === 'cancelled'   && 'border-rose-400/30 bg-rose-400/[0.08]',
+                booking.status === 'no_show'     && 'border-amber-400/30 bg-amber-400/[0.08]',
+              )}
+            >
+              {booking.status === 'checked_out' && <CheckCircle2 className="h-5 w-5 text-emerald-400 flex-shrink-0" />}
+              {booking.status === 'cancelled'   && <XCircle      className="h-5 w-5 text-rose-400 flex-shrink-0" />}
+              {booking.status === 'no_show'     && <Ban          className="h-5 w-5 text-amber-400 flex-shrink-0" />}
+              <div>
+                <div className={cn('text-sm font-semibold',
+                  booking.status === 'checked_out' && 'text-emerald-200',
+                  booking.status === 'cancelled'   && 'text-rose-200',
+                  booking.status === 'no_show'     && 'text-amber-200',
+                )}>
+                  {booking.status === 'checked_out' && 'Check-out เสร็จสิ้น'}
+                  {booking.status === 'cancelled'   && 'ยกเลิกการจองแล้ว'}
+                  {booking.status === 'no_show'     && 'บันทึก No Show แล้ว'}
+                </div>
+                <div className="text-xs text-stone-500 mt-0.5">การจองนี้ปิดแล้ว ไม่สามารถดำเนินการเพิ่มเติมได้</div>
               </div>
-              <div className="text-xs text-stone-500 mt-0.5">การจองนี้ปิดแล้ว ไม่สามารถดำเนินการเพิ่มเติมได้</div>
-            </div>
-          </div>
-        )}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Progress indicator */}
         {!isCompleted && (
@@ -517,20 +527,46 @@ export default function BookingDetailPage() {
               return (
                 <div key={step.key} className="flex items-center flex-shrink-0" style={{ flex: i < BOOKING_STEPS.length - 1 ? '1 0 auto' : undefined }}>
                   <div className="flex flex-col items-center gap-1.5 min-w-[72px]">
-                    <div className={cn(
-                      'flex h-7 w-7 items-center justify-center rounded-full border-2 text-xs font-bold transition-all',
-                      done ? 'bg-emerald-500 border-emerald-500 text-white'
-                        : current ? 'bg-white border-white text-stone-900'
-                        : 'border-white/20 bg-transparent text-stone-600'
-                    )}>
+                    <motion.div
+                      className={cn(
+                        'flex h-7 w-7 items-center justify-center rounded-full border-2 text-xs font-bold',
+                        done ? 'bg-emerald-500 border-emerald-500 text-white'
+                          : current ? 'bg-white border-white text-stone-900'
+                          : 'border-white/20 bg-transparent text-stone-600'
+                      )}
+                      initial={{ scale: 0.4, opacity: 0 }}
+                      animate={{
+                        scale: 1,
+                        opacity: 1,
+                        ...(current ? { boxShadow: ['0 0 0 0px rgba(255,255,255,0.5)', '0 0 0 6px rgba(255,255,255,0)', '0 0 0 0px rgba(255,255,255,0)'] } : {}),
+                      }}
+                      transition={{
+                        scale: { delay: i * 0.12, duration: 0.4, type: 'spring', stiffness: 280, damping: 22 },
+                        opacity: { delay: i * 0.12, duration: 0.3 },
+                        ...(current ? { boxShadow: { repeat: Infinity, duration: 2.5, delay: 0.6 } } : {}),
+                      }}
+                    >
                       {done ? '✓' : i + 1}
-                    </div>
-                    <span className={cn('text-[10px] font-medium whitespace-nowrap',
-                      done ? 'text-emerald-400' : current ? 'text-stone-100' : 'text-stone-600'
-                    )}>{step.label}</span>
+                    </motion.div>
+                    <motion.span
+                      className={cn('text-[10px] font-medium whitespace-nowrap',
+                        done ? 'text-emerald-400' : current ? 'text-stone-100' : 'text-stone-600'
+                      )}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: i * 0.12 + 0.2, duration: 0.3 }}
+                    >
+                      {step.label}
+                    </motion.span>
                   </div>
                   {i < BOOKING_STEPS.length - 1 && (
-                    <div className={cn('flex-1 h-[2px] mb-5 mx-1', done ? 'bg-emerald-500/40' : 'bg-white/[0.08]')} />
+                    <motion.div
+                      className="flex-1 h-[2px] mb-5 mx-1 origin-left"
+                      style={{ backgroundColor: done ? 'rgba(52, 211, 153, 0.4)' : 'rgba(255,255,255,0.08)' }}
+                      initial={{ scaleX: 0 }}
+                      animate={{ scaleX: 1 }}
+                      transition={{ delay: i * 0.12 + 0.1, duration: 0.5, ease: 'easeOut' }}
+                    />
                   )}
                 </div>
               )
@@ -539,26 +575,47 @@ export default function BookingDetailPage() {
         )}
 
         {/* Contextual callout */}
-        {booking.status === 'pending' && (
-          <div className="flex items-start gap-3 rounded-2xl border border-amber-300/30 bg-amber-400/10 px-4 py-3">
-            <span className="text-amber-400 mt-0.5">⏳</span>
-            <div>
-              <div className="text-sm font-semibold text-amber-200">รอการยืนยัน</div>
-              <div className="text-xs text-amber-400/70 mt-0.5">กด "ยืนยันการจอง" หรือ "รับมัดจำ" เพื่อยืนยันอัตโนมัติ</div>
-            </div>
-          </div>
-        )}
-        {needsRoomAssign && canCheckIn && (
-          <div className="flex items-start gap-3 rounded-2xl border border-amber-300/30 bg-amber-400/10 px-4 py-3">
-            <BedDouble className="h-4 w-4 text-amber-400 mt-0.5 flex-shrink-0" />
-            <div>
-              <div className="text-sm font-semibold text-amber-200">ยังไม่ได้กำหนดห้อง</div>
-              <div className="text-xs text-amber-400/70 mt-0.5">กรุณากำหนดเลขห้องก่อนทำ Check-in</div>
-            </div>
-          </div>
-        )}
+        <AnimatePresence>
+          {booking.status === 'pending' && (
+            <motion.div
+              key="pending-callout"
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.25 }}
+              className="flex items-start gap-3 rounded-2xl border border-amber-300/30 bg-amber-400/10 px-4 py-3"
+            >
+              <span className="text-amber-400 mt-0.5">⏳</span>
+              <div>
+                <div className="text-sm font-semibold text-amber-200">รอการยืนยัน</div>
+                <div className="text-xs text-amber-400/70 mt-0.5">กด "ยืนยันการจอง" หรือ "รับมัดจำ" เพื่อยืนยันอัตโนมัติ</div>
+              </div>
+            </motion.div>
+          )}
+          {needsRoomAssign && canCheckIn && (
+            <motion.div
+              key="room-callout"
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.25 }}
+              className="flex items-start gap-3 rounded-2xl border border-amber-300/30 bg-amber-400/10 px-4 py-3"
+            >
+              <BedDouble className="h-4 w-4 text-amber-400 mt-0.5 flex-shrink-0" />
+              <div>
+                <div className="text-sm font-semibold text-amber-200">ยังไม่ได้กำหนดห้อง</div>
+                <div className="text-xs text-amber-400/70 mt-0.5">กรุณากำหนดเลขห้องก่อนทำ Check-in</div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Action bar — primary | secondary | ⋯ danger */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.1 }}
+        >
         <GlassPanel padding="sm">
           <div className="flex flex-wrap items-center gap-2">
             {/* Primary action (one at a time) */}
@@ -639,18 +696,33 @@ export default function BookingDetailPage() {
             )}
           </div>
         </GlassPanel>
+        </motion.div>
 
-        <BookingInfoCards
-          booking={booking}
-          onAssignRoom={(brId) => { setAssignBookingRoomId(brId); setAssignRoomId(''); setAssignRoomDialog(true) }}
-          onAdjustRate={(brId, currentRate) => {
-            setRateDialog({ bookingRoomId: brId, currentRate })
-            setRateForm({ newRate: String(currentRate), reason: '', adjustmentType: 'manual_override' })
-          }}
-        />
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, delay: 0.18 }}
+        >
+          <BookingInfoCards
+            booking={booking}
+            onAssignRoom={(brId) => { setAssignBookingRoomId(brId); setAssignRoomId(''); setAssignRoomDialog(true) }}
+            onAdjustRate={(brId, currentRate) => {
+              setRateDialog({ bookingRoomId: brId, currentRate })
+              setRateForm({ newRate: String(currentRate), reason: '', adjustmentType: 'manual_override' })
+            }}
+          />
+        </motion.div>
 
         {/* Folio */}
-        {folio && <FolioPanel folioId={folio.id} bookingStatus={booking.status} />}
+        {folio && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, delay: 0.26 }}
+          >
+            <FolioPanel folioId={folio.id} bookingStatus={booking.status} />
+          </motion.div>
+        )}
       </div>
 
       {/* Cancel Dialog */}
