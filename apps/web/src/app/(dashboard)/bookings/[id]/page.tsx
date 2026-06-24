@@ -6,8 +6,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft, BedDouble, Receipt, Printer,
   CheckCircle2, XCircle, DoorOpen, DoorClosed,
-  Ban, Coins, Search, MapPin,
+  Ban, Coins, Search, MapPin, MoreHorizontal,
 } from 'lucide-react'
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { toast } from 'sonner'
 import Link from 'next/link'
@@ -452,10 +453,28 @@ export default function BookingDetailPage() {
   const isCompleted = ['checked_out', 'cancelled', 'no_show'].includes(booking.status)
   const needsRoomAssign = booking.bookingRooms?.some((br: { roomId?: string | null }) => !br.roomId)
 
+  // 5-step progress
+  const BOOKING_STEPS = [
+    { key: 'pending',     label: 'รอยืนยัน' },
+    { key: 'confirmed',   label: 'ยืนยันแล้ว' },
+    { key: 'assign',      label: 'กำหนดห้อง' },
+    { key: 'checked_in',  label: 'Check-in' },
+    { key: 'checked_out', label: 'Check-out' },
+  ]
+  // confirmed + needs room → current = step 2 (กำหนดห้อง)
+  // confirmed + room assigned → current = step 3 (Check-in)
+  // checked_in → current = step 4 (Check-out)
+  // checked_out/cancelled/no_show → all done (stepIndex beyond array)
+  const stepIndex = booking.status === 'pending' ? 0
+    : (booking.status === 'confirmed' && needsRoomAssign) ? 2
+    : booking.status === 'confirmed' ? 3
+    : booking.status === 'checked_in' ? 4
+    : 5
+
   return (
     <AppShell
-      title={`การจอง #${booking.bookingNumber}`}
-      subtitle={`${booking.guest?.firstName} ${booking.guest?.lastName}`}
+      title={`${booking.guest?.firstName} ${booking.guest?.lastName}`}
+      subtitle={`#${booking.bookingNumber} · สร้างเมื่อ ${formatDateTime(booking.createdAt)}`}
       headerActions={
         <Link href="/bookings">
           <Button variant="secondary" size="sm"><ArrowLeft className="h-4 w-4" /> กลับ</Button>
@@ -463,37 +482,70 @@ export default function BookingDetailPage() {
       }
     >
       <div className="space-y-5">
-        {/* Pending warning banner */}
+
+        {/* Progress indicator */}
+        {!isCompleted && (
+          <div className="flex items-center gap-0 rounded-2xl border border-white/[0.08] bg-white/[0.03] px-6 py-4 overflow-x-auto">
+            {BOOKING_STEPS.map((step, i) => {
+              const done = i < stepIndex
+              const current = i === stepIndex
+              const warn = step.key === 'assign' && needsRoomAssign && current
+              return (
+                <div key={step.key} className="flex items-center flex-shrink-0" style={{ flex: i < BOOKING_STEPS.length - 1 ? '1 0 auto' : undefined }}>
+                  <div className="flex flex-col items-center gap-1.5 min-w-[72px]">
+                    <div className={cn(
+                      'flex h-7 w-7 items-center justify-center rounded-full border-2 text-xs font-bold transition-all',
+                      done ? 'bg-emerald-500 border-emerald-500 text-white'
+                        : current ? 'bg-white border-white text-stone-900'
+                        : 'border-white/20 bg-transparent text-stone-600'
+                    )}>
+                      {done ? '✓' : i + 1}
+                    </div>
+                    <span className={cn('text-[10px] font-medium whitespace-nowrap',
+                      done ? 'text-emerald-400' : current ? 'text-stone-100' : 'text-stone-600'
+                    )}>{step.label}</span>
+                  </div>
+                  {i < BOOKING_STEPS.length - 1 && (
+                    <div className={cn('flex-1 h-[2px] mb-5 mx-1', done ? 'bg-emerald-500/40' : 'bg-white/[0.08]')} />
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Contextual callout */}
         {booking.status === 'pending' && (
-          <div className="flex items-center gap-3 rounded-2xl border border-amber-300/30 bg-amber-400/10 px-4 py-3 text-sm">
-            <span className="text-amber-400 text-lg">⏳</span>
+          <div className="flex items-start gap-3 rounded-2xl border border-amber-300/30 bg-amber-400/10 px-4 py-3">
+            <span className="text-amber-400 mt-0.5">⏳</span>
             <div>
-              <div className="font-semibold text-amber-200">การจองนี้รอการยืนยัน</div>
-              <div className="text-xs text-amber-400/70 mt-0.5">กด "ยืนยันการจอง" หรือ "รับมัดจำ" เพื่อยืนยันอัตโนมัติ — ยังไม่สามารถ Check-in ได้จนกว่าจะยืนยัน</div>
+              <div className="text-sm font-semibold text-amber-200">รอการยืนยัน</div>
+              <div className="text-xs text-amber-400/70 mt-0.5">กด "ยืนยันการจอง" หรือ "รับมัดจำ" เพื่อยืนยันอัตโนมัติ</div>
+            </div>
+          </div>
+        )}
+        {needsRoomAssign && canCheckIn && (
+          <div className="flex items-start gap-3 rounded-2xl border border-amber-300/30 bg-amber-400/10 px-4 py-3">
+            <BedDouble className="h-4 w-4 text-amber-400 mt-0.5 flex-shrink-0" />
+            <div>
+              <div className="text-sm font-semibold text-amber-200">ยังไม่ได้กำหนดห้อง</div>
+              <div className="text-xs text-amber-400/70 mt-0.5">กรุณากำหนดเลขห้องก่อนทำ Check-in</div>
             </div>
           </div>
         )}
 
-        {/* Status bar */}
-        <GlassPanel padding="sm" className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <StatusBadge status={booking.status} />
-            <span className="text-sm text-stone-400">สร้างเมื่อ {formatDateTime(booking.createdAt)}</span>
-          </div>
-          <div className="flex flex-wrap gap-2">
+        {/* Action bar — primary | secondary | ⋯ danger */}
+        <GlassPanel padding="sm">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Primary action (one at a time) */}
             {canConfirm && (
-              <Button size="sm" className="bg-emerald-500 hover:bg-emerald-400 shadow-emerald-950/30"
+              <Button size="sm" className="bg-emerald-500 hover:bg-emerald-400"
                 onClick={() => confirmBookingMutation.mutate()} loading={confirmBookingMutation.isPending}>
                 <CheckCircle2 className="h-4 w-4" /> ยืนยันการจอง
               </Button>
             )}
-            {['confirmed', 'pending'].includes(booking.status) && (
-              <Button variant="outline" size="sm" onClick={() => { setEditForm({ checkInDate: booking.checkInDate.split('T')[0], checkOutDate: booking.checkOutDate.split('T')[0], adults: booking.adults, children: booking.children, notes: booking.notes || '' }); setEditDialog(true) }}>
-                <Receipt className="h-4 w-4" /> แก้ไข
-              </Button>
-            )}
             {needsRoomAssign && canCheckIn && (
-              <Button variant="secondary" size="sm" onClick={() => { setAssignBookingRoomId(booking.bookingRooms[0].id); setAssignRoomDialog(true) }}>
+              <Button size="sm" onClick={() => { setAssignBookingRoomId(booking.bookingRooms[0].id); setAssignRoomDialog(true) }}>
                 <BedDouble className="h-4 w-4" /> กำหนดห้อง
               </Button>
             )}
@@ -507,14 +559,16 @@ export default function BookingDetailPage() {
                 <DoorClosed className="h-4 w-4" /> Check-out
               </Button>
             )}
+
+            {/* Secondary actions */}
+            {['confirmed', 'pending'].includes(booking.status) && (
+              <Button variant="secondary" size="sm" onClick={() => { setEditForm({ checkInDate: booking.checkInDate.split('T')[0], checkOutDate: booking.checkOutDate.split('T')[0], adults: booking.adults, children: booking.children, notes: booking.notes || '' }); setEditDialog(true) }}>
+                <Receipt className="h-4 w-4" /> แก้ไข
+              </Button>
+            )}
             {['confirmed', 'pending', 'checked_in'].includes(booking.status) && (
               <Button variant="secondary" size="sm" onClick={() => setDepositDialog(true)}>
                 <Coins className="h-4 w-4" /> รับมัดจำ
-              </Button>
-            )}
-            {canNoShow && (
-              <Button variant="outline" size="sm" onClick={() => setNoShowDialog(true)}>
-                <Ban className="h-4 w-4" /> No Show
               </Button>
             )}
             {isCompleted && (
@@ -524,10 +578,35 @@ export default function BookingDetailPage() {
                 </Button>
               </Link>
             )}
-            {canCancel && (
-              <Button variant="destructive" size="sm" onClick={() => setCancelDialog(true)}>
-                <XCircle className="h-4 w-4" /> ยกเลิก
-              </Button>
+
+            {/* Danger actions — tucked in ⋯ dropdown */}
+            {(canNoShow || canCancel) && (
+              <div className="ml-auto">
+                <DropdownMenu.Root>
+                  <DropdownMenu.Trigger asChild>
+                    <button className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 text-stone-500 hover:bg-white/[0.06] hover:text-stone-300 transition-colors">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </button>
+                  </DropdownMenu.Trigger>
+                  <DropdownMenu.Portal>
+                    <DropdownMenu.Content align="end" sideOffset={6}
+                      className="z-50 min-w-[160px] rounded-2xl border border-white/[0.12] bg-[#1c1612]/95 p-1.5 shadow-2xl backdrop-blur-xl">
+                      {canNoShow && (
+                        <DropdownMenu.Item onSelect={() => setNoShowDialog(true)}
+                          className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-amber-300 outline-none cursor-pointer hover:bg-amber-400/10 data-[highlighted]:bg-amber-400/10">
+                          <Ban className="h-3.5 w-3.5" /> No Show
+                        </DropdownMenu.Item>
+                      )}
+                      {canCancel && (
+                        <DropdownMenu.Item onSelect={() => setCancelDialog(true)}
+                          className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-rose-400 outline-none cursor-pointer hover:bg-rose-400/10 data-[highlighted]:bg-rose-400/10">
+                          <XCircle className="h-3.5 w-3.5" /> ยกเลิกการจอง
+                        </DropdownMenu.Item>
+                      )}
+                    </DropdownMenu.Content>
+                  </DropdownMenu.Portal>
+                </DropdownMenu.Root>
+              </div>
             )}
           </div>
         </GlassPanel>
