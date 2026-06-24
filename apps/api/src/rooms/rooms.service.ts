@@ -282,6 +282,7 @@ export class RoomsService {
         include: {
           roomType: { select: { id: true, name: true, imageUrl: true } },
           zone: true,
+          images: { orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }] },
           bookingRooms: {
             where: {
               checkInDate: { lte: new Date(to) },

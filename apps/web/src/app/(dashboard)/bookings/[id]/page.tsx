@@ -6,7 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft, BedDouble, Receipt, Printer,
   CheckCircle2, XCircle, DoorOpen, DoorClosed,
-  Ban, Coins
+  Ban, Coins, Search, MapPin,
 } from 'lucide-react'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { toast } from 'sonner'
@@ -20,9 +20,224 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { bookingsApi, roomsApi, depositsApi } from '@/lib/api'
-import { formatDateTime } from '@/lib/utils'
+import { formatDateTime, cn } from '@/lib/utils'
 import { FolioPanel } from '@/components/bookings/folio-panel'
 import { BookingInfoCards } from '@/components/bookings/booking-info-cards'
+
+// ── Room tile slideshow ────────────────────────────────────────
+function RoomImageSlideshow({ images, roomNumber, hovered }: { images: Array<{ url: string }>; roomNumber: string; hovered: boolean }) {
+  const [idx, setIdx] = React.useState(0)
+  const timer = React.useRef<ReturnType<typeof setInterval> | null>(null)
+
+  React.useEffect(() => {
+    if (hovered && images.length > 1) {
+      timer.current = setInterval(() => setIdx(i => (i + 1) % images.length), 1500)
+    } else {
+      if (timer.current) clearInterval(timer.current)
+      if (!hovered) setIdx(0)
+    }
+    return () => { if (timer.current) clearInterval(timer.current) }
+  }, [hovered, images.length])
+
+  if (images.length === 0) {
+    return (
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-stone-900/80">
+        <span className="text-2xl opacity-30">📷</span>
+        <span className="text-[9px] text-stone-600">ไม่มีรูปภาพ</span>
+      </div>
+    )
+  }
+
+  return (
+    <div className="absolute inset-0">
+      <img
+        key={idx}
+        src={images[idx].url}
+        alt={roomNumber}
+        className="h-full w-full object-cover transition-opacity duration-500"
+      />
+      {/* dots */}
+      {images.length > 1 && hovered && (
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 flex gap-1 z-10">
+          {images.map((_, i) => (
+            <span key={i} className={cn('h-1 rounded-full transition-all duration-200', i === idx ? 'w-3 bg-white' : 'w-1 bg-white/40')} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Room picker tile (tracks own hover so slideshow gets the signal) ──
+function RoomPickerTile({ r, isSelected, roomImages, onSelect }: {
+  r: PickerRoom
+  isSelected: boolean
+  roomImages: Array<{ url: string }>
+  onSelect: (id: string) => void
+}) {
+  const [hovered, setHovered] = React.useState(false)
+  return (
+    <button
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={() => onSelect(isSelected ? '' : r.id)}
+      className={cn(
+        'relative overflow-hidden rounded-2xl border text-left transition-all duration-150',
+        'hover:scale-[1.04] hover:shadow-[0_6px_24px_rgba(0,0,0,0.55)]',
+        isSelected
+          ? 'ring-2 ring-amber-400/90 border-amber-400/50 shadow-[0_0_20px_rgba(251,191,36,0.25)]'
+          : 'border-white/[0.10] hover:border-white/[0.20]'
+      )}
+      style={{ minHeight: 100 }}
+    >
+      {/* Slideshow (receives hovered from parent, not tracking itself) */}
+      <RoomImageSlideshow images={roomImages} roomNumber={r.roomNumber} hovered={hovered} />
+
+      {/* Gradient overlay */}
+      <div className={cn('absolute inset-0 pointer-events-none bg-gradient-to-t from-black/90 via-black/40', roomImages.length === 0 ? 'to-black/60' : 'to-black/10')} />
+      {/* Selected amber tint */}
+      {isSelected && <div className="absolute inset-0 pointer-events-none bg-amber-400/15" />}
+
+      {/* Content */}
+      <div className="relative flex flex-col justify-end h-full px-2.5 pb-2.5 pt-6 pointer-events-none">
+        <span className="text-xl font-black font-mono text-white leading-none drop-shadow">{r.roomNumber}</span>
+        {r.roomName && <span className="text-[9px] text-white/60 truncate mt-0.5 leading-tight">{r.roomName}</span>}
+        {r.floorNo && <span className="text-[9px] text-white/40 leading-none mt-0.5">ชั้น {r.floorNo}</span>}
+      </div>
+
+      {/* Selected checkmark */}
+      {isSelected && (
+        <div className="absolute top-2 right-2 pointer-events-none flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 shadow">
+          <span className="text-[9px] font-black text-stone-900">✓</span>
+        </div>
+      )}
+    </button>
+  )
+}
+
+// ── Visual room picker ────────────────────────────────────────
+type PickerRoom = {
+  id: string; roomNumber: string; roomName?: string | null; currentStatus: string
+  floorNo?: string | null
+  images?: Array<{ url: string; isPrimary: boolean }>
+  roomType: { id: string; name: string; imageUrl?: string | null }
+  zone?: { id: string; name: string; imageUrl?: string | null } | null
+}
+
+function RoomPickerDialog({ open, onClose, rooms, loading, selectedId, onSelect, onConfirm, confirming }: {
+  open: boolean; onClose: () => void; rooms: PickerRoom[]; loading?: boolean
+  selectedId: string; onSelect: (id: string) => void
+  onConfirm: () => void; confirming: boolean
+}) {
+  const [search, setSearch] = React.useState('')
+
+  // Reset search when dialog closes
+  React.useEffect(() => { if (!open) setSearch('') }, [open])
+
+  const filtered = React.useMemo(() => {
+    if (!search.trim()) return rooms
+    const q = search.toLowerCase()
+    return rooms.filter(r =>
+      r.roomNumber.includes(q) ||
+      r.roomName?.toLowerCase().includes(q) ||
+      r.zone?.name.toLowerCase().includes(q)
+    )
+  }, [rooms, search])
+
+  // Group by zone (fall back to "ไม่ระบุโซน")
+  const groups = React.useMemo(() => {
+    const map = new Map<string, { zoneId: string; zoneName: string; rooms: PickerRoom[] }>()
+    filtered.forEach(r => {
+      const key = r.zone?.id || '__none__'
+      if (!map.has(key)) map.set(key, { zoneId: key, zoneName: r.zone?.name || 'ไม่ระบุโซน', rooms: [] })
+      map.get(key)!.rooms.push(r)
+    })
+    return Array.from(map.values())
+  }, [filtered])
+
+  const selectedRoom = rooms.find(r => r.id === selectedId)
+
+  return (
+    <PmsDialog open={open} onClose={onClose} title="เลือกห้องพัก" size="lg">
+      {/* Search */}
+      <div className="relative mb-4">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-500" />
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="ค้นหาเลขห้อง ชื่อห้อง โซน..."
+          className="h-9 w-full rounded-full border border-white/15 bg-black/25 pl-9 pr-4 text-sm text-stone-100 placeholder:text-stone-600 focus:border-amber-300/40 focus:outline-none"
+        />
+      </div>
+
+      {/* Room grid */}
+      <div className="max-h-[500px] overflow-y pr-0.5 space-y-4">
+        {loading ? (
+          <div className="grid grid-cols-4 gap-2">
+            {[...Array(12)].map((_, i) => <Skeleton key={i} className="h-20 rounded-2xl" />)}
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 py-12 text-center">
+            <BedDouble className="h-10 w-10 text-stone-600" />
+            <p className="text-sm font-medium text-stone-400">ไม่มีห้องว่างในช่วงวันนี้</p>
+            <p className="text-xs text-stone-600">ห้องทุกห้องถูกจองในช่วงวันเดียวกัน</p>
+          </div>
+        ) : (
+          groups.map(group => (
+            <div key={group.zoneId}>
+              {/* Zone header */}
+              <div className="flex items-center gap-2 mb-2">
+                <MapPin className="h-3 w-3 text-amber-400/70 flex-shrink-0" />
+                <span className="text-xs font-semibold uppercase tracking-wider text-stone-500">{group.zoneName}</span>
+                <div className="flex-1 h-px bg-white/[0.06]" />
+                <span className="text-[10px] text-stone-700">{group.rooms.length} ห้อง</span>
+              </div>
+
+              {/* Tiles */}
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                {group.rooms.map(r => {
+                  const isSelected = selectedId === r.id
+                  const roomImages = r.images || []
+                  return (
+                    <RoomPickerTile
+                      key={r.id}
+                      r={r}
+                      isSelected={isSelected}
+                      roomImages={roomImages}
+                      onSelect={onSelect}
+                    />
+                  )
+                })}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="mt-4 flex items-center justify-between border-t border-white/[0.06] pt-4">
+        <div className="text-sm text-stone-500">
+          {selectedRoom ? (
+            <span className="text-stone-200">
+              เลือก <span className="font-bold text-amber-300">ห้อง {selectedRoom.roomNumber}</span>
+              {selectedRoom.zone?.name && <span className="text-stone-500"> · {selectedRoom.zone.name}</span>}
+            </span>
+          ) : (
+            <span>{rooms.length} ห้องว่างในช่วงนี้</span>
+          )}
+        </div>
+        <Button
+          onClick={onConfirm}
+          loading={confirming}
+          disabled={!selectedId}
+          className="min-w-[120px]"
+        >
+          ยืนยันห้อง
+        </Button>
+      </div>
+    </PmsDialog>
+  )
+}
 
 export default function BookingDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -146,7 +361,10 @@ export default function BookingDetailPage() {
 
   type GridRoom = {
     id: string; roomNumber: string; roomName?: string | null; currentStatus: string
-    roomType: { id: string }; zone?: { name: string } | null
+    floorNo?: string | null
+    images?: Array<{ url: string; isPrimary: boolean }>
+    roomType: { id: string; name: string; imageUrl?: string | null }
+    zone?: { id: string; name: string; imageUrl?: string | null } | null
     bookingRooms?: Array<{ checkInDate: string; checkOutDate: string; status: string }>
   }
 
@@ -442,28 +660,17 @@ export default function BookingDetailPage() {
         </div>
       </PmsDialog>
 
-      {/* Assign Room Dialog */}
-      <PmsDialog open={assignRoomDialog} onClose={() => setAssignRoomDialog(false)} title="กำหนดห้องพัก" size="md">
-        <div className="space-y-4">
-          <Select value={assignRoomId} onValueChange={setAssignRoomId}>
-            <SelectTrigger label="เลือกห้อง"><SelectValue placeholder="เลือกห้องพัก" /></SelectTrigger>
-            <SelectContent>
-              {availableRooms.length === 0 ? (
-                <div className="px-3 py-2 text-xs text-stone-500">ไม่มีห้องว่างสำหรับช่วงวันนี้</div>
-              ) : (
-                availableRooms.map(r => (
-                  <SelectItem key={r.id} value={r.id}>
-                    {r.roomNumber} {r.roomName ? `(${r.roomName})` : ''} {r.zone?.name ? `— ${r.zone.name}` : ''}
-                  </SelectItem>
-                ))
-              )}
-            </SelectContent>
-          </Select>
-          <Button onClick={() => assignRoomMutation.mutate()} loading={assignRoomMutation.isPending} className="w-full" disabled={!assignRoomId}>
-            กำหนดห้อง
-          </Button>
-        </div>
-      </PmsDialog>
+      {/* Assign Room Dialog — visual room picker */}
+      <RoomPickerDialog
+        open={assignRoomDialog}
+        onClose={() => { setAssignRoomDialog(false); setAssignRoomId('') }}
+        rooms={availableRooms}
+        loading={!assignGrid && assignRoomDialog}
+        selectedId={assignRoomId}
+        onSelect={setAssignRoomId}
+        onConfirm={() => assignRoomMutation.mutate()}
+        confirming={assignRoomMutation.isPending}
+      />
     </AppShell>
   )
 }
