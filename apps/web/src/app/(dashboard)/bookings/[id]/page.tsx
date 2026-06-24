@@ -172,7 +172,7 @@ function RoomPickerDialog({ open, onClose, rooms, loading, selectedId, onSelect,
       </div>
 
       {/* Room grid */}
-      <div className="max-h-[500px] pr-0.5 space-y-4">
+      <div className="max-h-[500px] overflow-y-auto pr-0.5 space-y-4">
         {loading ? (
           <div className="grid grid-cols-4 gap-2">
             {[...Array(12)].map((_, i) => <Skeleton key={i} className="h-20 rounded-2xl" />)}
@@ -610,7 +610,8 @@ export default function BookingDetailPage() {
           )}
         </AnimatePresence>
 
-        {/* Action bar — primary | secondary | ⋯ danger */}
+        {/* Action bar — hidden for terminal states that have no actions */}
+        {(!isCompleted || booking.status === 'checked_out') && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -697,6 +698,7 @@ export default function BookingDetailPage() {
           </div>
         </GlassPanel>
         </motion.div>
+        )}
 
         <motion.div
           initial={{ opacity: 0, y: 12 }}

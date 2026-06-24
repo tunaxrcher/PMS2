@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import { User, CalendarRange, BedDouble, ExternalLink, Pencil, Users, Globe, MessageSquare } from 'lucide-react'
 import Link from 'next/link'
 import { GlassPanel } from '@/components/ui/glass-panel'
-import { formatDate, formatCurrency, calcNights } from '@/lib/utils'
+import { formatCurrency, calcNights } from '@/lib/utils'
 
 interface BookingRoomItem {
   id: string
