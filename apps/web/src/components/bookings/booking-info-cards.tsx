@@ -1,7 +1,8 @@
 'use client'
 
 import React from 'react'
-import { User, CalendarRange, BedDouble } from 'lucide-react'
+import { User, CalendarRange, BedDouble, ExternalLink, Pencil } from 'lucide-react'
+import Link from 'next/link'
 import { GlassPanel } from '@/components/ui/glass-panel'
 import { formatDate, formatCurrency, calcNights } from '@/lib/utils'
 
@@ -20,7 +21,7 @@ interface BookingInfo {
   children: number
   notes?: string | null
   bookingSource?: { name: string } | null
-  guest?: { firstName: string; lastName: string; phone?: string | null; email?: string | null; nationality?: string | null } | null
+  guest?: { id: string; firstName: string; lastName: string; phone?: string | null; email?: string | null; nationality?: string | null } | null
   bookingRooms: BookingRoomItem[]
 }
 
@@ -36,14 +37,23 @@ interface BookingInfoCardsProps {
  */
 export function BookingInfoCards({ booking, onAssignRoom, onAdjustRate }: BookingInfoCardsProps) {
   const canAdjustRate = ['confirmed', 'pending', 'checked_in'].includes(booking.status)
+  const canReassign = ['confirmed', 'pending'].includes(booking.status)
 
   return (
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
       {/* Guest info */}
       <GlassPanel padding="md">
-        <div className="mb-3 flex items-center gap-2">
-          <User className="h-4 w-4 text-amber-400" />
-          <h3 className="text-sm font-semibold text-stone-100">ข้อมูลลูกค้า</h3>
+        <div className="mb-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <User className="h-4 w-4 text-amber-400" />
+            <h3 className="text-sm font-semibold text-stone-100">ข้อมูลลูกค้า</h3>
+          </div>
+          {booking.guest?.id && (
+            <Link href={`/guests/${booking.guest.id}`}
+              className="flex items-center gap-1 text-[10px] text-stone-500 hover:text-amber-300 transition-colors">
+              <ExternalLink className="h-3 w-3" /> โปรไฟล์
+            </Link>
+          )}
         </div>
         <div className="space-y-2 text-sm">
           <div><span className="text-stone-500">ชื่อ: </span><span className="text-stone-200">{booking.guest?.firstName} {booking.guest?.lastName}</span></div>
@@ -82,8 +92,18 @@ export function BookingInfoCards({ booking, onAssignRoom, onAdjustRate }: Bookin
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-medium text-stone-200">{br.roomType?.name}</div>
                   {br.room ? (
-                    <div className="text-xs text-stone-400 mt-0.5">
-                      ห้อง {br.room.roomNumber}{br.room.zone?.name ? ` • ${br.room.zone.name}` : ''}
+                    <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                      <span className="text-xs text-stone-400">
+                        ห้อง {br.room.roomNumber}{br.room.zone?.name ? ` • ${br.room.zone.name}` : ''}
+                      </span>
+                      {canReassign && (
+                        <button
+                          onClick={() => onAssignRoom(br.id)}
+                          className="text-[10px] text-sky-400/70 hover:text-sky-300 transition-colors underline underline-offset-2"
+                        >
+                          เปลี่ยน
+                        </button>
+                      )}
                     </div>
                   ) : (
                     <span className="mt-1 inline-flex items-center rounded-full border border-stone-600/40 bg-stone-700/30 px-2 py-0.5 text-[10px] text-stone-400">
@@ -92,21 +112,22 @@ export function BookingInfoCards({ booking, onAssignRoom, onAdjustRate }: Bookin
                   )}
                 </div>
                 <div className="text-right flex-shrink-0 ml-3">
-                  <div className="text-sm font-semibold text-amber-300">{formatCurrency(Number(br.rate))}</div>
+                  <div className="flex items-center justify-end gap-1.5">
+                    <span className="text-sm font-semibold text-amber-300">{formatCurrency(Number(br.rate))}</span>
+                    {canAdjustRate && (
+                      <button
+                        onClick={() => onAdjustRate(br.id, Number(br.rate))}
+                        className="text-stone-600 hover:text-sky-300 transition-colors"
+                        title="ปรับราคา"
+                        aria-label="ปรับราคา"
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
                   <div className="text-xs text-stone-500">ต่อคืน</div>
                 </div>
               </div>
-              {canAdjustRate && (
-                <div className="mt-2">
-                  <button
-                    onClick={() => onAdjustRate(br.id, Number(br.rate))}
-                    className="rounded-lg border border-sky-300/20 bg-sky-400/10 px-2.5 py-1.5 text-xs font-medium text-sky-300 hover:bg-sky-400/15 transition-colors"
-                    title="ปรับราคา"
-                  >
-                    ปรับราคา
-                  </button>
-                </div>
-              )}
             </div>
           ))}
         </div>

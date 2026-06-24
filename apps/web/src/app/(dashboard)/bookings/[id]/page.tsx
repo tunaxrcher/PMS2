@@ -4,7 +4,7 @@ import React, { useState } from 'react'
 import { useParams } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  ArrowLeft, BedDouble, Receipt, Printer,
+  ArrowLeft, BedDouble, Pencil, Printer,
   CheckCircle2, XCircle, DoorOpen, DoorClosed,
   Ban, Coins, Search, MapPin, MoreHorizontal,
 } from 'lucide-react'
@@ -15,7 +15,6 @@ import Link from 'next/link'
 import { AppShell } from '@/components/layout/app-shell'
 import { GlassPanel } from '@/components/ui/glass-panel'
 import { Button } from '@/components/ui/button'
-import { StatusBadge } from '@/components/ui/status-badge'
 import { PmsDialog } from '@/components/ui/pms-dialog'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -172,7 +171,7 @@ function RoomPickerDialog({ open, onClose, rooms, loading, selectedId, onSelect,
       </div>
 
       {/* Room grid */}
-      <div className="max-h-[500px] overflow-y pr-0.5 space-y-4">
+      <div className="max-h-[500px] overflow-y-auto pr-0.5 space-y-4">
         {loading ? (
           <div className="grid grid-cols-4 gap-2">
             {[...Array(12)].map((_, i) => <Skeleton key={i} className="h-20 rounded-2xl" />)}
@@ -310,7 +309,7 @@ export default function BookingDetailPage() {
       depositType: depositForm.depositType,
       paymentMethod: depositForm.paymentMethod,
     }),
-    onSuccess: () => { invalidateRelated(); setDepositDialog(false); setDepositForm({ amount: '', depositType: 'booking_deposit', paymentMethod: 'cash' }); toast.success('รับมัดจำสำเร็จ') },
+    onSuccess: () => { invalidateRelated(); qc.invalidateQueries({ queryKey: ['folio'] }); qc.invalidateQueries({ queryKey: ['folio-summary'] }); setDepositDialog(false); setDepositForm({ amount: '', depositType: 'booking_deposit', paymentMethod: 'cash' }); toast.success('รับมัดจำสำเร็จ') },
     onError: (e: { response?: { data?: { message?: string } } }) => toast.error(e?.response?.data?.message || 'เกิดข้อผิดพลาด'),
   })
 
@@ -345,7 +344,7 @@ export default function BookingDetailPage() {
 
   const assignRoomMutation = useMutation({
     mutationFn: () => bookingsApi.assignRoom(id, { bookingRoomId: assignBookingRoomId, roomId: assignRoomId }),
-    onSuccess: () => { invalidateRelated(); setAssignRoomDialog(false); toast.success('กำหนดห้องสำเร็จ') },
+    onSuccess: () => { invalidateRelated(); setAssignRoomDialog(false); setAssignRoomId(''); toast.success('กำหนดห้องสำเร็จ') },
     onError: (e: { response?: { data?: { message?: string } } }) => toast.error(e?.response?.data?.message || 'เกิดข้อผิดพลาด'),
   })
 
@@ -378,7 +377,7 @@ export default function BookingDetailPage() {
     const allRooms = ((assignGrid as { rooms?: GridRoom[] } | undefined)?.rooms) || []
     return allRooms.filter(r => {
       if (targetRoomTypeId && r.roomType.id !== targetRoomTypeId) return false
-      if (['out_of_order', 'out_of_service'].includes(r.currentStatus)) return false
+      if (['out_of_order', 'out_of_service', 'dirty', 'cleaning'].includes(r.currentStatus)) return false
       const overlaps = r.bookingRooms?.some(br =>
         !['cancelled', 'no_show'].includes(br.status) &&
         new Date(br.checkInDate) < co && new Date(br.checkOutDate) > ci
@@ -483,13 +482,38 @@ export default function BookingDetailPage() {
     >
       <div className="space-y-5">
 
+        {/* Completed status banner */}
+        {isCompleted && (
+          <div className={cn(
+            'flex items-center gap-3 rounded-2xl border px-4 py-3.5',
+            booking.status === 'checked_out' && 'border-emerald-400/30 bg-emerald-400/[0.08]',
+            booking.status === 'cancelled'   && 'border-rose-400/30 bg-rose-400/[0.08]',
+            booking.status === 'no_show'     && 'border-amber-400/30 bg-amber-400/[0.08]',
+          )}>
+            {booking.status === 'checked_out' && <CheckCircle2 className="h-5 w-5 text-emerald-400 flex-shrink-0" />}
+            {booking.status === 'cancelled'   && <XCircle      className="h-5 w-5 text-rose-400 flex-shrink-0" />}
+            {booking.status === 'no_show'     && <Ban          className="h-5 w-5 text-amber-400 flex-shrink-0" />}
+            <div>
+              <div className={cn('text-sm font-semibold',
+                booking.status === 'checked_out' && 'text-emerald-200',
+                booking.status === 'cancelled'   && 'text-rose-200',
+                booking.status === 'no_show'     && 'text-amber-200',
+              )}>
+                {booking.status === 'checked_out' && 'Check-out เสร็จสิ้น'}
+                {booking.status === 'cancelled'   && 'ยกเลิกการจองแล้ว'}
+                {booking.status === 'no_show'     && 'บันทึก No Show แล้ว'}
+              </div>
+              <div className="text-xs text-stone-500 mt-0.5">การจองนี้ปิดแล้ว ไม่สามารถดำเนินการเพิ่มเติมได้</div>
+            </div>
+          </div>
+        )}
+
         {/* Progress indicator */}
         {!isCompleted && (
           <div className="flex items-center gap-0 rounded-2xl border border-white/[0.08] bg-white/[0.03] px-6 py-4 overflow-x-auto">
             {BOOKING_STEPS.map((step, i) => {
               const done = i < stepIndex
               const current = i === stepIndex
-              const warn = step.key === 'assign' && needsRoomAssign && current
               return (
                 <div key={step.key} className="flex items-center flex-shrink-0" style={{ flex: i < BOOKING_STEPS.length - 1 ? '1 0 auto' : undefined }}>
                   <div className="flex flex-col items-center gap-1.5 min-w-[72px]">
@@ -545,7 +569,12 @@ export default function BookingDetailPage() {
               </Button>
             )}
             {needsRoomAssign && canCheckIn && (
-              <Button size="sm" onClick={() => { setAssignBookingRoomId(booking.bookingRooms[0].id); setAssignRoomDialog(true) }}>
+              <Button size="sm" onClick={() => {
+                const unassigned = booking.bookingRooms.find((br: { id: string; roomId?: string | null }) => !br.roomId)
+                setAssignBookingRoomId(unassigned?.id || booking.bookingRooms[0].id)
+                setAssignRoomId('')
+                setAssignRoomDialog(true)
+              }}>
                 <BedDouble className="h-4 w-4" /> กำหนดห้อง
               </Button>
             )}
@@ -563,7 +592,7 @@ export default function BookingDetailPage() {
             {/* Secondary actions */}
             {['confirmed', 'pending'].includes(booking.status) && (
               <Button variant="secondary" size="sm" onClick={() => { setEditForm({ checkInDate: booking.checkInDate.split('T')[0], checkOutDate: booking.checkOutDate.split('T')[0], adults: booking.adults, children: booking.children, notes: booking.notes || '' }); setEditDialog(true) }}>
-                <Receipt className="h-4 w-4" /> แก้ไข
+                <Pencil className="h-4 w-4" /> แก้ไข
               </Button>
             )}
             {['confirmed', 'pending', 'checked_in'].includes(booking.status) && (
@@ -571,7 +600,7 @@ export default function BookingDetailPage() {
                 <Coins className="h-4 w-4" /> รับมัดจำ
               </Button>
             )}
-            {isCompleted && (
+            {booking.status === 'checked_out' && (
               <Link href={`/bookings/${id}/receipt`}>
                 <Button variant="secondary" size="sm">
                   <Printer className="h-4 w-4" /> ใบเสร็จ
@@ -613,7 +642,7 @@ export default function BookingDetailPage() {
 
         <BookingInfoCards
           booking={booking}
-          onAssignRoom={(brId) => { setAssignBookingRoomId(brId); setAssignRoomDialog(true) }}
+          onAssignRoom={(brId) => { setAssignBookingRoomId(brId); setAssignRoomId(''); setAssignRoomDialog(true) }}
           onAdjustRate={(brId, currentRate) => {
             setRateDialog({ bookingRoomId: brId, currentRate })
             setRateForm({ newRate: String(currentRate), reason: '', adjustmentType: 'manual_override' })
