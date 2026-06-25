@@ -70,6 +70,7 @@ export enum HousekeepingTaskType {
   CHECKOUT_CLEANING = 'checkout_cleaning',
   STAYOVER_CLEANING = 'stayover_cleaning',
   DEEP_CLEANING = 'deep_cleaning',
+  ROOM_MOVE_CLEANING = 'room_move_cleaning',
 }
 
 // Maintenance Priority

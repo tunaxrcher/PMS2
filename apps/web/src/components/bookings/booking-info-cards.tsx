@@ -43,6 +43,9 @@ function monthYear(d: string) { const dt = new Date(d); return `${TH_MONTHS[dt.g
 export function BookingInfoCards({ booking, onAssignRoom, onAdjustRate }: BookingInfoCardsProps) {
   const canAdjustRate = ['confirmed', 'pending', 'checked_in'].includes(booking.status)
   const canReassign = ['confirmed', 'pending'].includes(booking.status)
+  // While the guest is in-house we can still relocate them — this routes through
+  // the "move room" flow (transfers occupancy) rather than a plain re-assign.
+  const canMoveRoom = booking.status === 'checked_in'
 
   return (
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
@@ -150,12 +153,12 @@ export function BookingInfoCards({ booking, onAssignRoom, onAdjustRate }: Bookin
                       <span className="text-xs text-stone-400">
                         ห้อง {br.room.roomNumber}{br.room.zone?.name ? ` • ${br.room.zone.name}` : ''}
                       </span>
-                      {canReassign && (
+                      {(canReassign || canMoveRoom) && (
                         <button
                           onClick={() => onAssignRoom(br.id)}
                           className="text-[10px] text-sky-400/70 hover:text-sky-300 transition-colors underline underline-offset-2"
                         >
-                          เปลี่ยน
+                          {canMoveRoom ? 'ย้ายห้อง' : 'เปลี่ยน'}
                         </button>
                       )}
                     </div>

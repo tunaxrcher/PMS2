@@ -78,6 +78,7 @@ export default function HousekeepingPage() {
     checkout_cleaning: 'ทำความสะอาดหลัง Check-out',
     stayover_cleaning: 'ทำความสะอาดระหว่างพัก',
     deep_cleaning: 'ทำความสะอาดใหญ่',
+    room_move_cleaning: 'ทำความสะอาดหลังย้ายห้อง',
   }
 
   return (

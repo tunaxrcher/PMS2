@@ -385,8 +385,12 @@ export class BookingsService {
       if (!room) throw new NotFoundException('ไม่พบห้อง')
       if (room.propertyId !== br.booking.propertyId) throw new ForbiddenException('ห้องไม่ได้อยู่ใน property เดียวกัน')
       if (room.roomTypeId !== br.roomTypeId) throw new BadRequestException('ประเภทห้องไม่ตรงกับการจอง')
-      if (room.currentStatus === 'out_of_order') throw new BadRequestException('ห้องนี้อยู่ระหว่างซ่อม')
-      if (['dirty', 'cleaning'].includes(room.currentStatus)) throw new BadRequestException(`ห้องนี้สถานะ ${room.currentStatus} ยังไม่พร้อม`)
+      // Assigning is a reservation, not an occupancy — a dirty/cleaning room can be
+      // pre-assigned and will be cleaned before arrival (check-in enforces readiness).
+      // Only truly unusable rooms (under repair / decommissioned) are rejected here.
+      if (['out_of_order', 'out_of_service'].includes(room.currentStatus)) {
+        throw new BadRequestException('ห้องนี้ใช้งานไม่ได้ (อยู่ระหว่างซ่อม/ปิดใช้งาน) กรุณาเลือกห้องอื่น')
+      }
 
       // Check room not double-booked
       const conflict = await tx.bookingRoom.findFirst({
@@ -401,7 +405,21 @@ export class BookingsService {
       })
       if (conflict) throw new ConflictException('ห้องนี้ถูกจองในช่วงเวลาดังกล่าวแล้ว')
 
-      return tx.bookingRoom.update({ where: { id: bookingRoomId }, data: { roomId } })
+      const updated = await tx.bookingRoom.update({ where: { id: bookingRoomId }, data: { roomId } })
+
+      await tx.auditLog.create({
+        data: {
+          propertyId: br.booking.propertyId,
+          userId: assignedBy,
+          action: 'BOOKING_ASSIGN_ROOM',
+          entityType: 'booking_room',
+          entityId: bookingRoomId,
+          oldValueJson: { roomId: br.roomId },
+          newValueJson: { roomId },
+        },
+      })
+
+      return updated
     })
   }
 
@@ -409,9 +427,10 @@ export class BookingsService {
     return this.prisma.$transaction(async (tx) => {
       const br = await tx.bookingRoom.findUnique({
         where: { id: bookingRoomId },
-        include: { booking: true },
+        include: { booking: true, room: true },
       })
       if (!br || br.booking.propertyId !== propertyId) throw new NotFoundException('ไม่พบข้อมูลการจองห้อง')
+      if (newRoomId === br.roomId) throw new BadRequestException('ห้องปลายทางเป็นห้องเดิม')
 
       const room = await tx.room.findUnique({ where: { id: newRoomId } })
       if (!room) throw new NotFoundException('ไม่พบห้อง')
@@ -429,6 +448,12 @@ export class BookingsService {
       }
       if (room.currentStatus === 'out_of_order') throw new BadRequestException('ห้องนี้อยู่ระหว่างซ่อม')
 
+      // Moving an in-house guest: the destination must be genuinely ready to occupy.
+      const isInHouse = br.booking.status === 'checked_in' && br.status === 'checked_in'
+      if (isInHouse && ['dirty', 'cleaning', 'out_of_service'].includes(room.currentStatus)) {
+        throw new BadRequestException(`ห้อง ${room.roomNumber} ยังไม่พร้อม (${room.currentStatus}) กรุณารอหรือเลือกห้องอื่น`)
+      }
+
       const conflict = await tx.bookingRoom.findFirst({
         where: {
           roomId: newRoomId,
@@ -442,6 +467,30 @@ export class BookingsService {
       if (conflict) throw new ConflictException('ห้องใหม่ถูกจองในช่วงเวลาดังกล่าวแล้ว')
 
       const updated = await tx.bookingRoom.update({ where: { id: bookingRoomId }, data: { roomId: newRoomId } })
+
+      // For an in-house move, transfer occupancy: vacated room → dirty (needs
+      // cleaning), destination room → occupied. Log both transitions.
+      if (isInHouse) {
+        if (br.roomId && br.room) {
+          await tx.room.update({ where: { id: br.roomId }, data: { currentStatus: 'dirty' } })
+          await tx.roomStatusLog.create({
+            data: { roomId: br.roomId, oldStatus: br.room.currentStatus, newStatus: 'dirty', changedBy: movedBy, reason: `ย้ายห้องไป ${room.roomNumber}` },
+          })
+          await tx.housekeepingTask.create({
+            data: {
+              propertyId: br.booking.propertyId,
+              roomId: br.roomId,
+              taskType: 'room_move_cleaning',
+              status: 'pending',
+              remark: `ย้ายแขกไปห้อง ${room.roomNumber}`,
+            },
+          })
+        }
+        await tx.room.update({ where: { id: newRoomId }, data: { currentStatus: 'occupied' } })
+        await tx.roomStatusLog.create({
+          data: { roomId: newRoomId, oldStatus: room.currentStatus, newStatus: 'occupied', changedBy: movedBy, reason: 'ย้ายห้องเข้าพัก' },
+        })
+      }
 
       await tx.auditLog.create({
         data: {

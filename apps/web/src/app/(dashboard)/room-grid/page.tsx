@@ -155,6 +155,10 @@ export default function RoomGridPage() {
     qc.invalidateQueries({ queryKey: ['bookings'] })
     qc.invalidateQueries({ queryKey: ['dashboard'] })
     qc.invalidateQueries({ queryKey: ['occupancy-forecast'] })
+    // Moving an in-house guest frees the old room as dirty + spawns a housekeeping
+    // task, so refresh HK views too.
+    qc.invalidateQueries({ queryKey: ['housekeeping'] })
+    qc.invalidateQueries({ queryKey: ['hk-pending'] })
   }, [qc])
 
   const moveRoomMutation = useMutation({

@@ -69,6 +69,9 @@ function RoomImageSlideshow({ images, roomNumber, hovered }: { images: Array<{ u
   )
 }
 
+// Rooms that are free to reserve but not physically ready to occupy yet.
+const NOT_READY_STATUS: Record<string, string> = { dirty: 'ต้องทำความสะอาด', cleaning: 'กำลังทำความสะอาด' }
+
 // ── Room picker tile (tracks own hover so slideshow gets the signal) ──
 function RoomPickerTile({ r, isSelected, roomImages, onSelect }: {
   r: PickerRoom
@@ -77,6 +80,7 @@ function RoomPickerTile({ r, isSelected, roomImages, onSelect }: {
   onSelect: (id: string) => void
 }) {
   const [hovered, setHovered] = React.useState(false)
+  const notReadyLabel = NOT_READY_STATUS[r.currentStatus]
   return (
     <button
       onMouseEnter={() => setHovered(true)}
@@ -98,6 +102,14 @@ function RoomPickerTile({ r, isSelected, roomImages, onSelect }: {
       <div className={cn('absolute inset-0 pointer-events-none bg-gradient-to-t from-black/90 via-black/40', roomImages.length === 0 ? 'to-black/60' : 'to-black/10')} />
       {/* Selected amber tint */}
       {isSelected && <div className="absolute inset-0 pointer-events-none bg-amber-400/15" />}
+
+      {/* Not-ready badge — room is bookable but needs cleaning before arrival */}
+      {notReadyLabel && (
+        <div className="absolute top-1.5 left-1.5 z-10 pointer-events-none flex items-center gap-1 rounded-full bg-amber-500/90 px-1.5 py-0.5 shadow">
+          <span className="text-[8px]">🧹</span>
+          <span className="text-[8px] font-semibold text-stone-900 leading-none">{notReadyLabel}</span>
+        </div>
+      )}
 
       {/* Content */}
       <div className="relative flex flex-col justify-end h-full px-2.5 pb-2.5 pt-6 pointer-events-none">
@@ -125,10 +137,10 @@ type PickerRoom = {
   zone?: { id: string; name: string; imageUrl?: string | null } | null
 }
 
-function RoomPickerDialog({ open, onClose, rooms, loading, selectedId, onSelect, onConfirm, confirming }: {
+function RoomPickerDialog({ open, onClose, rooms, loading, selectedId, onSelect, onConfirm, confirming, isMove }: {
   open: boolean; onClose: () => void; rooms: PickerRoom[]; loading?: boolean
   selectedId: string; onSelect: (id: string) => void
-  onConfirm: () => void; confirming: boolean
+  onConfirm: () => void; confirming: boolean; isMove?: boolean
 }) {
   const [search, setSearch] = React.useState('')
 
@@ -145,7 +157,7 @@ function RoomPickerDialog({ open, onClose, rooms, loading, selectedId, onSelect,
     )
   }, [rooms, search])
 
-  // Group by zone (fall back to "ไม่ระบุโซน")
+  // Group by zone (fall back to "ไม่ระบุโซน"), ready rooms first within each zone.
   const groups = React.useMemo(() => {
     const map = new Map<string, { zoneId: string; zoneName: string; rooms: PickerRoom[] }>()
     filtered.forEach(r => {
@@ -153,13 +165,16 @@ function RoomPickerDialog({ open, onClose, rooms, loading, selectedId, onSelect,
       if (!map.has(key)) map.set(key, { zoneId: key, zoneName: r.zone?.name || 'ไม่ระบุโซน', rooms: [] })
       map.get(key)!.rooms.push(r)
     })
+    for (const g of map.values()) {
+      g.rooms.sort((a, b) => (NOT_READY_STATUS[a.currentStatus] ? 1 : 0) - (NOT_READY_STATUS[b.currentStatus] ? 1 : 0))
+    }
     return Array.from(map.values())
   }, [filtered])
 
   const selectedRoom = rooms.find(r => r.id === selectedId)
 
   return (
-    <PmsDialog open={open} onClose={onClose} title="เลือกห้องพัก" size="lg">
+    <PmsDialog open={open} onClose={onClose} title={isMove ? 'ย้ายห้องพัก' : 'เลือกห้องพัก'} size="lg">
       {/* Search */}
       <div className="relative mb-4">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-500" />
@@ -215,6 +230,14 @@ function RoomPickerDialog({ open, onClose, rooms, loading, selectedId, onSelect,
         )}
       </div>
 
+      {/* Selected not-ready warning */}
+      {selectedRoom && NOT_READY_STATUS[selectedRoom.currentStatus] && (
+        <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-300/25 bg-amber-400/[0.08] px-3 py-2 text-xs text-amber-200/90">
+          <span className="mt-0.5">🧹</span>
+          <span>ห้องนี้{NOT_READY_STATUS[selectedRoom.currentStatus]} — กำหนดได้เลย แต่ต้องทำความสะอาดให้เรียบร้อยก่อนแขกเข้าพัก (ระบบจะตรวจสอบอีกครั้งตอน Check-in)</span>
+        </div>
+      )}
+
       {/* Footer */}
       <div className="mt-4 flex items-center justify-between border-t border-white/[0.06] pt-4">
         <div className="text-sm text-stone-500">
@@ -233,7 +256,7 @@ function RoomPickerDialog({ open, onClose, rooms, loading, selectedId, onSelect,
           disabled={!selectedId}
           className="min-w-[120px]"
         >
-          ยืนยันห้อง
+          {isMove ? 'ยืนยันย้ายห้อง' : 'ยืนยันห้อง'}
         </Button>
       </div>
     </PmsDialog>
@@ -245,6 +268,7 @@ export default function BookingDetailPage() {
   const qc = useQueryClient()
 
   const [checkInConfirm, setCheckInConfirm] = useState(false)
+  const [roomNotReadyDialog, setRoomNotReadyDialog] = useState(false)
   const [checkOutConfirm, setCheckOutConfirm] = useState(false)
   const [cancelDialog, setCancelDialog] = useState(false)
   const [cancelReason, setCancelReason] = useState('')
@@ -259,6 +283,7 @@ export default function BookingDetailPage() {
   const [assignRoomDialog, setAssignRoomDialog] = useState(false)
   const [assignRoomId, setAssignRoomId] = useState('')
   const [assignBookingRoomId, setAssignBookingRoomId] = useState('')
+  const [moveConfirm, setMoveConfirm] = useState(false)
 
   const { data: booking, isLoading } = useQuery({
     queryKey: ['booking', id],
@@ -272,6 +297,9 @@ export default function BookingDetailPage() {
     qc.invalidateQueries({ queryKey: ['booking', id] })
     qc.invalidateQueries({ queryKey: ['bookings'] })
     qc.invalidateQueries({ queryKey: ['room-grid'] })
+    // The room picker pulls its own grid — refresh it too so a just-vacated room
+    // (now dirty) reflects its real status instead of showing as selectable.
+    qc.invalidateQueries({ queryKey: ['rooms-grid-assign'] })
     qc.invalidateQueries({ queryKey: ['room-map'] })
     qc.invalidateQueries({ queryKey: ['dashboard'] })
     qc.invalidateQueries({ queryKey: ['occupancy-forecast'] })
@@ -353,6 +381,34 @@ export default function BookingDetailPage() {
     onError: (e: { response?: { data?: { message?: string } } }) => toast.error(e?.response?.data?.message || 'เกิดข้อผิดพลาด'),
   })
 
+  // In-house relocation routes through move-room (transfers occupancy) instead of
+  // a plain assign so the vacated room is flagged dirty and the new one occupied.
+  const moveRoomMutation = useMutation({
+    mutationFn: () => bookingsApi.moveRoom(id, { bookingRoomId: assignBookingRoomId, newRoomId: assignRoomId }),
+    onSuccess: () => { invalidateRelated(); setMoveConfirm(false); setAssignRoomDialog(false); setAssignRoomId(''); toast.success('ย้ายห้องสำเร็จ') },
+    onError: (e: { response?: { data?: { message?: string } } }) => { setMoveConfirm(false); toast.error(e?.response?.data?.message || 'เกิดข้อผิดพลาด') },
+  })
+
+  const isInHouseMove = booking?.status === 'checked_in'
+  // In-house moves shuffle a guest who's already settled (and flag the old room
+  // dirty), so gate them behind an explicit confirm. Pre-stay assigns just commit.
+  const confirmRoomSelection = () => {
+    if (isInHouseMove) { setMoveConfirm(true); return }
+    assignRoomMutation.mutate()
+  }
+
+  // Front-desk override: confirm the assigned dirty/cleaning room(s) are clean, then
+  // chain into check-in. Reads from the live booking so it stays correct at click time.
+  const markCleanMutation = useMutation({
+    mutationFn: () => {
+      const rooms = ((booking?.bookingRooms as Array<{ roomId?: string | null; room?: { currentStatus: string } | null }> | undefined) || [])
+        .filter(br => br.roomId && br.room && ['dirty', 'cleaning'].includes(br.room.currentStatus))
+      return Promise.all(rooms.map(br => roomsApi.updateStatus(br.roomId!, 'clean', 'ยืนยันห้องสะอาดตอน Check-in')))
+    },
+    onSuccess: () => { invalidateRelated(); setRoomNotReadyDialog(false); checkInMutation.mutate() },
+    onError: (e: { response?: { data?: { message?: string } } }) => toast.error(e?.response?.data?.message || 'เกิดข้อผิดพลาด'),
+  })
+
   // Pull the grid (rooms + their bookings in the date range) so we can offer only
   // rooms that are genuinely free for THIS booking's dates — not merely "clean now".
   const { data: assignGrid } = useQuery({
@@ -370,26 +426,37 @@ export default function BookingDetailPage() {
     images?: Array<{ url: string; isPrimary: boolean }>
     roomType: { id: string; name: string; imageUrl?: string | null }
     zone?: { id: string; name: string; imageUrl?: string | null } | null
-    bookingRooms?: Array<{ checkInDate: string; checkOutDate: string; status: string }>
+    bookingRooms?: Array<{ id: string; checkInDate: string; checkOutDate: string; status: string }>
   }
 
   const availableRooms = React.useMemo<GridRoom[]>(() => {
     if (!booking) return []
-    const targetBr = (booking.bookingRooms as Array<{ id: string; roomTypeId: string }>)?.find(br => br.id === assignBookingRoomId)
+    const targetBr = (booking.bookingRooms as Array<{ id: string; roomTypeId: string; roomId?: string | null }>)?.find(br => br.id === assignBookingRoomId)
     const targetRoomTypeId = targetBr?.roomTypeId
+    const currentRoomId = targetBr?.roomId
     const ci = new Date(booking.checkInDate)
     const co = new Date(booking.checkOutDate)
     const allRooms = ((assignGrid as { rooms?: GridRoom[] } | undefined)?.rooms) || []
     return allRooms.filter(r => {
+      // The picker is always "pick a different room", so never offer the one the
+      // booking currently holds (selecting it is a no-op / rejected on the server).
+      if (currentRoomId && r.id === currentRoomId) return false
       if (targetRoomTypeId && r.roomType.id !== targetRoomTypeId) return false
-      if (['out_of_order', 'out_of_service', 'dirty', 'cleaning'].includes(r.currentStatus)) return false
+      // Unusable rooms are never offered.
+      if (['out_of_order', 'out_of_service'].includes(r.currentStatus)) return false
+      // Moving an in-house guest needs a room that is ready NOW; pre-assigning a
+      // future stay tolerates dirty/cleaning (it'll be cleaned before arrival).
+      if (isInHouseMove && ['dirty', 'cleaning'].includes(r.currentStatus)) return false
       const overlaps = r.bookingRooms?.some(br =>
+        // Ignore this booking's own row (defensive — the current room is already
+        // excluded by id above) so a room is judged free purely on OTHER bookings.
+        br.id !== assignBookingRoomId &&
         !['cancelled', 'no_show'].includes(br.status) &&
         new Date(br.checkInDate) < co && new Date(br.checkOutDate) > ci
       )
       return !overlaps
     })
-  }, [assignGrid, booking, assignBookingRoomId])
+  }, [assignGrid, booking, assignBookingRoomId, isInHouseMove])
 
   if (isLoading) {
     return (
@@ -456,6 +523,25 @@ export default function BookingDetailPage() {
   const canNoShow = booking.status === 'confirmed'
   const isCompleted = ['checked_out', 'cancelled', 'no_show'].includes(booking.status)
   const needsRoomAssign = booking.bookingRooms?.some((br: { roomId?: string | null }) => !br.roomId)
+
+  // Rooms assigned but not physically ready to occupy — they block check-in.
+  type DetailBookingRoom = { id: string; roomId?: string | null; room?: { roomNumber: string; currentStatus: string } | null }
+  const checkInBlockedRooms = (booking.bookingRooms as DetailBookingRoom[] | undefined)
+    ?.filter(br => br.room && ['dirty', 'cleaning', 'out_of_order', 'out_of_service'].includes(br.room.currentStatus)) || []
+  // Dirty/cleaning can be cleared with a front-desk "mark clean"; OOO/OOS cannot.
+  const hardBlockedRooms = checkInBlockedRooms.filter(br => ['out_of_order', 'out_of_service'].includes(br.room!.currentStatus))
+  const canQuickClean = checkInBlockedRooms.length > 0 && hardBlockedRooms.length === 0
+
+  // Summarise every room on the booking (not just the first) for the confirm prompt.
+  const checkInRoomsLabel = (booking.bookingRooms as Array<{ room?: { roomNumber?: string } | null; roomType?: { name?: string } }> | undefined)
+    ?.map(br => br.room?.roomNumber || br.roomType?.name)
+    .filter(Boolean)
+    .join(', ') || '-'
+
+  // From/to room labels for the in-house move confirmation.
+  const moveFromRoom = (booking.bookingRooms as Array<{ id: string; room?: { roomNumber?: string } | null }> | undefined)
+    ?.find(br => br.id === assignBookingRoomId)?.room?.roomNumber
+  const moveToRoom = availableRooms.find(r => r.id === assignRoomId)?.roomNumber
 
   // 5-step progress
   const BOOKING_STEPS = [
@@ -641,7 +727,9 @@ export default function BookingDetailPage() {
               </Button>
             )}
             {canCheckIn && !needsRoomAssign && (
-              <Button size="sm" onClick={() => setCheckInConfirm(true)} loading={checkInMutation.isPending}>
+              <Button size="sm"
+                onClick={() => checkInBlockedRooms.length > 0 ? setRoomNotReadyDialog(true) : setCheckInConfirm(true)}
+                loading={checkInMutation.isPending}>
                 <DoorOpen className="h-4 w-4" /> Check-in
               </Button>
             )}
@@ -773,11 +861,59 @@ export default function BookingDetailPage() {
         onClose={() => setCheckInConfirm(false)}
         onConfirm={() => { setCheckInConfirm(false); checkInMutation.mutate() }}
         title="ยืนยัน Check-in"
-        description={`Check-in ให้ ${booking?.guest?.firstName} ${booking?.guest?.lastName} — ${booking?.bookingRooms?.[0]?.room?.roomNumber || booking?.bookingRooms?.[0]?.roomType?.name}`}
+        description={`Check-in ให้ ${booking?.guest?.firstName} ${booking?.guest?.lastName} — ห้อง ${checkInRoomsLabel}`}
         confirmLabel="✓ Check-in เลย"
         variant="success"
         loading={checkInMutation.isPending}
       />
+
+      {/* Room-not-ready (blocks check-in) — actionable instead of a dead-end error */}
+      <PmsDialog open={roomNotReadyDialog} onClose={() => setRoomNotReadyDialog(false)} title="ห้องยังไม่พร้อม Check-in" size="sm">
+        <div className="space-y-4">
+          <div className="space-y-2">
+            {checkInBlockedRooms.map(br => {
+              const st = br.room!.currentStatus
+              const label = NOT_READY_STATUS[st] || (st === 'out_of_order' ? 'อยู่ระหว่างซ่อม' : 'ปิดใช้งาน')
+              const hard = ['out_of_order', 'out_of_service'].includes(st)
+              return (
+                <div key={br.id} className={cn('flex items-center gap-3 rounded-xl border px-3 py-2.5',
+                  hard ? 'border-rose-400/25 bg-rose-400/[0.07]' : 'border-amber-400/25 bg-amber-400/[0.07]')}>
+                  <span>{hard ? '🛠️' : '🧹'}</span>
+                  <div className="flex-1">
+                    <div className="text-sm font-semibold text-stone-200">ห้อง {br.room!.roomNumber}</div>
+                    <div className={cn('text-xs', hard ? 'text-rose-300/80' : 'text-amber-300/80')}>{label}</div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          <p className="text-xs text-stone-500">
+            {canQuickClean
+              ? 'ถ้าห้องทำความสะอาดเรียบร้อยแล้ว สามารถยืนยันเพื่อตั้งห้องเป็นสะอาดและ Check-in ต่อได้ทันที หรือเลือกเปลี่ยนไปห้องอื่น'
+              : 'ห้องนี้ใช้งานไม่ได้ในขณะนี้ กรุณาเปลี่ยนไปห้องอื่นก่อน Check-in'}
+          </p>
+
+          <div className="flex flex-col gap-2">
+            {canQuickClean && (
+              <Button onClick={() => markCleanMutation.mutate()} loading={markCleanMutation.isPending || checkInMutation.isPending}
+                className="w-full bg-emerald-500 hover:bg-emerald-400">
+                <CheckCircle2 className="h-4 w-4" /> ห้องสะอาดแล้ว → Check-in เลย
+              </Button>
+            )}
+            <Button variant="secondary" className="w-full"
+              onClick={() => {
+                const target = checkInBlockedRooms[0]
+                setRoomNotReadyDialog(false)
+                setAssignBookingRoomId(target.id)
+                setAssignRoomId('')
+                setAssignRoomDialog(true)
+              }}>
+              <BedDouble className="h-4 w-4" /> เปลี่ยนห้อง
+            </Button>
+          </div>
+        </div>
+      </PmsDialog>
 
       {/* Check-out Confirm */}
       <ConfirmDialog
@@ -854,8 +990,21 @@ export default function BookingDetailPage() {
         loading={!assignGrid && assignRoomDialog}
         selectedId={assignRoomId}
         onSelect={setAssignRoomId}
-        onConfirm={() => assignRoomMutation.mutate()}
-        confirming={assignRoomMutation.isPending}
+        onConfirm={confirmRoomSelection}
+        confirming={assignRoomMutation.isPending || moveRoomMutation.isPending}
+        isMove={isInHouseMove}
+      />
+
+      {/* Confirm in-house move — surfaces the side effect (old room → cleaning) */}
+      <ConfirmDialog
+        open={moveConfirm}
+        onClose={() => setMoveConfirm(false)}
+        onConfirm={() => moveRoomMutation.mutate()}
+        title="ยืนยันการย้ายห้อง"
+        description={`ย้ายแขกจากห้อง ${moveFromRoom ?? '-'} ไปห้อง ${moveToRoom ?? '-'} — ห้อง ${moveFromRoom ?? 'เดิม'} จะถูกตั้งเป็นสถานะรอทำความสะอาด และระบบจะสร้างงานแม่บ้านให้อัตโนมัติ`}
+        confirmLabel="ยืนยันย้ายห้อง"
+        variant="warning"
+        loading={moveRoomMutation.isPending}
       />
     </AppShell>
   )

@@ -106,6 +106,14 @@ export class RoomsService {
           changedBy,
         },
       }),
+      // Marking a room clean/inspected settles any outstanding cleaning task —
+      // e.g. a front-desk override at check-in shouldn't leave a dangling task.
+      ...(['clean', 'inspected'].includes(status) ? [
+        this.prisma.housekeepingTask.updateMany({
+          where: { roomId: id, status: { in: ['pending', 'in_progress'] } },
+          data: { status: 'done', completedAt: new Date() },
+        }),
+      ] : []),
     ])
 
     return this.prisma.room.findUnique({ where: { id }, include: { roomType: true, zone: true } })
