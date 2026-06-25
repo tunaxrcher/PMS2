@@ -186,4 +186,11 @@ export const auditLogsApi = {
 export const uploadApi = {
   uploadImage: (formData: FormData) =>
     api.post('/upload/room-image', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  slip: (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return api.post<{ url: string; success: boolean }>('/upload/slip', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
 }

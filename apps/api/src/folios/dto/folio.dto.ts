@@ -18,6 +18,7 @@ export class AddPaymentDto {
   @IsString() paymentMethod!: string
   @IsNumber() @Min(0.01) amount!: number
   @IsOptional() @IsString() referenceNo?: string
+  @IsOptional() @IsString() slipUrl?: string
 }
 
 export class RefundPaymentDto {

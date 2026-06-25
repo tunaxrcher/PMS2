@@ -278,6 +278,10 @@ export default function BookingDetailPage() {
     // Check-out auto-creates a housekeeping task → refresh HK views & dashboard count.
     qc.invalidateQueries({ queryKey: ['housekeeping'] })
     qc.invalidateQueries({ queryKey: ['hk-pending'] })
+    // Folio closes automatically on checkout — refresh immediately so the
+    // closed indicator appears without waiting for the 15s poll interval.
+    qc.invalidateQueries({ queryKey: ['folio'] })
+    qc.invalidateQueries({ queryKey: ['folio-summary'] })
   }, [qc, id])
 
   const checkInMutation = useMutation({
@@ -310,7 +314,7 @@ export default function BookingDetailPage() {
       depositType: depositForm.depositType,
       paymentMethod: depositForm.paymentMethod,
     }),
-    onSuccess: () => { invalidateRelated(); qc.invalidateQueries({ queryKey: ['folio'] }); qc.invalidateQueries({ queryKey: ['folio-summary'] }); setDepositDialog(false); setDepositForm({ amount: '', depositType: 'booking_deposit', paymentMethod: 'cash' }); toast.success('รับมัดจำสำเร็จ') },
+    onSuccess: () => { invalidateRelated(); setDepositDialog(false); setDepositForm({ amount: '', depositType: 'booking_deposit', paymentMethod: 'cash' }); toast.success('รับมัดจำสำเร็จ') },
     onError: (e: { response?: { data?: { message?: string } } }) => toast.error(e?.response?.data?.message || 'เกิดข้อผิดพลาด'),
   })
 
@@ -321,7 +325,7 @@ export default function BookingDetailPage() {
       reason: rateForm.reason,
       adjustmentType: rateForm.adjustmentType,
     }),
-    onSuccess: () => { invalidateRelated(); qc.invalidateQueries({ queryKey: ['folio'] }); setRateDialog(null); toast.success('ปรับราคาสำเร็จ') },
+    onSuccess: () => { invalidateRelated(); setRateDialog(null); toast.success('ปรับราคาสำเร็จ') },
     onError: (e: { response?: { data?: { message?: string } } }) => toast.error(e?.response?.data?.message || 'เกิดข้อผิดพลาด'),
   })
 

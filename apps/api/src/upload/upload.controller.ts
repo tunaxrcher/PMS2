@@ -9,6 +9,11 @@ import { RequirePermissions } from '../auth/decorators/require-permissions.decor
 import { UploadService } from './upload.service'
 import { PERMISSIONS } from '../common/permissions'
 
+const fileInterceptorOpts = {
+  storage: memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+}
+
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('upload')
 export class UploadController {
@@ -16,12 +21,7 @@ export class UploadController {
 
   @Post('image')
   @RequirePermissions(PERMISSIONS.ROOM_MANAGE)
-  @UseInterceptors(
-    FileInterceptor('file', {
-      storage: memoryStorage(),
-      limits: { fileSize: 10 * 1024 * 1024 },
-    })
-  )
+  @UseInterceptors(FileInterceptor('file', fileInterceptorOpts))
   async uploadImage(@UploadedFile() file: Express.Multer.File) {
     if (!file) throw new BadRequestException('กรุณาเลือกไฟล์')
     const url = await this.uploadService.uploadFile(file, 'images')
@@ -30,15 +30,19 @@ export class UploadController {
 
   @Post('room-image')
   @RequirePermissions(PERMISSIONS.ROOM_MANAGE)
-  @UseInterceptors(
-    FileInterceptor('file', {
-      storage: memoryStorage(),
-      limits: { fileSize: 10 * 1024 * 1024 },
-    })
-  )
+  @UseInterceptors(FileInterceptor('file', fileInterceptorOpts))
   async uploadRoomImage(@UploadedFile() file: Express.Multer.File) {
     if (!file) throw new BadRequestException('กรุณาเลือกไฟล์')
     const url = await this.uploadService.uploadFile(file, 'rooms')
+    return { url, success: true }
+  }
+
+  @Post('slip')
+  @RequirePermissions(PERMISSIONS.PAYMENT_RECEIVE)
+  @UseInterceptors(FileInterceptor('file', fileInterceptorOpts))
+  async uploadSlip(@UploadedFile() file: Express.Multer.File) {
+    if (!file) throw new BadRequestException('กรุณาเลือกไฟล์')
+    const url = await this.uploadService.uploadFile(file, 'slips')
     return { url, success: true }
   }
 }

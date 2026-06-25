@@ -113,6 +113,7 @@ export class FoliosService {
     paymentMethod: string
     amount: number
     referenceNo?: string
+    slipUrl?: string
   }, receivedBy: string, propertyId: string) {
     const folio = await this.assertFolioProperty(folioId, propertyId)
     if (folio.status !== 'open') throw new BadRequestException('Folio ถูกปิดแล้ว')
@@ -124,6 +125,7 @@ export class FoliosService {
         paymentMethod: data.paymentMethod,
         amount: data.amount,
         referenceNo: data.referenceNo,
+        slipUrl: data.slipUrl,
         receivedBy,
         status: 'paid',
       },
