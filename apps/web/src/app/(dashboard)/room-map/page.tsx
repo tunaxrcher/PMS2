@@ -298,7 +298,7 @@ function RoomCard({ room, onAction }: { room: RoomData; onAction: (room: RoomDat
           </span>
           {room.isOverstay && (
             <span className="rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-bold text-white shadow-[0_0_12px_rgba(220,38,38,0.6)] animate-pulse">
-              เลยกำหนด
+              เลยกำหนด Check-Out
             </span>
           )}
         </div>
