@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common'
+import { Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 
 @Injectable()
@@ -159,10 +160,39 @@ export class RoomsService {
   async getRoomMap(propertyId: string, date: string) {
     const targetDate = new Date(date)
 
+    // Compare on local date strings, NOT timestamps: new Date('YYYY-MM-DD') is
+    // parsed as UTC midnight (= 07:00 local in UTC+7), so a getTime() comparison
+    // against local midnight is always false and "today" would never match.
+    const now = new Date()
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    const isTargetToday = date === todayStr
+
     const zones = await this.prisma.zone.findMany({
       where: { propertyId, active: true },
       orderBy: { sortOrder: 'asc' },
     })
+
+    // Which booking counts as "in this room" for the selected date.
+    // Normal rule: the booking overlaps the date (checkIn <= date < checkOut) and
+    // is not cancelled/no-show/checked-out.
+    // For TODAY we additionally keep guests who are still `checked_in` even though
+    // their scheduled checkout already passed (an OVERSTAY): physically they remain
+    // in the room until the front desk checks them out, so they must not silently
+    // vanish and leave the card showing "occupied" with no guest name.
+    const bookingRoomsWhere: Prisma.BookingRoomWhereInput = {
+      status: { notIn: ['cancelled', 'no_show', 'checked_out'] },
+      checkInDate: { lte: targetDate },
+      booking: { propertyId, status: { notIn: ['cancelled', 'no_show', 'checked_out'] } },
+      ...(isTargetToday
+        ? {
+            OR: [
+              { checkOutDate: { gt: targetDate } },
+              // overstay: still in-house past the scheduled checkout
+              { booking: { status: 'checked_in' } },
+            ],
+          }
+        : { checkOutDate: { gt: targetDate } }),
+    }
 
     const rooms = await this.prisma.room.findMany({
       where: { propertyId, active: true },
@@ -171,14 +201,7 @@ export class RoomsService {
         zone: { select: { id: true, name: true, imageUrl: true } },
         images: { orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }] },
         bookingRooms: {
-          where: {
-            status: { notIn: ['cancelled', 'no_show', 'checked_out'] },
-            checkInDate: { lte: targetDate },
-            checkOutDate: { gt: targetDate },
-            // Exclude checked_out too — a guest who already left no longer occupies
-            // or reserves the room (it just needs cleaning). Matches getGrid/getAvailability.
-            booking: { propertyId, status: { notIn: ['cancelled', 'no_show', 'checked_out'] } },
-          },
+          where: bookingRoomsWhere,
           include: {
             booking: {
               include: {
@@ -186,28 +209,52 @@ export class RoomsService {
               },
             },
           },
+          // Prefer the booking that still covers the date (later checkout) over an
+          // overstay whose checkout is already in the past — so a room that got a
+          // fresh booking layered on top shows the current guest, not the lingering
+          // one. (Overstays always have an earlier checkout than a covering booking.)
+          orderBy: { checkOutDate: 'desc' },
           take: 1,
         },
       },
       orderBy: [{ zone: { sortOrder: 'asc' } }, { roomNumber: 'asc' }],
     })
 
-    // Compare on local date strings, NOT timestamps: new Date('YYYY-MM-DD') is
-    // parsed as UTC midnight (= 07:00 local in UTC+7), so a getTime() comparison
-    // against local midnight is always false and "today" would never match.
-    const now = new Date()
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-    const isTargetToday = date === todayStr
-
     // Compute effective status for the selected date
     const roomsWithStatus = rooms.map((room) => {
-      const activeBooking = room.bookingRooms[0]
+      let activeBooking = room.bookingRooms[0] ?? null
       let dateStatus: string
+      let isOverstay = false
+
+      // A checked-in booking whose scheduled checkout already passed is an overstay
+      // candidate. Two very different real-world situations produce this record:
+      //   1) GENUINE OVERSTAY — the guest is still in the room, so it was never
+      //      turned over: room.currentStatus is still 'occupied'.
+      //   2) DANGLING CHECKOUT — the guest actually left and housekeeping already
+      //      cleaned the room (clean/dirty/inspected/cleaning) or it went OOO, but
+      //      the front desk never pressed "check out", so the booking lingers as
+      //      checked_in.
+      // For (2) we must NOT claim the room is occupied — the physical status is the
+      // truth (this is exactly what /room-grid shows), otherwise the two views
+      // disagree. Drop the stale booking so the card reflects reality.
+      if (
+        activeBooking &&
+        activeBooking.booking.status === 'checked_in' &&
+        activeBooking.checkOutDate < targetDate &&
+        room.currentStatus !== 'occupied'
+      ) {
+        activeBooking = null
+      }
 
       if (activeBooking) {
         // Has a booking on this date
-        if (activeBooking.booking.status === 'checked_in') dateStatus = 'occupied'
-        else dateStatus = 'reserved'
+        if (activeBooking.booking.status === 'checked_in') {
+          dateStatus = 'occupied'
+          // Guest is in-house but the scheduled checkout has already passed.
+          if (activeBooking.checkOutDate < targetDate) isOverstay = true
+        } else {
+          dateStatus = 'reserved'
+        }
       } else if (room.currentStatus === 'out_of_order' || room.currentStatus === 'out_of_service') {
         // OOO/OOS is always shown regardless of date
         dateStatus = room.currentStatus
@@ -222,10 +269,12 @@ export class RoomsService {
       return {
         ...room,
         dateStatus,
+        isOverstay,
         activeBooking: activeBooking ? {
           id: activeBooking.booking.id,
           bookingNumber: activeBooking.booking.bookingNumber,
           status: activeBooking.booking.status,
+          checkInDate: activeBooking.checkInDate,
           checkOutDate: activeBooking.checkOutDate,
           guest: activeBooking.booking.guest,
         } : null,

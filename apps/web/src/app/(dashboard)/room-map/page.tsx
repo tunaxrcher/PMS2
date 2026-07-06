@@ -29,11 +29,12 @@ const STATUS_CHIPS = buildStatusChips(MAP_STATUS_KEYS)
 
 interface RoomData {
   id: string; roomNumber: string; roomName?: string | null; currentStatus: string; dateStatus: string
+  isOverstay?: boolean
   roomType: { id: string; name: string; imageUrl?: string | null; baseRate: number | string }
   zone?: { id: string; name: string; imageUrl?: string | null } | null
   primaryImage?: string | null
   allImages?: string[]
-  activeBooking?: { id: string; bookingNumber: string; status: string; checkOutDate: string; guest: { firstName: string; lastName: string } } | null
+  activeBooking?: { id: string; bookingNumber: string; status: string; checkInDate?: string; checkOutDate: string; guest: { firstName: string; lastName: string } } | null
 }
 
 interface ZoneGroup {
@@ -138,6 +139,14 @@ function ActionMenuPortal({ room, onClose, onAction }: {
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}
             >
               {room.activeBooking.guest.firstName} {room.activeBooking.guest.lastName}
+            </motion.div>
+          )}
+          {room.isOverstay && room.activeBooking && (
+            <motion.div
+              className="mt-1.5 inline-block rounded-full bg-red-500/15 border border-red-400/40 px-3 py-1 text-xs font-bold text-red-400 tracking-wider"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.18 }}
+            >
+              เลยกำหนดเช็คเอาท์ • ครบกำหนด {formatDate(room.activeBooking.checkOutDate, 'dd/MM')}
             </motion.div>
           )}
         </div>
@@ -282,10 +291,17 @@ function RoomCard({ room, onAction }: { room: RoomData; onAction: (room: RoomDat
           </div>
         )}
 
-        {/* Status badge */}
-        <span className={cn('absolute top-2 right-2 rounded-full px-2 py-0.5 text-xs font-bold', cfg.badgeSolid)}>
-          {cfg.label}
-        </span>
+        {/* Status badges */}
+        <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
+          <span className={cn('rounded-full px-2 py-0.5 text-xs font-bold', cfg.badgeSolid)}>
+            {cfg.label}
+          </span>
+          {room.isOverstay && (
+            <span className="rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-bold text-white shadow-[0_0_12px_rgba(220,38,38,0.6)] animate-pulse">
+              เลยกำหนด
+            </span>
+          )}
+        </div>
 
         {/* Image dots indicator */}
         {hasMultiple && isHovered && (
@@ -302,7 +318,7 @@ function RoomCard({ room, onAction }: { room: RoomData; onAction: (room: RoomDat
           {room.activeBooking && (
             <div className="text-xs text-white/75 mt-0.5 truncate">
               {room.activeBooking.guest.firstName} {room.activeBooking.guest.lastName}
-              <span className="text-white/45 ml-1">→ {formatDate(room.activeBooking.checkOutDate, 'dd/MM')}</span>
+              <span className={cn('ml-1', room.isOverstay ? 'text-red-300 font-semibold' : 'text-white/45')}>→ {formatDate(room.activeBooking.checkOutDate, 'dd/MM')}</span>
             </div>
           )}
           <div className="text-xs text-white/40 mt-0.5">{room.roomType.name}</div>
