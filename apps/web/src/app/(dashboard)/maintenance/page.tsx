@@ -9,6 +9,7 @@ import { GlassPanel } from '@/components/ui/glass-panel'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { RoomPicker } from '@/components/ui/room-picker'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { EmptyState } from '@/components/ui/empty-state'
 import { PmsDialog } from '@/components/ui/pms-dialog'
@@ -107,13 +108,20 @@ export default function MaintenancePage() {
 
       <PmsDialog open={createOpen} onClose={() => setCreateOpen(false)} title="แจ้งซ่อม" size="md">
         <div className="space-y-4">
-          <Select value={form.roomId} onValueChange={v => setForm(p => ({...p, roomId: v}))}>
-            <SelectTrigger label="ห้อง (ถ้ามี)"><SelectValue placeholder="เลือกห้อง" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">ไม่เฉพาะห้อง</SelectItem>
-              {(rooms as Array<{ id: string; roomNumber: string }> || []).map(r => <SelectItem key={r.id} value={r.id}>{r.roomNumber}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <RoomPicker
+            label="ห้อง (ถ้ามี)"
+            clearable
+            value={form.roomId}
+            onChange={v => setForm(p => ({ ...p, roomId: v }))}
+            rooms={(rooms as Array<{ id: string; roomNumber: string; roomName?: string | null; currentStatus?: string | null; zone?: { name: string } | null; roomType?: { name: string } | null }> || []).map(r => ({
+              id: r.id,
+              roomNumber: r.roomNumber,
+              roomName: r.roomName,
+              currentStatus: r.currentStatus,
+              zone: r.zone?.name ?? null,
+              roomType: r.roomType?.name ?? null,
+            }))}
+          />
           <Input label="หัวข้อปัญหา *" value={form.issueTitle} onChange={e => setForm(p => ({...p, issueTitle: e.target.value}))} placeholder="เช่น แอร์ไม่ทำงาน, น้ำรั่ว..." />
           <Input label="รายละเอียด" value={form.issueDetail} onChange={e => setForm(p => ({...p, issueDetail: e.target.value}))} placeholder="รายละเอียดเพิ่มเติม..." />
           <Select value={form.priority} onValueChange={v => setForm(p => ({...p, priority: v}))}>

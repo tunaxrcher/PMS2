@@ -527,12 +527,41 @@ export class BookingsService {
         throw new BadRequestException('ลูกค้าอยู่ใน Blacklist ไม่สามารถเช็คอินได้')
       }
 
-      // Validate all rooms are assigned and ready
+      // Validate all rooms are assigned and physically ready.
+      // A room is only checkin-ready when it is clean/inspected. Every other state
+      // blocks with a tailored reason — most importantly `occupied`, which means the
+      // previous guest was never checked out. Allowing check-in over an occupied room
+      // is exactly what creates "dangling checkouts" (two checked_in bookings on one
+      // room), so it must be blocked.
       for (const br of booking.bookingRooms) {
         if (!br.roomId || !br.room) throw new BadRequestException(`กรุณา Assign ห้องก่อน Check-in`)
-        const blockedStatuses = ['out_of_order', 'out_of_service', 'dirty', 'cleaning']
-        if (blockedStatuses.includes(br.room.currentStatus)) {
-          throw new BadRequestException(`ห้อง ${br.room.roomNumber} ยังไม่พร้อม (${br.room.currentStatus}) กรุณารอหรือเปลี่ยนห้อง`)
+        const st = br.room.currentStatus
+        if (st === 'occupied') {
+          throw new BadRequestException(`ห้อง ${br.room.roomNumber} ยังมีแขกพักอยู่ (occupied) กรุณา Check-out แขกคนก่อนหน้าให้เรียบร้อยก่อน`)
+        }
+        if (['dirty', 'cleaning'].includes(st)) {
+          throw new BadRequestException(`ห้อง ${br.room.roomNumber} ยังไม่พร้อม (${st}) กรุณารอแม่บ้านทำความสะอาดให้เสร็จ`)
+        }
+        if (['out_of_order', 'out_of_service'].includes(st)) {
+          throw new BadRequestException(`ห้อง ${br.room.roomNumber} ปิดใช้งานอยู่ (${st}) กรุณาเปลี่ยนห้อง`)
+        }
+        if (!['clean', 'inspected'].includes(st)) {
+          throw new BadRequestException(`ห้อง ${br.room.roomNumber} สถานะไม่พร้อมสำหรับ Check-in (${st})`)
+        }
+
+        // Defensive invariant: never allow two active checked-in bookings on the
+        // same physical room, even if the room status somehow drifted out of sync.
+        const activeCheckedIn = await tx.bookingRoom.findFirst({
+          where: {
+            roomId: br.roomId,
+            bookingId: { not: bookingId },
+            status: 'checked_in',
+            booking: { status: 'checked_in' },
+          },
+          include: { booking: { select: { bookingNumber: true } } },
+        })
+        if (activeCheckedIn) {
+          throw new BadRequestException(`ห้อง ${br.room.roomNumber} มีการเข้าพักค้างอยู่ (${activeCheckedIn.booking.bookingNumber}) กรุณา Check-out ก่อน`)
         }
       }
 

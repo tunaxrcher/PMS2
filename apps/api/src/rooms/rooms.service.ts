@@ -96,6 +96,25 @@ export class RoomsService {
     const validStatuses = ['clean', 'dirty', 'occupied', 'cleaning', 'inspected', 'out_of_order', 'out_of_service']
     if (!validStatuses.includes(status)) throw new BadRequestException('สถานะไม่ถูกต้อง')
 
+    // Keep room status in sync with active occupancy. If a guest is currently
+    // checked in to this room, turning it over to a housekeeping/ready state
+    // (clean/inspected/dirty/cleaning) without a proper Check-out would leave the
+    // booking dangling. Block it and tell the user to Check-out first. Emergency
+    // closures (out_of_order/out_of_service) are still allowed.
+    if (['clean', 'inspected', 'dirty', 'cleaning'].includes(status)) {
+      const activeCheckedIn = await this.prisma.bookingRoom.findFirst({
+        where: {
+          roomId: id,
+          status: 'checked_in',
+          booking: { status: 'checked_in' },
+        },
+        include: { booking: { select: { bookingNumber: true } } },
+      })
+      if (activeCheckedIn) {
+        throw new BadRequestException(`ห้องนี้มีแขกเช็คอินอยู่ (${activeCheckedIn.booking.bookingNumber}) กรุณา Check-out ก่อนเปลี่ยนสถานะห้อง`)
+      }
+    }
+
     await this.prisma.$transaction([
       this.prisma.room.update({ where: { id }, data: { currentStatus: status } }),
       this.prisma.roomStatusLog.create({

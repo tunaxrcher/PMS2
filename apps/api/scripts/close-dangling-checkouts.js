@@ -72,14 +72,32 @@ function folioBalance(folio) {
 
   for (const b of candidates) {
     const rooms = b.bookingRooms.map(br => br.room?.roomNumber ?? '(none)').join(',');
-    // A room that is still 'occupied' AND still active is a genuine overstay — the
-    // guest is physically in-house — so leave it for manual handling. A soft-deleted
+    // Genuine overstay vs dangling-behind-a-new-guest.
+    // A room still 'occupied' AND active normally means the guest is physically
+    // in-house (genuine overstay) — leave it for manual handling. A soft-deleted
     // (inactive) room no longer represents real occupancy, so its lingering booking
-    // is treated as dangling and closed.
-    const anyOccupied = b.bookingRooms.some(br => br.room?.active && br.room?.currentStatus === 'occupied');
-    if (anyOccupied) {
+    // is dangling and gets closed.
+    // EXCEPTION: if a DIFFERENT active booking currently occupies that same room
+    // *today*, this booking's guest must have already left (a new guest took the
+    // room), so it is definitely a dangling checkout — close it, don't skip.
+    let genuineOverstay = false;
+    for (const br of b.bookingRooms) {
+      if (!br.roomId || !(br.room?.active && br.room?.currentStatus === 'occupied')) continue;
+      const otherCoversToday = await p.bookingRoom.count({
+        where: {
+          roomId: br.roomId,
+          bookingId: { not: b.id },
+          status: { notIn: ['cancelled', 'no_show', 'checked_out'] },
+          checkInDate: { lte: targetDate },
+          checkOutDate: { gt: targetDate },
+          booking: { status: { notIn: ['cancelled', 'no_show', 'checked_out'] } },
+        },
+      });
+      if (otherCoversToday === 0) { genuineOverstay = true; break; }
+    }
+    if (genuineOverstay) {
       skippedOverstay++;
-      console.log(`SKIP  ${b.bookingNumber} rooms=${rooms} — a room is still 'occupied' (genuine overstay, needs manual handling)`);
+      console.log(`SKIP  ${b.bookingNumber} rooms=${rooms} — room still 'occupied' with no newer guest (genuine overstay, needs manual handling)`);
       continue;
     }
 
